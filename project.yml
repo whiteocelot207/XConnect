@@ -1,6 +1,6 @@
 name: XConnect
 options:
-  bundleIdPrefix: id.nmaxconnect
+  bundleIdPrefix: id.xconnect
   deploymentTarget:
     iOS: "15.0"
 packages:
@@ -17,7 +17,7 @@ targets:
       - package: MapLibre
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: id.nmaxconnect.app  # sengaja tidak diganti agar data & pengaturan lama tetap ada
+        PRODUCT_BUNDLE_IDENTIFIER: id.xconnect.app  # sengaja tidak diganti agar data & pengaturan lama tetap ada
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "0.5.0"
