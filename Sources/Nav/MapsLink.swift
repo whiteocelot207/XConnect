@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import MapKit
 
 enum LinkError: LocalizedError {
     case noURL
@@ -68,46 +69,118 @@ enum MapsLink {
             bodies.append(body)
             chainCount += chain.count
             if let l = chain.last { lastHost = "\(l.host ?? "?")\(l.path.prefix(40))" }
-            if chainURLs.contains(where: { pinCoordinate(from: $0) != nil || placeCenter(from: $0) != nil }) { break }
+            if chainURLs.contains(where: { pinCoordinate(from: $0) != nil || placeCenter(from: $0) != nil || queryText($0) != nil }) { break }
         }
         debug = "\(lastHost) · \(chainCount) alamat" + (failure.isEmpty ? "" : " · \(failure)")
 
         let name = chainURLs.compactMap { placeName(from: $0) }.first
+            ?? chainURLs.reversed().compactMap { queryText($0) }.first      // alamat akhir (q=…) paling dipercaya
             ?? bodyLinks.compactMap { placeName(from: $0) }.first
             ?? bodies.compactMap { ogTitle($0) }.first
-            ?? chainURLs.compactMap { queryText($0) }.first
 
-        // 1) Titik pin tempat (!3d!4d) atau koordinat eksplisit (q=, destination=): paling akurat.
-        if let c = chainURLs.compactMap({ pinCoordinate(from: $0) }).first {
-            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps", lat: c.latitude, lon: c.longitude)
+        func made(_ method: String, _ c: CLLocationCoordinate2D, _ title: String? = nil) -> Place {
+            Place(name: title ?? name ?? "Lokasi dari Google Maps",
+                  subtitle: "\(method) · \(Fmt.distance(Geo.distance(near, c))) dari Anda",
+                  lat: c.latitude, lon: c.longitude)
         }
+
+        // 1) Titik pin tempat (!3d!4d) atau koordinat eksplisit (q=lat,lon, destination=): paling akurat.
+        if let c = chainURLs.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps", c) }
         // 2) Pusat peta pada tautan /maps/place/…/@lat,lon (umumnya tepat di tempatnya).
-        if let c = chainURLs.compactMap({ placeCenter(from: $0) }).first {
-            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps", lat: c.latitude, lon: c.longitude)
-        }
+        if let c = chainURLs.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps", c) }
         // 3) ID tempat (ftid / cid) dibuka lewat maps.google.com/?cid=
         if let cid = cidDecimal(in: chainURLs + bodyLinks + bodies),
            let u = URL(string: "https://maps.google.com/?cid=\(cid)"),
            let r = try? await follow(u, ua: desktopUA) {
             let urls = r.chain.map { unwrapConsent($0) }.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
             if let c = urls.compactMap({ pinCoordinate(from: $0) }).first ?? urls.compactMap({ placeCenter(from: $0) }).first {
-                return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps", lat: c.latitude, lon: c.longitude)
+                return made("Google Maps (ID tempat)", c)
             }
         }
-        // 4) Cari berdasarkan nama; pilih hasil TERDEKAT dari posisi Anda.
-        //    (Koordinat di isi halaman Google hanyalah pusat tampilan peta, sering jauh dari tempatnya.)
+        // 4) Alamat akhir hanya berisi teks (q=nama, alamat). Ubah teks itu menjadi titik lewat
+        //    Apple Maps + OpenStreetMap, lalu pilih yang namanya paling cocok (bukan sekadar hasil pertama).
         if let n = name {
-            let found = (try? await PlaceSearch.search(n, near: near)) ?? []
-            let best = found.min { Geo.distance(near, $0.coordinate) < Geo.distance(near, $1.coordinate) }
-            if let f = best { return Place(name: n, subtitle: f.subtitle, lat: f.lat, lon: f.lon) }
+            if let hit = await geocodeText(n, near: near) {
+                return Place(name: hit.name, subtitle: "\(hit.source) · \(Fmt.distance(Geo.distance(near, hit.coord))) dari Anda",
+                             lat: hit.coord.latitude, lon: hit.coord.longitude)
+            }
         }
-        // 5) Terakhir: tebakan dari isi halaman (kurang akurat, diberi tanda).
+        // 5) Terakhir: tebakan dari isi halaman (hanya pusat tampilan peta, bisa jauh). Diberi tanda.
         let weak = bodyLinks.compactMap { pinCoordinate(from: $0) ?? placeCenter(from: $0) }.first
             ?? bodies.compactMap { coordinates(fromBody: $0) }.first
-        if let c = weak {
-            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Perkiraan, periksa lokasinya", lat: c.latitude, lon: c.longitude)
-        }
+        if let c = weak { return made("Perkiraan, periksa lokasinya", c) }
         throw LinkError.noPlace
+    }
+
+    // MARK: - Teks → titik
+
+    private struct Hit { let name: String; let coord: CLLocationCoordinate2D; let source: String; let score: Double }
+
+    private static let stopWords: Set<String> = ["pt", "cv", "jl", "jalan", "kec", "kecamatan", "kel", "kab", "kota", "no", "rt", "rw",
+                                                  "dan", "the", "and", "of", "di", "lot", "blok"]
+
+    private static func tokens(_ s: String) -> Set<String> {
+        let parts = s.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted)
+        return Set(parts.filter { $0.count >= 2 && !stopWords.contains($0) })
+    }
+
+    /// Porsi kata pada `target` yang ditemukan di `candidate` (0...1).
+    private static func similarity(_ target: String, _ candidate: String) -> Double {
+        let t = tokens(target)
+        if t.isEmpty { return 0 }
+        return Double(t.intersection(tokens(candidate)).count) / Double(t.count)
+    }
+
+    private static func geocodeText(_ text: String, near: CLLocationCoordinate2D) async -> Hit? {
+        let segs = text.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard let head = segs.first else { return nil }
+        let city = segs.count >= 3 ? segs[segs.count - 2] : (segs.count == 2 ? segs[1] : "")
+        var queries = [String]()
+        func add(_ q: String) { let t = q.trimmingCharacters(in: .whitespaces); if !t.isEmpty && !queries.contains(t) { queries.append(t) } }
+        add(city.isEmpty ? head : "\(head) \(city)")
+        add(head)
+        if segs.count > 1, segs[1] != head { add(city.isEmpty ? segs[1] : "\(segs[1]) \(city)") }
+        if segs.count > 3 { add(text) }
+
+        var all = [Hit]()
+        for q in queries {
+            var found = [Hit]()
+            for (title, c, src) in await appleSearch(q, near: near) {
+                found.append(Hit(name: title.0, coord: c, source: src, score: max(similarity(head, title.0), similarity(head, title.1))))
+            }
+            for p in (try? await PlaceSearch.search(q, near: near)) ?? [] {
+                let sc = max(similarity(head, p.name), similarity(head, p.name + " " + p.subtitle))
+                found.append(Hit(name: p.name, coord: p.coordinate, source: "OpenStreetMap", score: sc))
+            }
+            all += found
+            // cukup yakin: nama cocok hampir seluruhnya
+            if let best = pick(found, near: near), best.score >= 0.75 { return best }
+        }
+        if let best = pick(all, near: near), best.score >= 0.5 { return best }
+
+        // alamat jalan lengkap → geocoder Apple (setidaknya dekat, bukan puluhan km)
+        if segs.count >= 3, let marks = try? await CLGeocoder().geocodeAddressString(text),
+           let m = marks.first, let loc = m.location {
+            return Hit(name: head, coord: loc.coordinate, source: "Alamat (Apple)", score: 0.4)
+        }
+        return nil
+    }
+
+    /// Skor tertinggi dulu; bila selisih kecil, pilih yang terdekat dari posisi Anda.
+    private static func pick(_ hits: [Hit], near: CLLocationCoordinate2D) -> Hit? {
+        guard let top = hits.map({ $0.score }).max(), top > 0 else { return nil }
+        return hits.filter { $0.score >= top - 0.1 }
+            .min { Geo.distance(near, $0.coord) < Geo.distance(near, $1.coord) }
+    }
+
+    private static func appleSearch(_ q: String, near: CLLocationCoordinate2D) async -> [((String, String), CLLocationCoordinate2D, String)] {
+        let req = MKLocalSearch.Request()
+        req.naturalLanguageQuery = q
+        req.region = MKCoordinateRegion(center: near, span: MKCoordinateSpan(latitudeDelta: 6, longitudeDelta: 6))
+        guard let resp = try? await MKLocalSearch(request: req).start() else { return [] }
+        return resp.mapItems.prefix(10).map { item in
+            ((item.name ?? "", item.placemark.title ?? ""), item.placemark.coordinate, "Apple Maps")
+        }
     }
 
     // MARK: - Alat

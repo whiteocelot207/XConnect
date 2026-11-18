@@ -5,6 +5,9 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
 ## Yang baru di 0.6
+- **Tautan Google Maps berisi teks saja** (`google.com/maps?q=NAMA,+ALAMAT&ftid=…`, tanpa koordinat): teks `q=` dari alamat akhir
+  dicari lewat Apple Maps + OpenStreetMap, dipilih yang namanya paling cocok (bukan hasil pertama), cadangan geocoder alamat.
+  Subtitle tujuan menampilkan sumber dan jarak dari posisi Anda untuk diperiksa.
 - **Volume HP di dash**: sesi audio kini diaktifkan (ambient + mixWithOthers, tidak mengganggu musik) karena iOS hanya
   memperbarui `outputVolume` saat sesi aktif. Arah kompas kosong sampai ada arah gerak; jaringan memakai SIM data.
 - **Tautan Google Maps** (`maps.app.goo.gl/...`): dicoba dengan identitas peramban desktop lebih dulu, lalu iPhone; juga
