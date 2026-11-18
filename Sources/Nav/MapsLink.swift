@@ -73,7 +73,7 @@ enum MapsLink {
         }
         debug = "\(lastHost) · \(chainCount) alamat" + (failure.isEmpty ? "" : " · \(failure)")
 
-        let name = chainURLs.compactMap { placeName(from: $0) }.first
+        var name = chainURLs.compactMap { placeName(from: $0) }.first
             ?? chainURLs.reversed().compactMap { queryText($0) }.first      // alamat akhir (q=…) paling dipercaya
             ?? bodyLinks.compactMap { placeName(from: $0) }.first
             ?? bodies.compactMap { ogTitle($0) }.first
@@ -88,6 +88,18 @@ enum MapsLink {
         if let c = chainURLs.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps", c) }
         // 2) Pusat peta pada tautan /maps/place/…/@lat,lon (umumnya tepat di tempatnya).
         if let c = chainURLs.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps", c) }
+        // 2b) Buka seperti peramban PC (WKWebView tersembunyi) dan tangkap perubahan alamat yang dibuat
+        //     JavaScript Google: ?q=…&ftid=… berubah menjadi /maps/place/NAMA/@lat,lon/data=…!3d…!4d….
+        if isShort || host.contains("google.") {
+            let web = await MapsWebResolver.run(url, ua: desktopUA)
+            let wurls = web.urls.map { unwrapConsent(URL(string: $0) ?? url).absoluteString.removingPercentEncoding ?? $0 }
+            chainURLs += web.urls + wurls
+            bodies.append(web.html)
+            debug += " · web \(web.urls.count) alamat"
+            if let n = web.urls.compactMap({ placeName(from: $0) }).first { name = n }
+            if let c = web.urls.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps (peramban)", c) }
+            if let c = web.urls.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps (peramban)", c) }
+        }
         // 3) ID tempat (ftid / cid) dibuka lewat maps.google.com/?cid=
         if let cid = cidDecimal(in: chainURLs + bodyLinks + bodies),
            let u = URL(string: "https://maps.google.com/?cid=\(cid)"),
@@ -233,7 +245,7 @@ enum MapsLink {
     }
 
     /// Titik pin tempat atau koordinat eksplisit pada tautan.
-    private static func pinCoordinate(from s: String) -> CLLocationCoordinate2D? {
+    static func pinCoordinate(from s: String) -> CLLocationCoordinate2D? {
         if let m = match("!3d(-?\\d+\\.\\d+)!4d(-?\\d+\\.\\d+)", in: s), let c = coord(m[0], m[1]) { return c }
         if let m = match("[?&](?:q|query|ll|destination|daddr)=(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)", in: s),
            let c = coord(m[0], m[1]) { return c }
@@ -241,7 +253,7 @@ enum MapsLink {
     }
 
     /// Pusat peta (@lat,lon) hanya dipercaya pada tautan /maps/place/, bukan pada pencarian.
-    private static func placeCenter(from s: String) -> CLLocationCoordinate2D? {
+    static func placeCenter(from s: String) -> CLLocationCoordinate2D? {
         guard s.contains("/maps/place/") else { return nil }
         if let m = match("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)", in: s), let c = coord(m[0], m[1]) { return c }
         return nil

@@ -5,6 +5,9 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
 ## Yang baru di 0.6
+- **Tautan Google Maps dibuka seperti peramban PC**: bila alamat akhir tidak memuat koordinat, app membuka tautan di WKWebView
+  tersembunyi (identitas peramban PC), menunggu JavaScript Google mengubah alamat menjadi /maps/place/…/@lat,lon/…!3d…!4d…,
+  lalu membaca koordinatnya (maks. 14 dtk). Pencarian nama (Apple Maps/OSM) hanya cadangan bila langkah ini gagal.
 - **Tautan Google Maps berisi teks saja** (`google.com/maps?q=NAMA,+ALAMAT&ftid=…`, tanpa koordinat): teks `q=` dari alamat akhir
   dicari lewat Apple Maps + OpenStreetMap, dipilih yang namanya paling cocok (bukan hasil pertama), cadangan geocoder alamat.
   Subtitle tujuan menampilkan sumber dan jarak dari posisi Anda untuk diperiksa.
