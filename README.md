@@ -5,6 +5,8 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
 ## Yang baru di 0.6
+- **Volume HP di dash**: sesi audio kini diaktifkan (ambient + mixWithOthers, tidak mengganggu musik) karena iOS hanya
+  memperbarui `outputVolume` saat sesi aktif. Arah kompas kosong sampai ada arah gerak; jaringan memakai SIM data.
 - **Tautan Google Maps** (`maps.app.goo.gl/...`): dicoba dengan identitas peramban desktop lebih dulu, lalu iPhone; juga
   membaca ID tempat (ftid/cid), alamat tersembunyi di isi halaman, dan pola koordinat baru. Bila masih gagal, pesan
   errornya memuat host akhir dan jumlah pengalihan: kirim pesan itu.
@@ -17,7 +19,7 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 - **Kotak data**: latar kolom kini setinggi layar dengan tepi kiri memudar; kegelapannya bisa diatur (0 = transparan).
 - **Data CCU lengkap**: kotak baru DTC, kecepatan CCU, volume HP, output audio, jaringan seluler, tanggal, arah, ketinggian,
   dan "CCU byte 0-23" (data mentah). Halaman "Data mentah CCU" menampilkan semua byte; nilai berubah dicatat di Log.
-- **Sapaan**: kata sapaan dan nama bisa diubah di tab Home (juga di Pengaturan > Tampilan).
+- **Sapaan**: kata sapaan dan nama diubah di Pengaturan > Tampilan (kotaknya sudah dihapus dari tab Home).
 - **Format jam** 12/24 jam untuk jam dan ETA yang digambar app.
 - **Layar awal** saat motor dinyalakan bisa dipilih; layar baru **Tes tombol** (aktif/nonaktif seperti layar lain).
 - **Tombol stang**: jendela klik 2x bisa diatur (300-1200 ms); tiap tekan masuk Log. Perintah media (next/prev/OK,

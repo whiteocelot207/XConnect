@@ -338,7 +338,7 @@ final class BikeController: NSObject, ObservableObject {
         c.ccuRaw = live.rawRecord
         c.dateText = Fmt.shortDate(Date())
         c.buttonLog = buttonLog
-        let vol = AVAudioSession.sharedInstance().outputVolume
+        let vol = model?.music.systemVolume ?? AVAudioSession.sharedInstance().outputVolume
         c.phoneVolume = Int((vol * 100).rounded())
         c.audioOut = AVAudioSession.sharedInstance().currentRoute.outputs.first.map { Geo.ascii($0.portName, maxLen: 14) } ?? ""
         c.network = networkText()
@@ -359,7 +359,7 @@ final class BikeController: NSObject, ObservableObject {
         if let l = location.lastLocation {
             c.altitudeM = Int(l.altitude.rounded())
         }
-        c.headingText = compass(location.bearing)
+        c.headingText = location.bearingKnown ? compass(location.bearing) : ""
         switch currentScreen {
         case .music: c.music = m.music.info
         case .slideshow: c.slide = m.slides.current(interval: settings.slideSeconds)
@@ -375,7 +375,11 @@ final class BikeController: NSObject, ObservableObject {
     }
 
     private func networkText() -> String {
-        guard let techs = netInfo.serviceCurrentRadioAccessTechnology?.values else { return "" }
+        let map = netInfo.serviceCurrentRadioAccessTechnology
+        var techs: [String] = map.map { Array($0.values) } ?? []
+        // pakai jaringan yang dipakai untuk data seluler (kartu SIM data), bukan SIM lain
+        if let id = netInfo.dataServiceIdentifier, let t = map?[id] { techs = [t] }
+        if techs.isEmpty { return "" }
         var best = 0
         for t in techs {
             var g = 0

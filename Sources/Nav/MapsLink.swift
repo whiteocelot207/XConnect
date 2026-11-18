@@ -37,9 +37,9 @@ enum MapsLink {
         }
         guard let url = firstURL(in: raw) else { throw LinkError.noURL }
 
-        // Tautan pendek: coba dua jenis browser. Peramban desktop (yang berhasil di PC) dicoba lebih dulu,
-        // lalu peramban iPhone. Hasil dari semua percobaan digabung.
-        var allURLs = [String]()
+        // Tautan pendek: coba dua jenis browser. Peramban desktop dicoba lebih dulu, lalu peramban iPhone.
+        var chainURLs = [String]()      // alamat dari rantai pengalihan (tepercaya)
+        var bodyLinks = [String]()      // alamat yang tersembunyi di isi halaman (kurang tepercaya)
         var bodies = [String]()
         var chainCount = 0
         var lastHost = url.host ?? "?"
@@ -57,45 +57,55 @@ enum MapsLink {
                     body = r.body
                 } catch {
                     failure = error.localizedDescription
-                    allURLs.append(url.absoluteString.removingPercentEncoding ?? url.absoluteString)
+                    chainURLs.append(url.absoluteString.removingPercentEncoding ?? url.absoluteString)
                     continue
                 }
             }
             // halaman persetujuan Google membungkus tautan asli di parameter "continue"
             chain = chain.map { unwrapConsent($0) }
-            let urls = chain.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
-            allURLs += urls
-            allURLs += linksInBody(body)
+            chainURLs += chain.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
+            bodyLinks += linksInBody(body)
             bodies.append(body)
             chainCount += chain.count
             if let l = chain.last { lastHost = "\(l.host ?? "?")\(l.path.prefix(40))" }
-            if allURLs.contains(where: { coordinates(from: $0) != nil }) { break }
-            if bodies.contains(where: { coordinates(fromBody: $0) != nil }) { break }
+            if chainURLs.contains(where: { pinCoordinate(from: $0) != nil || placeCenter(from: $0) != nil }) { break }
         }
         debug = "\(lastHost) · \(chainCount) alamat" + (failure.isEmpty ? "" : " · \(failure)")
 
-        let name = allURLs.compactMap { placeName(from: $0) }.first
+        let name = chainURLs.compactMap { placeName(from: $0) }.first
+            ?? bodyLinks.compactMap { placeName(from: $0) }.first
             ?? bodies.compactMap { ogTitle($0) }.first
-            ?? allURLs.compactMap { queryText($0) }.first
-        var coord = allURLs.compactMap { coordinates(from: $0) }.first
-        if coord == nil { coord = bodies.compactMap { coordinates(fromBody: $0) }.first }
+            ?? chainURLs.compactMap { queryText($0) }.first
 
-        // cadangan: ID tempat (ftid / cid) dibuka lewat alamat maps.google.com/?cid=
-        if coord == nil, let cid = cidDecimal(in: allURLs + bodies) {
-            if let u = URL(string: "https://maps.google.com/?cid=\(cid)"),
-               let r = try? await follow(u, ua: desktopUA) {
-                let urls = r.chain.map { unwrapConsent($0) }.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
-                coord = urls.compactMap { coordinates(from: $0) }.first ?? coordinates(fromBody: r.body)
+        // 1) Titik pin tempat (!3d!4d) atau koordinat eksplisit (q=, destination=): paling akurat.
+        if let c = chainURLs.compactMap({ pinCoordinate(from: $0) }).first {
+            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps", lat: c.latitude, lon: c.longitude)
+        }
+        // 2) Pusat peta pada tautan /maps/place/…/@lat,lon (umumnya tepat di tempatnya).
+        if let c = chainURLs.compactMap({ placeCenter(from: $0) }).first {
+            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps", lat: c.latitude, lon: c.longitude)
+        }
+        // 3) ID tempat (ftid / cid) dibuka lewat maps.google.com/?cid=
+        if let cid = cidDecimal(in: chainURLs + bodyLinks + bodies),
+           let u = URL(string: "https://maps.google.com/?cid=\(cid)"),
+           let r = try? await follow(u, ua: desktopUA) {
+            let urls = r.chain.map { unwrapConsent($0) }.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
+            if let c = urls.compactMap({ pinCoordinate(from: $0) }).first ?? urls.compactMap({ placeCenter(from: $0) }).first {
+                return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps", lat: c.latitude, lon: c.longitude)
             }
         }
-
-        if let c = coord {
-            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps",
-                         lat: c.latitude, lon: c.longitude)
-        }
+        // 4) Cari berdasarkan nama; pilih hasil TERDEKAT dari posisi Anda.
+        //    (Koordinat di isi halaman Google hanyalah pusat tampilan peta, sering jauh dari tempatnya.)
         if let n = name {
-            let found = try await PlaceSearch.search(n, near: near)
-            if let f = found.first { return Place(name: n, subtitle: f.subtitle, lat: f.lat, lon: f.lon) }
+            let found = (try? await PlaceSearch.search(n, near: near)) ?? []
+            let best = found.min { Geo.distance(near, $0.coordinate) < Geo.distance(near, $1.coordinate) }
+            if let f = best { return Place(name: n, subtitle: f.subtitle, lat: f.lat, lon: f.lon) }
+        }
+        // 5) Terakhir: tebakan dari isi halaman (kurang akurat, diberi tanda).
+        let weak = bodyLinks.compactMap { pinCoordinate(from: $0) ?? placeCenter(from: $0) }.first
+            ?? bodies.compactMap { coordinates(fromBody: $0) }.first
+        if let c = weak {
+            return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Perkiraan, periksa lokasinya", lat: c.latitude, lon: c.longitude)
         }
         throw LinkError.noPlace
     }
@@ -149,11 +159,18 @@ enum MapsLink {
         return n.isEmpty ? nil : n
     }
 
-    private static func coordinates(from s: String) -> CLLocationCoordinate2D? {
+    /// Titik pin tempat atau koordinat eksplisit pada tautan.
+    private static func pinCoordinate(from s: String) -> CLLocationCoordinate2D? {
         if let m = match("!3d(-?\\d+\\.\\d+)!4d(-?\\d+\\.\\d+)", in: s), let c = coord(m[0], m[1]) { return c }
-        if let m = match("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)", in: s), let c = coord(m[0], m[1]) { return c }
-        if let m = match("[?&](?:q|query|ll|destination|daddr|center)=(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)", in: s),
+        if let m = match("[?&](?:q|query|ll|destination|daddr)=(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)", in: s),
            let c = coord(m[0], m[1]) { return c }
+        return nil
+    }
+
+    /// Pusat peta (@lat,lon) hanya dipercaya pada tautan /maps/place/, bukan pada pencarian.
+    private static func placeCenter(from s: String) -> CLLocationCoordinate2D? {
+        guard s.contains("/maps/place/") else { return nil }
+        if let m = match("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)", in: s), let c = coord(m[0], m[1]) { return c }
         return nil
     }
 

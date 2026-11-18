@@ -40,6 +40,7 @@ final class MusicService: ObservableObject {
     func startMonitoring() {
         guard !monitoring else { return }
         monitoring = true
+        activateAudioSession()
         let p = MPMusicPlayerController.systemMusicPlayer
         p.beginGeneratingPlaybackNotifications()
         let nc = NotificationCenter.default
@@ -53,8 +54,34 @@ final class MusicService: ObservableObject {
             guard let v = change.newValue else { return }
             DispatchQueue.main.async { self?.onLog("Volume sistem berubah → \(Int((v * 100).rounded()))%") }
         }
+        // sesi audio bisa lepas (telepon, Siri, app lain): aktifkan lagi supaya volume tetap terbaca
+        nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.activateAudioSession()
+        }
+        nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
+            let t = (n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap(AVAudioSession.InterruptionType.init)
+            if t == .ended { self?.activateAudioSession() }
+        }
+        nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.activateAudioSession()
+        }
         registerRemoteCommands()
     }
+
+    /// iOS hanya memperbarui AVAudioSession.outputVolume (dan KVO-nya) bila sesi audio AKTIF.
+    /// Kategori ambient + mixWithOthers: tidak menghentikan atau mengganggu musik yang sedang diputar.
+    func activateAudioSession() {
+        let s = AVAudioSession.sharedInstance()
+        do {
+            try s.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try s.setActive(true)
+        } catch {
+            onLog("Sesi audio gagal aktif: \(error.localizedDescription)")
+        }
+    }
+
+    /// Volume sistem 0...1 untuk kotak "Volume HP" di dash.
+    var systemVolume: Float { AVAudioSession.sharedInstance().outputVolume }
 
     private func registerRemoteCommands() {
         let c = MPRemoteCommandCenter.shared()
@@ -109,6 +136,7 @@ final class MusicService: ObservableObject {
 
     func start() {
         stop()
+        activateAudioSession()
         ensureVolumeView()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.refresh() }
         refresh()

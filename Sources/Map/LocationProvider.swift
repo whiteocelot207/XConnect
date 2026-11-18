@@ -5,6 +5,7 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private(set) var coordinate = CLLocationCoordinate2D(latitude: -6.1754, longitude: 106.8272) // Monas (cadangan)
     private(set) var bearing: Double = 0
+    private(set) var bearingKnown = false
     private(set) var speedKmh: Double = 0
     private(set) var hasFix = false
     private(set) var lastLocation: CLLocation?
@@ -37,7 +38,7 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         lastLocation = l
         hasFix = true
         speedKmh = max(0, l.speed) * 3.6
-        if l.speed > 1.5, l.course >= 0 { bearing = l.course }
+        if l.speed > 1.5, l.course >= 0 { bearing = l.course; bearingKnown = true }
         onUpdate?(l)
     }
 }
