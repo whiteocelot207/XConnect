@@ -37,24 +37,58 @@ enum MapsLink {
         }
         guard let url = firstURL(in: raw) else { throw LinkError.noURL }
 
-        var chain: [URL] = [url]
-        var body = ""
+        // Tautan pendek: coba dua jenis browser. Peramban desktop (yang berhasil di PC) dicoba lebih dulu,
+        // lalu peramban iPhone. Hasil dari semua percobaan digabung.
+        var allURLs = [String]()
+        var bodies = [String]()
+        var chainCount = 0
+        var lastHost = url.host ?? "?"
         let host = (url.host ?? "").lowercased()
-        if host.contains("goo.gl") || host.contains("app.goo") {
-            let r = try await follow(url)
-            chain = r.chain
-            body = r.body
+        let isShort = host.contains("goo.gl") || host.contains("app.goo")
+        let agents = isShort ? [desktopUA, mobileUA] : [desktopUA]
+        var failure = ""
+        for ua in agents {
+            var chain: [URL] = [url]
+            var body = ""
+            if isShort || host.contains("google.") {
+                do {
+                    let r = try await follow(url, ua: ua)
+                    chain = r.chain
+                    body = r.body
+                } catch {
+                    failure = error.localizedDescription
+                    allURLs.append(url.absoluteString.removingPercentEncoding ?? url.absoluteString)
+                    continue
+                }
+            }
+            // halaman persetujuan Google membungkus tautan asli di parameter "continue"
+            chain = chain.map { unwrapConsent($0) }
+            let urls = chain.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
+            allURLs += urls
+            allURLs += linksInBody(body)
+            bodies.append(body)
+            chainCount += chain.count
+            if let l = chain.last { lastHost = "\(l.host ?? "?")\(l.path.prefix(40))" }
+            if allURLs.contains(where: { coordinates(from: $0) != nil }) { break }
+            if bodies.contains(where: { coordinates(fromBody: $0) != nil }) { break }
         }
-        // halaman persetujuan Google membungkus tautan asli di parameter "continue"
-        chain = chain.map { unwrapConsent($0) }
+        debug = "\(lastHost) · \(chainCount) alamat" + (failure.isEmpty ? "" : " · \(failure)")
 
-        // semua alamat di rantai pengalihan diperiksa: alamat pertama biasanya masih memuat nama dan koordinat,
-        // alamat akhir bisa saja hanya google.com/maps
-        let urls = chain.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
-        let last = chain.last ?? url
-        debug = "\(last.host ?? "?")\(last.path.prefix(60)) · \(chain.count) alamat"
-        let name = urls.compactMap { placeName(from: $0) }.first ?? ogTitle(body) ?? urls.compactMap { queryText($0) }.first
-        let coord = urls.compactMap { coordinates(from: $0) }.first ?? coordinates(fromBody: body)
+        let name = allURLs.compactMap { placeName(from: $0) }.first
+            ?? bodies.compactMap { ogTitle($0) }.first
+            ?? allURLs.compactMap { queryText($0) }.first
+        var coord = allURLs.compactMap { coordinates(from: $0) }.first
+        if coord == nil { coord = bodies.compactMap { coordinates(fromBody: $0) }.first }
+
+        // cadangan: ID tempat (ftid / cid) dibuka lewat alamat maps.google.com/?cid=
+        if coord == nil, let cid = cidDecimal(in: allURLs + bodies) {
+            if let u = URL(string: "https://maps.google.com/?cid=\(cid)"),
+               let r = try? await follow(u, ua: desktopUA) {
+                let urls = r.chain.map { unwrapConsent($0) }.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
+                coord = urls.compactMap { coordinates(from: $0) }.first ?? coordinates(fromBody: r.body)
+            }
+        }
+
         if let c = coord {
             return Place(name: name ?? "Lokasi dari Google Maps", subtitle: "Google Maps",
                          lat: c.latitude, lon: c.longitude)
@@ -91,10 +125,12 @@ enum MapsLink {
         return u
     }
 
-    private static func follow(_ url: URL) async throws -> (chain: [URL], body: String) {
+    private static let desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    private static let mobileUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+
+    private static func follow(_ url: URL, ua: String) async throws -> (chain: [URL], body: String) {
         var req = URLRequest(url: url, timeoutInterval: 15)
-        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
-                     forHTTPHeaderField: "User-Agent")
+        req.setValue(ua, forHTTPHeaderField: "User-Agent")
         req.setValue("id-ID,id;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
         req.setValue("CONSENT=YES+cb.20210720-07-p0.id+FX+410", forHTTPHeaderField: "Cookie")
         let collector = RedirectCollector()
@@ -127,6 +163,8 @@ enum MapsLink {
         if let m = match("center=(-?\\d+\\.\\d+)%2C(-?\\d+\\.\\d+)", in: b), let c = coord(m[0], m[1]) { return c }
         if let m = match("@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)", in: b), let c = coord(m[0], m[1]) { return c }
         if let m = match("\\[null,null,(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)\\]", in: b), let c = coord(m[0], m[1]) { return c }
+        // APP_INITIALIZATION_STATE: [[[jarak,bujur,lintang],…
+        if let m = match("\\[\\[\\[-?[\\d.]+,(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)\\]", in: b), let c = coord(m[1], m[0]) { return c }
         if let m = match("(?:latitude|lat)\\\"?[:=]\\s*(-?\\d+\\.\\d+)[,&\\s\\\"]+(?:longitude|lng|lon)\\\"?[:=]\\s*(-?\\d+\\.\\d+)", in: b), let c = coord(m[0], m[1]) { return c }
         return nil
     }
@@ -143,6 +181,33 @@ enum MapsLink {
         if let m = match("/maps/search/([^/@?]+)", in: s) { return m[0].replacingOccurrences(of: "+", with: " ") }
         if let m = match("[?&](?:q|query)=([^&]+)", in: s), parseCoordinatePair(m[0]) == nil {
             return m[0].replacingOccurrences(of: "+", with: " ")
+        }
+        return nil
+    }
+
+    /// Alamat Google Maps yang tersembunyi di isi halaman (pengalihan lewat JavaScript / meta refresh).
+    private static func linksInBody(_ b: String) -> [String] {
+        if b.isEmpty { return [] }
+        var t = b.replacingOccurrences(of: "\\u003d", with: "=")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "&amp;", with: "&")
+        t = t.removingPercentEncoding ?? t
+        guard let re = try? NSRegularExpression(pattern: "https?://(?:www\\.)?(?:google\\.[a-z.]+|maps\\.google\\.[a-z.]+)/maps[^\"'\\s<>\\\\]+") else { return [] }
+        let ns = t as NSString
+        var out = [String]()
+        for m in re.matches(in: t, range: NSRange(location: 0, length: ns.length)).prefix(12) {
+            out.append(ns.substring(with: m.range))
+        }
+        return out
+    }
+
+    /// ID tempat Google (0x…:0x…) menjadi angka desimal untuk alamat ?cid=
+    private static func cidDecimal(in texts: [String]) -> String? {
+        for t in texts {
+            if let m = match("0x[0-9a-fA-F]+:0x([0-9a-fA-F]{6,16})", in: t), let v = UInt64(m[0], radix: 16) {
+                return String(v)
+            }
         }
         return nil
     }

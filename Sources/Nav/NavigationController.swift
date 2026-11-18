@@ -18,6 +18,9 @@ final class NavigationController: ObservableObject {
     @Published var searching = false
     @Published var destination: Place?
     @Published var route: Route?
+    /// semua pilihan rute (indeks 0 = tercepat) dan yang sedang dipilih
+    @Published var routes: [Route] = []
+    @Published var routeIndex = 0
     @Published var routeVersion = 0
     @Published var busy = false
     @Published var message = ""
@@ -173,11 +176,16 @@ final class NavigationController: ObservableObject {
         let costing = settings.costing
         busy = true
         message = initial ? "Menghitung rute…" : "Menghitung ulang rute…"
+        let alts = (initial && phase != .navigating) ? 2 : 0
         Task { [weak self] in
             do {
-                let r = try await ValhallaClient.route(base: base, costing: costing, from: from,
-                                                       to: dest.coordinate, heading: heading)
-                DispatchQueue.main.async { self?.applyRoute(r, initial: initial) }
+                let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from,
+                                                         to: dest.coordinate, heading: heading, alternatives: alts)
+                DispatchQueue.main.async {
+                    self?.routes = rs
+                    self?.routeIndex = 0
+                    self?.applyRoute(rs[0], initial: initial)
+                }
             } catch {
                 DispatchQueue.main.async {
                     self?.busy = false
@@ -207,6 +215,18 @@ final class NavigationController: ObservableObject {
         }
     }
 
+    /// Pilih salah satu rute alternatif di layar pratinjau.
+    func selectRoute(_ i: Int) {
+        guard phase != .navigating, routes.indices.contains(i) else { return }
+        routeIndex = i
+        let r = routes[i]
+        route = r
+        routeVersion += 1
+        segIdx = 0
+        remainingM = r.totalM
+        etaDate = Date().addingTimeInterval(r.totalS)
+    }
+
     func startNavigation() {
         guard route != nil else { return }
         phase = .navigating
@@ -218,6 +238,8 @@ final class NavigationController: ObservableObject {
     func stop() {
         phase = .idle
         route = nil
+        routes = []
+        routeIndex = 0
         destination = nil
         routeVersion += 1
         message = ""

@@ -23,11 +23,35 @@ enum Fmt {
         return "\(mins / 60) j \(mins % 60) mnt"
     }
 
-    static func clock(_ d: Date) -> String {
+    /// Format jam untuk teks yang digambar app (jam di kotak data, ETA). Diatur dari Pengaturan.
+    static var clock24 = true
+
+    private static let clock24Fmt: DateFormatter = {
         let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "HH:mm"
-        return f.string(from: d)
+        return f
+    }()
+
+    private static let clock12Fmt: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "h:mm a"
+        return f
+    }()
+
+    static func clock(_ d: Date) -> String {
+        clock24 ? clock24Fmt.string(from: d) : clock12Fmt.string(from: d)
     }
+
+    private static let dateFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "id_ID")
+        f.dateFormat = "EEE, d MMM"
+        return f
+    }()
+
+    static func shortDate(_ d: Date) -> String { dateFmt.string(from: d) }
 
     static func ago(_ d: Date) -> String {
         let s = Int(Date().timeIntervalSince(d))

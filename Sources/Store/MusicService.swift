@@ -9,12 +9,93 @@ final class MusicService: ObservableObject {
     @Published var info = MusicInfo()
     @Published var authorized = false
 
+    /// catatan ke Log (perintah media dari dash, perubahan volume, ganti lagu)
+    var onLog: (String) -> Void = { _ in }
+
     private var timer: Timer?
     private var artID: UInt64 = 0
     private var art: UIImage?
+    private var monitoring = false
+    private var volObs: NSKeyValueObservation?
 
     init() {
         authorized = MPMediaLibrary.authorizationStatus() == .authorized
+    }
+
+    private static func stateName(_ s: MPMusicPlaybackState) -> String {
+        switch s {
+        case .playing: return "diputar"
+        case .paused: return "jeda"
+        case .stopped: return "berhenti"
+        case .interrupted: return "terputus"
+        case .seekingForward: return "maju cepat"
+        case .seekingBackward: return "mundur cepat"
+        @unknown default: return "?"
+        }
+    }
+
+    /// Mencatat ke Log semua yang terjadi pada pemutar musik: ganti lagu, putar/jeda, maju/mundur cepat,
+    /// perubahan volume. Tombol next/prev/OK di dash lewat Bluetooth (AVRCP) langsung diproses iOS,
+    /// jadi hasilnya terlihat di sini walau tidak ada pesan iAP dari dash.
+    func startMonitoring() {
+        guard !monitoring else { return }
+        monitoring = true
+        let p = MPMusicPlayerController.systemMusicPlayer
+        p.beginGeneratingPlaybackNotifications()
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: .MPMusicPlayerControllerPlaybackStateDidChange, object: p, queue: .main) { [weak self] _ in
+            self?.onLog("Musik: status \(MusicService.stateName(p.playbackState))")
+        }
+        nc.addObserver(forName: .MPMusicPlayerControllerNowPlayingItemDidChange, object: p, queue: .main) { [weak self] _ in
+            self?.onLog("Musik: lagu berganti → \(p.nowPlayingItem?.title ?? "-")")
+        }
+        volObs = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
+            guard let v = change.newValue else { return }
+            DispatchQueue.main.async { self?.onLog("Volume sistem berubah → \(Int((v * 100).rounded()))%") }
+        }
+        registerRemoteCommands()
+    }
+
+    private func registerRemoteCommands() {
+        let c = MPRemoteCommandCenter.shared()
+        let p = MPMusicPlayerController.systemMusicPlayer
+        c.playCommand.addTarget { [weak self] _ in
+            self?.onLog("Perintah media: putar")
+            p.play()
+            return .success
+        }
+        c.pauseCommand.addTarget { [weak self] _ in
+            self?.onLog("Perintah media: jeda")
+            p.pause()
+            return .success
+        }
+        c.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.onLog("Perintah media: putar/jeda (OK)")
+            if p.playbackState == .playing { p.pause() } else { p.play() }
+            return .success
+        }
+        c.nextTrackCommand.addTarget { [weak self] _ in
+            self?.onLog("Perintah media: lagu berikutnya")
+            p.skipToNextItem()
+            return .success
+        }
+        c.previousTrackCommand.addTarget { [weak self] _ in
+            self?.onLog("Perintah media: lagu sebelumnya")
+            p.skipToPreviousItem()
+            return .success
+        }
+        c.seekForwardCommand.addTarget { [weak self] ev in
+            let begin = (ev as? MPSeekCommandEvent)?.type == .beginSeeking
+            self?.onLog("Perintah media: tahan next (\(begin ? "mulai" : "selesai"))")
+            if begin { p.beginSeekingForward() } else { p.endSeeking() }
+            return .success
+        }
+        c.seekBackwardCommand.addTarget { [weak self] ev in
+            let begin = (ev as? MPSeekCommandEvent)?.type == .beginSeeking
+            self?.onLog("Perintah media: tahan previous (\(begin ? "mulai" : "selesai"))")
+            if begin { p.beginSeekingBackward() } else { p.endSeeking() }
+            return .success
+        }
     }
 
     func requestAccess() {

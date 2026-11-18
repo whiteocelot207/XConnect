@@ -14,11 +14,16 @@ final class VehicleLive: ObservableObject {
     @Published var ignitionOn: Bool?
     @Published var dtcCount: Int?
     @Published var lastUpdate: Date?
+    /// 24 byte paket data id 1 (mentah), untuk kotak "CCU byte n" dan tampilan data mentah
+    @Published var rawRecord: [UInt8] = []
+    /// paket mentah semua id data yang pernah masuk (id -> byte)
+    @Published var rawById: [Int: [UInt8]] = [:]
 
     func reset() {
         connected = false
         batteryV = nil; odoKm = nil; coolantC = nil; airC = nil
         rpm = nil; speedKmh = nil; ignitionOn = nil; dtcCount = nil
+        rawRecord = []; rawById = [:]
     }
 }
 
@@ -43,6 +48,11 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
     var onLog: (String) -> Void = { _ in }
     let live: VehicleLive
+    /// ID data tambahan yang ikut dilanggan (eksperimen, diisi dari Pengaturan)
+    var extraIds: [Int] = []
+    private var lastRawLog = Date.distantPast
+    private var lastRawHex = ""
+    private var seenIds = Set<Int>()
 
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
@@ -290,6 +300,9 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         let wanted = server == 1248 ? [1, 72] : [1]
         var ids = wanted.filter { available.contains($0) }
         if ids.isEmpty { ids = wanted }
+        if server == 1248 {
+            for e in extraIds where !ids.contains(e) { ids.append(e) }
+        }
         var pb = [UInt8]()
         pb += PB.varintField(3, server)
         pb += PB.bytesField(4, ids.flatMap { PB.varint($0) })
@@ -501,11 +514,15 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         let server = PB.ints(f, 3).first ?? 0
         lastData = Date()
         var odo: Double?, volt: Double?, cool: Int?, air: Int?, rpm: Int?, spd: Int?, dtc: Int?
+        var raw1: [UInt8]?
+        var others: [Int: [UInt8]] = [:]
         for entry in f where entry.field == 4 && entry.wire == 2 {
             guard let e = PB.parseAll(entry.bytes) else { continue }
             let id = PB.ints(e, 1).first ?? -1
             let raw = e.first(where: { $0.field == 2 })?.bytes ?? []
+            if id != 1, id != -1, !raw.isEmpty { others[id] = raw }
             if id == 1, raw.count >= 24 {
+                raw1 = Array(raw.prefix(48))
                 rpm = Int(raw[0]) << 8 | Int(raw[1])
                 spd = Int(raw[2])
                 volt = Double(raw[6]) * 18.75 / 256.0
@@ -518,7 +535,22 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 odo = Double(v) / 10.0
             }
         }
+        // catat paket mentah saat berubah (maks 1x per 2 detik) supaya byte yang belum diketahui bisa dipelajari dari log
+        if let r = raw1 {
+            let h = hex(r, 48)
+            if h != lastRawHex, Date().timeIntervalSince(lastRawLog) > 2 {
+                lastRawHex = h
+                lastRawLog = Date()
+                onLog("CCU: data id 1 = \(h)")
+            }
+        }
+        for (id, r) in others where !seenIds.contains(id) {
+            seenIds.insert(id)
+            onLog("CCU: id data \(id) pertama kali masuk (\(r.count) B): \(hex(r, 32))")
+        }
         DispatchQueue.main.async {
+            if let r = raw1 { self.live.rawRecord = r }
+            for (id, r) in others { self.live.rawById[id] = r }
             self.live.connected = true
             self.live.state = "Data CCU masuk"
             self.live.lastUpdate = Date()

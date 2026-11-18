@@ -3,6 +3,8 @@ import UIKit
 import ExternalAccessory
 import Combine
 import CoreLocation
+import AVFoundation
+import CoreTelephony
 
 final class BikeController: NSObject, ObservableObject {
     @Published var status = "Belum terhubung"
@@ -19,6 +21,12 @@ final class BikeController: NSObject, ObservableObject {
     @Published var dashPart = ""
     @Published var accessoryPresent = false
     @Published var screenIndex = 0
+    /// nama jalan saat ini (dari geocoding) bila tidak sedang navigasi
+    @Published var currentStreet = ""
+    /// true selama halaman pengaturan posisi terbuka: tampilkan contoh panel navigasi
+    var demoNav = false
+    /// peristiwa tombol terakhir (untuk layar Tes tombol di dash)
+    private(set) var buttonLog: [String] = []
 
     weak var model: AppModel?
 
@@ -39,6 +47,10 @@ final class BikeController: NSObject, ObservableObject {
     private var previewVisible = false
     private var localTimer: Timer?
     private var localBusy = false
+    private let geocoder = CLGeocoder()
+    private var lastGeocode = Date.distantPast
+    private var lastGeocodeLoc: CLLocation?
+    private let netInfo = CTTelephonyNetworkInfo()
     private let fmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
@@ -82,7 +94,13 @@ final class BikeController: NSObject, ObservableObject {
             .store(in: &bag)
         ccuProbe.onLog = { [weak self] s in self?.log("CCU: " + s) }
         ccuProbe.onInfo = { [weak self] id, pass in
-            DispatchQueue.main.async { self?.ccu.start(ccuId: id, passkey: pass) }
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.ccu.extraIds = self.settings.ccuExtraIds
+                    .split(whereSeparator: { $0 == "," || $0 == " " })
+                    .compactMap { Int($0) }
+                self.ccu.start(ccuId: id, passkey: pass)
+            }
         }
         ccu.onLog = { [weak self] s in self?.log("CCU BLE: " + s) }
         ccu.prepare()   // memunculkan izin Bluetooth di Pengaturan iOS
@@ -108,6 +126,15 @@ final class BikeController: NSObject, ObservableObject {
     }
 
     private func setStatus(_ s: String) { status = s }
+
+    /// Catat peristiwa tombol: masuk log dan tampil di layar Tes tombol.
+    func buttonEvent(_ s: String) {
+        log("Tombol: " + s)
+        DispatchQueue.main.async {
+            self.buttonLog.append("\(self.fmt.string(from: Date())) \(s)")
+            if self.buttonLog.count > 12 { self.buttonLog.removeFirst(self.buttonLog.count - 12) }
+        }
+    }
 
     private func updateIdleTimer() {
         UIApplication.shared.isIdleTimerDisabled = settings.keepScreenOn && isConnected
@@ -213,6 +240,26 @@ final class BikeController: NSObject, ObservableObject {
         if isConnected {
             model?.trips.update(loc)
             model?.weather.refresh(loc.coordinate)
+            updateStreet(loc)
+        }
+    }
+
+    /// Nama jalan untuk bar bawah dash saat tidak navigasi. Dibatasi: minimal 6 detik dan 40 m antar permintaan.
+    private func updateStreet(_ loc: CLLocation) {
+        guard settings.showRoadName else { return }
+        if let last = lastGeocodeLoc, loc.distance(from: last) < 40, !currentStreet.isEmpty { return }
+        guard Date().timeIntervalSince(lastGeocode) > 6, !geocoder.isGeocoding else { return }
+        lastGeocode = Date()
+        lastGeocodeLoc = loc
+        geocoder.reverseGeocodeLocation(loc, preferredLocale: Locale(identifier: "id_ID")) { [weak self] marks, _ in
+            guard let self = self, let pm = marks?.first else { return }
+            let name = pm.thoroughfare ?? pm.name ?? pm.subLocality ?? ""
+            DispatchQueue.main.async {
+                if name != self.currentStreet {
+                    self.currentStreet = name
+                    self.session?.updateIdleRoad(name)
+                }
+            }
         }
     }
 
@@ -227,6 +274,17 @@ final class BikeController: NSObject, ObservableObject {
     var currentScreen: DashScreen {
         let s = screens()
         return s[min(max(0, screenIndex), s.count - 1)]
+    }
+
+    /// Pilih layar awal sesuai pengaturan (dipanggil saat dash baru tersambung).
+    func applyStartScreen() {
+        let list = screens()
+        if settings.startScreen >= 0, let i = list.firstIndex(where: { $0.rawValue == settings.startScreen }) {
+            screenIndex = i
+        } else {
+            screenIndex = 0
+        }
+        log("Layar awal: \(currentScreen.title)")
     }
 
     func stepScreen(forward: Bool) {
@@ -268,6 +326,22 @@ final class BikeController: NSObject, ObservableObject {
         c.infoPhotoL = settings.infoPhotoL
         c.infoPhotoR = settings.infoPhotoR
         c.photoShift = CGFloat(settings.photoShift)
+        c.greetingWord = settings.greetingWord.isEmpty ? "Halo" : settings.greetingWord
+        c.cardBgAlpha = CGFloat(settings.cardBgAlpha)
+        c.markerX = CGFloat(settings.markerX)
+        c.navDX = CGFloat(settings.navDX)
+        c.navDY = CGFloat(settings.navDY)
+        c.etaDX = CGFloat(settings.etaDX)
+        c.etaDY = CGFloat(settings.etaDY)
+        c.dtcCount = live.dtcCount
+        c.ccuSpeedKmh = live.speedKmh
+        c.ccuRaw = live.rawRecord
+        c.dateText = Fmt.shortDate(Date())
+        c.buttonLog = buttonLog
+        let vol = AVAudioSession.sharedInstance().outputVolume
+        c.phoneVolume = Int((vol * 100).rounded())
+        c.audioOut = AVAudioSession.sharedInstance().currentRoute.outputs.first.map { Geo.ascii($0.portName, maxLen: 14) } ?? ""
+        c.network = networkText()
         let bl = UIDevice.current.batteryLevel
         c.phoneBattery = bl >= 0 ? Int((bl * 100).rounded()) : -1
         guard let m = model else { return c }
@@ -279,12 +353,39 @@ final class BikeController: NSObject, ObservableObject {
         c.tempC = m.weather.tempC
         c.weatherText = m.weather.text
         c.nav = m.nav.hud
+        if c.nav == nil, demoNav {
+            c.nav = NavHUD(icon: 35, text: "Belok kanan", dist: "65 m", summary: "1,6 km · 0:37", street: "Jalan Contoh")
+        }
+        if let l = location.lastLocation {
+            c.altitudeM = Int(l.altitude.rounded())
+        }
+        c.headingText = compass(location.bearing)
         switch currentScreen {
         case .music: c.music = m.music.info
         case .slideshow: c.slide = m.slides.current(interval: settings.slideSeconds)
         default: break
         }
         return c
+    }
+
+    private func compass(_ deg: Double) -> String {
+        let names = ["U", "TL", "T", "TG", "S", "BD", "B", "BL"]
+        let i = Int(((deg.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360) + 22.5) / 45) % 8
+        return "\(names[i]) \(Int(deg.rounded()))°"
+    }
+
+    private func networkText() -> String {
+        guard let techs = netInfo.serviceCurrentRadioAccessTechnology?.values else { return "" }
+        var best = 0
+        for t in techs {
+            var g = 0
+            if t.contains("NR") { g = 5 }
+            else if t.contains("LTE") { g = 4 }
+            else if t.contains("WCDMA") || t.contains("HSDPA") || t.contains("HSUPA") || t.contains("EVDO") || t.contains("eHRPD") { g = 3 }
+            else if t.contains("GPRS") || t.contains("Edge") || t.contains("CDMA1x") { g = 2 }
+            best = max(best, g)
+        }
+        return best == 0 ? "" : "\(best)G"
     }
 
     // MARK: - Preview di Home
@@ -334,6 +435,8 @@ final class BikeController: NSObject, ObservableObject {
                 guard let self = self else { return }
                 self.attempts = 0
                 if !self.isConnected {
+                    self.applyStartScreen()
+                    self.session?.updateIdleRoad(self.currentStreet)
                     self.model?.trips.begin()
                     self.model?.music.start()
                     self.model?.weather.refresh(self.location.coordinate)
@@ -355,6 +458,9 @@ final class BikeController: NSObject, ObservableObject {
         s.onGoWork = { [weak self] in DispatchQueue.main.async { self?.nav?.goWork() } }
         s.onStepScreen = { [weak self] fwd in DispatchQueue.main.async { self?.stepScreen(forward: fwd) } }
         s.isMusicScreen = { [weak self] in self?.currentScreen == .music }
+        s.isTestScreen = { [weak self] in self?.currentScreen == .buttonTest }
+        s.onButtonEvent = { [weak self] in self?.buttonEvent($0) }
+        s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 800) / 1000 }
         s.onVolume = { [weak self] up in
             DispatchQueue.main.async {
                 let v = self?.model?.music.adjustVolume(up: up)

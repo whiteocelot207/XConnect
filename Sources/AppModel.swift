@@ -47,6 +47,8 @@ final class AppModel: ObservableObject {
         nav = n
         bike = b
         b.model = self
+        music.onLog = { [weak b] s in b?.log(s) }
+        music.startMonitoring()
     }
 }
 

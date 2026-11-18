@@ -15,6 +15,8 @@ struct Route {
     let maneuvers: [Maneuver]
     let totalM: Double
     let totalS: Double
+    /// nama jalan utama rute (untuk membedakan alternatif)
+    var via: String = ""
 }
 
 enum RouteError: LocalizedError {
@@ -106,12 +108,17 @@ private struct VResponse: Decodable {
         let legs: [Leg]
         let summary: Summary
     }
+    struct Alt: Decodable {
+        let trip: Trip
+    }
     let trip: Trip
+    let alternates: [Alt]?
 }
 
 enum ValhallaClient {
-    static func route(base: String, costing: String, from: CLLocationCoordinate2D,
-                      to: CLLocationCoordinate2D, heading: Double?) async throws -> Route {
+    /// Rute tercepat (indeks 0) diikuti alternatif bila ada (maks 2).
+    static func routes(base: String, costing: String, from: CLLocationCoordinate2D,
+                       to: CLLocationCoordinate2D, heading: Double?, alternatives: Int) async throws -> [Route] {
         let trimmed = base.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
         guard let url = URL(string: trimmed + "/route") else { throw RouteError.badURL }
 
@@ -123,12 +130,13 @@ enum ValhallaClient {
         let end: [String: Any] = ["lat": to.latitude, "lon": to.longitude, "type": "break"]
         let locations: [[String: Any]] = [start, end]
         let opts: [String: Any] = ["units": "kilometers", "language": "id-ID"]
-        let body: [String: Any] = ["locations": locations, "costing": costing, "directions_options": opts]
+        var body: [String: Any] = ["locations": locations, "costing": costing, "directions_options": opts]
+        if alternatives > 0 { body["alternates"] = alternatives }
 
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("XConnect/0.2 (personal navigation app)", forHTTPHeaderField: "User-Agent")
+        req.setValue("XConnect/0.6 (personal navigation app)", forHTTPHeaderField: "User-Agent")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, resp) = try await URLSession.shared.data(for: req)
@@ -142,23 +150,49 @@ enum ValhallaClient {
         }
 
         let r = try JSONDecoder().decode(VResponse.self, from: data)
-        guard let leg = r.trip.legs.first else { throw RouteError.empty }
+        var trips = [r.trip]
+        for a in r.alternates ?? [] { trips.append(a.trip) }
+        var out = [Route]()
+        for t in trips {
+            if let route = build(t) { out.append(route) }
+        }
+        guard !out.isEmpty else { throw RouteError.empty }
+        // urutkan: tercepat dulu (untuk motor), alternatif sesudahnya
+        out.sort { $0.totalS < $1.totalS }
+        return out
+    }
+
+    private static func build(_ trip: VResponse.Trip) -> Route? {
+        guard let leg = trip.legs.first else { return nil }
         let pts = Geo.decodePolyline(leg.shape)
-        guard pts.count >= 2 else { throw RouteError.empty }
+        guard pts.count >= 2 else { return nil }
 
         var cum = [Double](repeating: 0, count: pts.count)
         for i in 1..<pts.count {
             cum[i] = cum[i - 1] + Geo.distance(pts[i - 1], pts[i])
         }
         var mans = [Maneuver]()
+        var longest = 0.0
+        var via = ""
         for m in leg.maneuvers {
+            let street = m.street_names?.first ?? ""
             mans.append(Maneuver(type: m.type,
                                  instruction: m.instruction ?? "",
-                                 street: m.street_names?.first ?? "",
+                                 street: street,
                                  lengthM: m.length * 1000,
                                  beginIdx: min(max(0, m.begin_shape_index), pts.count - 1)))
+            if !street.isEmpty, m.length > longest { longest = m.length; via = street }
         }
-        return Route(points: pts, cum: cum, maneuvers: mans,
-                     totalM: cum[cum.count - 1], totalS: r.trip.summary.time)
+        var route = Route(points: pts, cum: cum, maneuvers: mans,
+                          totalM: cum[cum.count - 1], totalS: trip.summary.time)
+        route.via = via
+        return route
+    }
+
+    /// Kompatibel dengan pemanggil lama: hanya rute tercepat.
+    static func route(base: String, costing: String, from: CLLocationCoordinate2D,
+                      to: CLLocationCoordinate2D, heading: Double?) async throws -> Route {
+        let all = try await routes(base: base, costing: costing, from: from, to: to, heading: heading, alternatives: 0)
+        return all[0]
     }
 }

@@ -58,7 +58,19 @@ extension AppSettings {
         "infoMusicR",
         "infoPhotoL",
         "infoPhotoR",
-        "photoShift"
+        "photoShift",
+        "greetingWord",
+        "cardBgAlpha",
+        "markerX",
+        "navDX",
+        "navDY",
+        "etaDX",
+        "etaDY",
+        "startScreen",
+        "doubleClickMs",
+        "clock24",
+        "ccuExtraIds",
+        "showRoadName"
     ]
 
     func exportBackup() -> Data {

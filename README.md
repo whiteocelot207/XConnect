@@ -1,8 +1,27 @@
-# XConnect (iOS) v0.5
+# XConnect (iOS) v0.6
 
 App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash TFT Yamaha (NMAX/XMAX)
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
+
+## Yang baru di 0.6
+- **Tautan Google Maps** (`maps.app.goo.gl/...`): dicoba dengan identitas peramban desktop lebih dulu, lalu iPhone; juga
+  membaca ID tempat (ftid/cid), alamat tersembunyi di isi halaman, dan pola koordinat baru. Bila masih gagal, pesan
+  errornya memuat host akhir dan jumlah pengalihan: kirim pesan itu.
+- **Rute alternatif**: pratinjau menampilkan Tercepat + hingga 2 alternatif (pilih sebelum Mulai). Bawaan tetap tercepat.
+- **Tab Navigasi**: daftar pencarian tidak lagi tertutup peta. Saat ada tujuan, kotak rute muncul di atas
+  (pilihan rute, Mulai/Batal, Hentikan navigasi, tombol Peta untuk membuka peta). 
+- **Posisi di dash**: titik motor (atas-bawah dan kiri-kanan), kotak petunjuk arah, dan kotak estimasi punya slider
+  geser sendiri, ada pratinjau di halaman Peta di dasbor dan tombol atur ulang.
+- **Nama jalan** di bilah bawah dash tetap tampil saat tidak navigasi (dari GPS, Apple geocoder).
+- **Kotak data**: latar kolom kini setinggi layar dengan tepi kiri memudar; kegelapannya bisa diatur (0 = transparan).
+- **Data CCU lengkap**: kotak baru DTC, kecepatan CCU, volume HP, output audio, jaringan seluler, tanggal, arah, ketinggian,
+  dan "CCU byte 0-23" (data mentah). Halaman "Data mentah CCU" menampilkan semua byte; nilai berubah dicatat di Log.
+- **Sapaan**: kata sapaan dan nama bisa diubah di tab Home (juga di Pengaturan > Tampilan).
+- **Format jam** 12/24 jam untuk jam dan ETA yang digambar app.
+- **Layar awal** saat motor dinyalakan bisa dipilih; layar baru **Tes tombol** (aktif/nonaktif seperti layar lain).
+- **Tombol stang**: jendela klik 2x bisa diatur (300-1200 ms); tiap tekan masuk Log. Perintah media (next/prev/OK,
+  tahan next/prev) dan perubahan volume dicatat di Log lewat pemantau pemutar musik.
 
 ## Yang baru di 0.5
 - **CCU**: bila CCU menolak cmd 294 (error `01 26 01` di log), app langsung langganan data server 1248 (id 1 dan 72).

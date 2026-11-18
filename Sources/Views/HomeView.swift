@@ -16,6 +16,7 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     statusCard
                     previewCard
+                    greetingCard
                     if nav.phase == .navigating { navCard }
                     if let p = trips.parked, !bike.isConnected { parkedCard(p) }
                     tiles
@@ -124,6 +125,23 @@ struct HomeView: View {
             }
         }
         .padding()
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(14)
+    }
+
+    // MARK: - Sapaan di dash
+
+    private var greetingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Kotak sapaan di dash").font(.subheadline).foregroundColor(.secondary)
+            TextField("Sapaan (mis. Halo)", text: $settings.greetingWord)
+                .textFieldStyle(.roundedBorder)
+            TextField("Nama Anda", text: $settings.userName)
+                .textFieldStyle(.roundedBorder)
+            Text("Tampil di kotak cuaca pada layar Peta + data.").font(.caption).foregroundColor(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(14)
     }

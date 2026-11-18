@@ -55,6 +55,28 @@ final class AppSettings: ObservableObject {
     @Published var infoPhotoR: Int { didSet { put("infoPhotoR", infoPhotoR) } }
     /// geser foto slideshow ke atas (negatif) / bawah (positif), px
     @Published var photoShift: Double { didSet { put("photoShift", photoShift) } }
+    /// kata sapaan di kotak cuaca dash (mis. "Halo")
+    @Published var greetingWord: String { didSet { put("greetingWord", greetingWord) } }
+    /// 0 = transparan, 1 = hitam pekat (latar kolom kotak data di layar Peta + data)
+    @Published var cardBgAlpha: Double { didSet { put("cardBgAlpha", cardBgAlpha) } }
+    /// geser titik motor ke kiri (negatif) / kanan (positif), px
+    @Published var markerX: Double { didSet { put("markerX", markerX) } }
+    /// geser panel belokan (kotak hijau), px dari posisi bawaan
+    @Published var navDX: Double { didSet { put("navDX", navDX) } }
+    @Published var navDY: Double { didSet { put("navDY", navDY) } }
+    /// geser pil jarak + ETA, px dari posisi bawaan
+    @Published var etaDX: Double { didSet { put("etaDX", etaDX) } }
+    @Published var etaDY: Double { didSet { put("etaDY", etaDY) } }
+    /// layar yang tampil pertama saat motor dinyalakan (DashScreen.rawValue), -1 = layar pertama yang aktif
+    @Published var startScreen: Int { didSet { put("startScreen", startScreen) } }
+    /// jendela klik cepat 2x di tombol stang (milidetik)
+    @Published var doubleClickMs: Int { didSet { put("doubleClickMs", doubleClickMs) } }
+    /// true = jam 24 jam, false = 12 jam (untuk jam dan ETA yang digambar app)
+    @Published var clock24: Bool { didSet { put("clock24", clock24); Fmt.clock24 = clock24 } }
+    /// ID data CCU tambahan yang ikut dilanggan (dipisah koma), untuk eksperimen
+    @Published var ccuExtraIds: String { didSet { put("ccuExtraIds", ccuExtraIds) } }
+    /// kirim nama jalan saat ini ke bar bawah dash walau tidak sedang navigasi
+    @Published var showRoadName: Bool { didSet { put("showRoadName", showRoadName) } }
 
     private func put(_ key: String, _ value: Any) { UserDefaults.standard.set(value, forKey: key) }
 
@@ -70,7 +92,11 @@ final class AppSettings: ObservableObject {
             "navPanelScale": 1.0, "musicBlurBG": true,
             "cardLayout": 1, "cardBig": 0, "cardS1": 1, "cardS2": 2, "cardS3": 3, "cardS4": 4,
             "etaScale": 1.0, "infoDashL": 10, "infoDashR": 13, "infoMusicL": 10, "infoMusicR": 8,
-            "infoPhotoL": 10, "infoPhotoR": 8, "photoShift": 0.0
+            "infoPhotoL": 10, "infoPhotoR": 8, "photoShift": 0.0,
+            "greetingWord": "Halo", "cardBgAlpha": 0.78, "markerX": 0.0,
+            "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
+            "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
+            "showRoadName": true
         ])
         autoConnect = d.bool(forKey: "autoConnect")
         nightMode = d.integer(forKey: "nightMode")
@@ -112,6 +138,19 @@ final class AppSettings: ObservableObject {
         infoPhotoL = d.integer(forKey: "infoPhotoL")
         infoPhotoR = d.integer(forKey: "infoPhotoR")
         photoShift = d.double(forKey: "photoShift")
+        greetingWord = d.string(forKey: "greetingWord") ?? "Halo"
+        cardBgAlpha = d.double(forKey: "cardBgAlpha")
+        markerX = d.double(forKey: "markerX")
+        navDX = d.double(forKey: "navDX")
+        navDY = d.double(forKey: "navDY")
+        etaDX = d.double(forKey: "etaDX")
+        etaDY = d.double(forKey: "etaDY")
+        startScreen = d.integer(forKey: "startScreen")
+        doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        clock24 = d.bool(forKey: "clock24")
+        Fmt.clock24 = d.bool(forKey: "clock24")
+        ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
+        showRoadName = d.bool(forKey: "showRoadName")
     }
 
     /// Muat ulang semua nilai dari UserDefaults (dipakai setelah memulihkan cadangan).
@@ -157,6 +196,19 @@ final class AppSettings: ObservableObject {
         infoPhotoL = d.integer(forKey: "infoPhotoL")
         infoPhotoR = d.integer(forKey: "infoPhotoR")
         photoShift = d.double(forKey: "photoShift")
+        greetingWord = d.string(forKey: "greetingWord") ?? "Halo"
+        cardBgAlpha = d.double(forKey: "cardBgAlpha")
+        markerX = d.double(forKey: "markerX")
+        navDX = d.double(forKey: "navDX")
+        navDY = d.double(forKey: "navDY")
+        etaDX = d.double(forKey: "etaDX")
+        etaDY = d.double(forKey: "etaDY")
+        startScreen = d.integer(forKey: "startScreen")
+        doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        clock24 = d.bool(forKey: "clock24")
+        Fmt.clock24 = clock24
+        ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
+        showRoadName = d.bool(forKey: "showRoadName")
     }
 
     func isNight(now: Date = Date()) -> Bool {

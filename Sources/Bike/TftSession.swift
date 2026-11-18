@@ -18,6 +18,10 @@ final class TftSession {
     var onStopRoute: () -> Void = {}
     var onGoHome: () -> Void = {}
     var onGoWork: () -> Void = {}
+    /// catatan peristiwa tombol (masuk Log dan layar Tes tombol)
+    var onButtonEvent: (String) -> Void = { _ in }
+    var isTestScreen: () -> Bool = { false }
+    var doubleClickWindow: () -> Double = { 0.8 }
 
     var contentProvider: () -> DashContent = { DashContent() }
     var screensProvider: () -> [DashScreen] = { [.mapData] }
@@ -63,6 +67,7 @@ final class TftSession {
     private var navActive = false
     private var lastRoad = ""
     private var latestRoad = ""
+    private var idleRoad = ""
     private var homeSet = false
     private var workSet = false
     private var lastGps = false
@@ -130,10 +135,18 @@ final class TftSession {
         if authenticated { send(.value(NaviService.gpsStatus, fix ? 1 : 0)) }
     }
 
+    /// Nama jalan saat tidak navigasi (dari geocoding GPS), dipakai bila navigasi tidak punya nama jalan.
+    func updateIdleRoad(_ road: String) {
+        idleRoad = road
+        sendRoadIfNeeded()
+    }
+
     private func sendRoadIfNeeded() {
-        guard authenticated, latestRoad != lastRoad else { return }
-        lastRoad = latestRoad
-        send(.pointer(NaviService.roadName, Array(Geo.ascii(latestRoad, maxLen: 64).utf8)))
+        guard authenticated else { return }
+        let road = latestRoad.isEmpty ? idleRoad : latestRoad
+        guard road != lastRoad else { return }
+        lastRoad = road
+        send(.pointer(NaviService.roadName, Array(Geo.ascii(road, maxLen: 64).utf8)))
     }
 
     // MARK: - Terima
@@ -254,20 +267,26 @@ final class TftSession {
 
     // MARK: - Tombol atas/bawah di dash
 
-    /// Tanpa jeda: klik pertama langsung dieksekusi. Bila klik kedua (arah sama) datang < 0,5 dtk,
-    /// aksi klik pertama dibatalkan lalu aksi "2x" dijalankan.
+    /// Tanpa jeda: klik pertama langsung dieksekusi. Bila klik kedua (arah sama) datang dalam jendela waktu
+    /// (Pengaturan > Kontrol pada motor), aksi klik pertama dibatalkan lalu aksi "2x" dijalankan.
     /// Skema 0: 1x ganti tampilan, 2x zoom. Skema 1: 1x zoom, 2x ganti tampilan.
-    /// Di layar Musik: 1x = volume, 2x = ganti tampilan.
+    /// Di layar Musik: 1x = volume, 2x = ganti tampilan. Di layar Tes tombol: 1x hanya dicatat, 2x ganti tampilan.
     /// Tombol "+" (atas) = tampilan berikutnya/zoom in/volume naik, "-" (bawah) kebalikannya.
     private func buttonPressed(up: Bool) {
         let scheme = buttonSchemeProvider()
         let music = isMusicScreen()
+        let test = isTestScreen()
+        let window = doubleClickWindow()
         let now = Date()
-        if let last = lastBtn { onLog("← tombol \(up ? "atas" : "bawah") (+\(Int(now.timeIntervalSince(last) * 1000)) ms)") }
-        else { onLog("← tombol \(up ? "atas" : "bawah")") }
-        if let last = lastBtn, lastBtnUp == up, now.timeIntervalSince(last) < 0.7 {
+        var gap = ""
+        if let last = lastBtn { gap = " (+\(Int(now.timeIntervalSince(last) * 1000)) ms)" }
+        let dir = up ? "atas" : "bawah"
+        if let last = lastBtn, lastBtnUp == up, now.timeIntervalSince(last) < window {
             lastBtn = nil
-            if music {
+            onButtonEvent("\(dir) 2x cepat\(gap)")
+            if test {
+                onStepScreen(up)
+            } else if music {
                 onVolume(!up)                    // batalkan volume dari klik pertama
                 onStepScreen(up)
             } else if scheme == 0 {
@@ -280,9 +299,16 @@ final class TftSession {
         } else {
             lastBtn = now
             lastBtnUp = up
-            if music { onVolume(up) }
-            else if scheme == 0 { onStepScreen(up) }
-            else { changeZoom(up ? 1 : -1) }
+            onButtonEvent("\(dir) 1x\(gap)")
+            if test {
+                // hanya dicatat
+            } else if music {
+                onVolume(up)
+            } else if scheme == 0 {
+                onStepScreen(up)
+            } else {
+                changeZoom(up ? 1 : -1)
+            }
         }
     }
 

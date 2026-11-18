@@ -79,7 +79,18 @@ struct AppearanceSettings: View {
                 Text("Terang").tag(2)
             }
             .pickerStyle(.inline)
-            TextField("Nama panggilan (tampil di dash)", text: $settings.userName)
+            Section(header: Text("Sapaan di dash")) {
+                TextField("Sapaan (mis. Halo)", text: $settings.greetingWord)
+                TextField("Nama panggilan (tampil di dash)", text: $settings.userName)
+            }
+            Section(header: Text("Format jam"),
+                    footer: Text("Berlaku untuk jam dan perkiraan tiba (ETA) yang digambar XConnect. Jam di bilah paling atas dash digambar oleh dash sendiri dan tidak bisa diubah dari app.")) {
+                Picker("Format jam", selection: $settings.clock24) {
+                    Text("24 jam (13:45)").tag(true)
+                    Text("12 jam (1:45 PM)").tag(false)
+                }
+                .pickerStyle(.inline)
+            }
         }
         .navigationTitle("Tampilan")
         .navigationBarTitleDisplayMode(.inline)
@@ -127,7 +138,13 @@ struct ControlSettings: View {
                 }
                 .pickerStyle(.inline)
             }
-            Section(footer: Text("Aksi tekan 1x selalu menunggu sekitar setengah detik untuk memastikan tidak ada tekan kedua.")) {
+            Section(header: Text("Klik cepat 2x"),
+                    footer: Text("Dua tekan pada tombol yang sama dalam waktu ini dihitung sebagai klik 2x. Tekan 1x tetap langsung dijalankan tanpa menunggu. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
+                sliderRow("Jendela klik 2x", value: Binding(
+                    get: { Double(settings.doubleClickMs) },
+                    set: { settings.doubleClickMs = Int($0) }), range: 300...1200, step: 50, unit: "ms")
+            }
+            Section(footer: Text("Layar Tes tombol (Pengaturan > Layar dasbor) menampilkan tiap tekan tombol di dash dan mencatatnya di Log.")) {
                 EmptyView()
             }
         }
@@ -136,11 +153,45 @@ struct ControlSettings: View {
     }
 }
 
+/// Pratinjau layar dash di halaman pengaturan (ikut tampil di dash asli bila terhubung).
+struct DashPreviewBox: View {
+    @EnvironmentObject var bike: BikeController
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Rectangle().fill(Color.black)
+                if let img = bike.preview {
+                    Image(uiImage: img).resizable().interpolation(.medium)
+                } else {
+                    ProgressView()
+                }
+            }
+            .aspectRatio(480.0 / 234.0, contentMode: .fit)
+            .cornerRadius(8)
+            HStack {
+                Button { bike.stepScreen(forward: false) } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Text(bike.currentScreen.title).font(.footnote)
+                Spacer()
+                Button { bike.stepScreen(forward: true) } label: { Image(systemName: "chevron.right") }
+                    .buttonStyle(.bordered)
+            }
+        }
+    }
+}
+
 struct MapSettings: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var bike: BikeController
 
     var body: some View {
         Form {
+            Section(header: Text("Pratinjau"),
+                    footer: Text("Pilih layar Peta + data atau Peta saja. Contoh panel navigasi tampil selama halaman ini terbuka.")) {
+                DashPreviewBox()
+            }
             Section(header: Text("Tema peta")) {
                 Picker("Siang/malam", selection: $settings.nightMode) {
                     Text("Otomatis (malam 18.00-05.00)").tag(0)
@@ -163,14 +214,42 @@ struct MapSettings: View {
                 sliderRow("Ukuran", value: $settings.markerSize, range: 0.5...2, step: 0.1, unit: "x")
                 Toggle("Lingkaran di sekitar titik", isOn: $settings.markerRing)
                 sliderRow("Posisi (atas ↔ bawah)", value: $settings.markerY, range: 0.35...0.9, step: 0.01, unit: "")
+                sliderRow("Posisi (kiri ↔ kanan)", value: $settings.markerX, range: -120...120, step: 2, unit: "px")
             }
-            Section(header: Text("Panel belokan, jarak dan ETA")) {
-                sliderRow("Ukuran panel belokan", value: $settings.navPanelScale, range: 0.6...1.4, step: 0.05, unit: "x")
-                sliderRow("Ukuran pil jarak + ETA", value: $settings.etaScale, range: 0.6...1.4, step: 0.05, unit: "x")
+            Section(header: Text("Kotak petunjuk arah (hijau, ikon belok)")) {
+                sliderRow("Ukuran", value: $settings.navPanelScale, range: 0.6...1.4, step: 0.05, unit: "x")
+                sliderRow("Geser kiri ↔ kanan", value: $settings.navDX, range: -8...280, step: 2, unit: "px")
+                sliderRow("Geser atas ↔ bawah", value: $settings.navDY, range: -4...110, step: 2, unit: "px")
+            }
+            Section(header: Text("Kotak estimasi (jarak dan waktu)")) {
+                sliderRow("Ukuran", value: $settings.etaScale, range: 0.6...1.4, step: 0.05, unit: "x")
+                sliderRow("Geser kiri ↔ kanan", value: $settings.etaDX, range: -54...300, step: 2, unit: "px")
+                sliderRow("Geser atas ↔ bawah", value: $settings.etaDY, range: -140...4, step: 2, unit: "px")
+            }
+            Section(footer: Text("Nama jalan tampil di bilah bawah dash (dari GPS saat tidak navigasi, dari rute saat navigasi).")) {
+                Toggle("Nama jalan di bilah bawah dash", isOn: $settings.showRoadName)
+                Button("Atur ulang posisi ke bawaan") {
+                    settings.markerY = 0.68
+                    settings.markerX = 0
+                    settings.navDX = 0
+                    settings.navDY = 0
+                    settings.etaDX = 0
+                    settings.etaDY = 0
+                    settings.navPanelScale = 1
+                    settings.etaScale = 1
+                }
             }
         }
         .navigationTitle("Peta di dasbor")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            bike.demoNav = true
+            bike.setPreviewVisible(true)
+        }
+        .onDisappear {
+            bike.demoNav = false
+            bike.setPreviewVisible(false)
+        }
     }
 }
 
@@ -192,7 +271,7 @@ struct CardSettings: View {
 
     private func fieldPicker(_ title: String, _ sel: Binding<Int>) -> some View {
         Picker(title, selection: sel) {
-            ForEach(DashField.allCases, id: \.rawValue) { f in Text(f.title).tag(f.rawValue) }
+            ForEach(DashField.selectable, id: \.rawValue) { f in Text(f.title).tag(f.rawValue) }
         }
     }
 
@@ -205,6 +284,7 @@ struct CardSettings: View {
                     Text("4 kecil").tag(2)
                 }
                 Toggle("Tampilkan kotak data", isOn: $settings.showCards)
+                sliderRow("Kegelapan latar kolom (0 = transparan)", value: $settings.cardBgAlpha, range: 0...1, step: 0.05, unit: "")
             }
             Section(header: Text("Isi kotak")) {
                 if settings.cardLayout != 2 { fieldPicker("Kotak besar", $settings.cardBig) }
@@ -218,11 +298,17 @@ struct CardSettings: View {
             Section(header: Text("Musik")) {
                 Toggle("Latar sampul blur", isOn: $settings.musicBlurBG)
             }
-            Section(header: Text("Link CCU"), footer: Text("Data aki, ODO, suhu, RPM dibaca lewat Bluetooth ke CCU motor. Status: \(live.state)")) {
+            Section(header: Text("Link CCU"), footer: Text("Data motor dibaca lewat Bluetooth ke CCU. Status: \(live.state)")) {
                 Toggle("Baca data CCU", isOn: $settings.ccuEnabled)
                 if let v = live.batteryV { Text("Aki: " + String(format: "%.1f V", v)) }
                 if let o = live.odoKm { Text("ODO: " + String(format: "%.1f km", o)) }
                 if let t = live.coolantC { Text("Suhu mesin: \(t) °C") }
+                if let t = live.airC { Text("Suhu udara: \(t) °C") }
+                if let r = live.rpm { Text("RPM: \(r)") }
+                if let v = live.speedKmh { Text("Kecepatan CCU: \(v) km/j") }
+                if let d = live.dtcCount { Text("Kode gangguan: \(d)") }
+                if let k = live.ignitionOn { Text("Kunci kontak: " + (k ? "ON" : "OFF")) }
+                NavigationLink("Data mentah CCU (semua byte)") { CcuRawView() }
             }
         }
         .navigationTitle("Kotak data")
@@ -281,7 +367,7 @@ struct ScreensSettings: View {
 
     private func infoPicker(_ title: String, _ sel: Binding<Int>) -> some View {
         Picker(title, selection: sel) {
-            ForEach(DashField.allCases, id: \.rawValue) { f in Text(f.title).tag(f.rawValue) }
+            ForEach(DashField.selectable, id: \.rawValue) { f in Text(f.title).tag(f.rawValue) }
         }
     }
 
@@ -301,6 +387,13 @@ struct ScreensSettings: View {
                     Toggle(s.title, isOn: binding(s))
                 }
                 Toggle("Kartu cuaca/bensin di layar Peta + data", isOn: $settings.showCards)
+            }
+            Section(header: Text("Saat motor dinyalakan"),
+                    footer: Text("Layar yang tampil pertama di dash setelah terhubung, tanpa perlu membuka app. Hanya layar yang aktif di atas yang dipakai.")) {
+                Picker("Layar awal", selection: $settings.startScreen) {
+                    Text("Layar pertama yang aktif").tag(-1)
+                    ForEach(DashScreen.allCases, id: \.rawValue) { sc in Text(sc.title).tag(sc.rawValue) }
+                }
             }
             Section(header: Text("Musik"),
                     footer: Text("Hanya lagu dari app Musik (Apple Music) yang bisa dibaca. Spotify dan app lain tidak membagikan info lagunya di iOS.")) {
@@ -379,6 +472,53 @@ struct RouteSettings: View {
     }
 }
 
+struct CcuRawView: View {
+    @EnvironmentObject var live: VehicleLive
+    @EnvironmentObject var settings: AppSettings
+
+    var body: some View {
+        Form {
+            Section(header: Text("Paket data id 1 (byte demi byte)"),
+                    footer: Text("Nilai tiap byte diperbarui langsung. Ubah kondisi motor (gas, lampu, lipat standar) lalu lihat byte mana yang berubah. Byte yang sudah dikenal: 0-1 RPM, 2 kecepatan, 6 aki, 14 suhu mesin, 15 suhu udara, 23 kode gangguan. Tiap byte bisa dipilih jadi kotak data (\"CCU byte n\").")) {
+                if live.rawRecord.isEmpty {
+                    Text("Belum ada data. Hubungkan ke motor dengan CCU aktif.").foregroundColor(.secondary)
+                } else {
+                    ForEach(0..<live.rawRecord.count, id: \.self) { i in
+                        HStack {
+                            Text("Byte \(i)")
+                            Spacer()
+                            Text("\(live.rawRecord[i])  (0x" + String(format: "%02X", live.rawRecord[i]) + ")")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            Section(header: Text("ID data lain"), footer: Text("ID tambahan yang dilanggan dan masuk dari CCU.")) {
+                if live.rawById.isEmpty {
+                    Text("Belum ada").foregroundColor(.secondary)
+                }
+                ForEach(live.rawById.keys.sorted(), id: \.self) { id in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("ID \(id)").font(.footnote)
+                        Text((live.rawById[id] ?? []).prefix(40).map { String(format: "%02x", $0) }.joined(separator: " "))
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            Section(header: Text("Eksperimen: langganan ID tambahan"),
+                    footer: Text("Pisahkan dengan koma, mis. 2, 3. Berlaku saat sesi CCU dimulai ulang (matikan lalu nyalakan motor). ID yang tidak dikenal CCU bisa membuat langganan ditolak: kosongkan kembali bila data berhenti.")) {
+                TextField("mis. 2, 3", text: $settings.ccuExtraIds)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+            }
+        }
+        .navigationTitle("Data mentah CCU")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 struct DebugSettings: View {
     @EnvironmentObject var bike: BikeController
 
@@ -404,7 +544,7 @@ struct AboutSettings: View {
     var body: some View {
         Form {
             Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla.")) {
-                Text("XConnect 0.5.0")
+                Text("XConnect \(UpdateService.currentVersion) (build \(UpdateService.currentBuild))")
             }
         }
         .navigationTitle("Tentang")

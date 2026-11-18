@@ -8,13 +8,10 @@ struct NavigateView: View {
     @State private var lastLen = 0
     @State private var renameTarget: Place?
     @State private var renameText = ""
+    @State private var showMap = false
 
     var body: some View {
-        if nav.destination == nil && nav.phase == .idle {
-            listScreen
-        } else {
-            mapScreen
-        }
+        listScreen
     }
 
     // MARK: - Daftar: pencarian, tempat tersimpan, favorit
@@ -22,6 +19,10 @@ struct NavigateView: View {
     private var listScreen: some View {
         NavigationView {
             List {
+                if nav.destination != nil || nav.phase != .idle {
+                    Section { routeBox }
+                }
+
                 Section {
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
@@ -108,6 +109,17 @@ struct NavigateView: View {
         .sheet(item: $renameTarget) { p in
             RenameSheet(title: "Ganti nama favorit", initial: renameText) { places.renameFavorite(p, to: $0) }
         }
+        .sheet(isPresented: $showMap) {
+            ZStack(alignment: .topTrailing) {
+                NavMapView(nav: nav, onLongPress: { c in nav.pin(c) })
+                    .edgesIgnoringSafeArea(.all)
+                Button { showMap = false } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 30))
+                        .foregroundColor(.white).shadow(radius: 3)
+                }
+                .padding(16)
+            }
+        }
     }
 
     private func queryEdited(_ q: String) {
@@ -167,97 +179,90 @@ struct NavigateView: View {
         }
     }
 
-    // MARK: - Peta: pratinjau rute dan navigasi
+    // MARK: - Kotak rute (muncul di atas daftar saat ada tujuan)
 
-    private var mapScreen: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                // peta hanya ~45% layar; sisanya untuk kartu rute dan pilihan
-                NavMapView(nav: nav, onLongPress: { c in nav.pin(c) })
-                    .frame(height: max(220, geo.size.height * 0.45))
-                ScrollView {
-                    VStack(spacing: 8) {
-                        if !nav.message.isEmpty {
-                            Text(nav.message)
-                                .font(.footnote)
-                                .padding(8)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(UIColor.secondarySystemBackground))
-                                .cornerRadius(8)
-                        }
-                        bottomCard
+    private func routeTitle(_ i: Int) -> String { i == 0 ? "Tercepat" : "Alternatif \(i)" }
+
+    private var routeBox: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let d = nav.destination {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(d.name).font(.headline)
+                        if !d.subtitle.isEmpty { Text(d.subtitle).font(.footnote).foregroundColor(.secondary) }
                     }
-                    .padding(8)
+                    Spacer()
+                    Button { places.toggleFavorite(d) } label: {
+                        Image(systemName: places.isFavorite(d) ? "star.fill" : "star")
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
-        }
-    }
 
-    @ViewBuilder
-    private var bottomCard: some View {
-        if nav.phase == .navigating {
-            navigatingCard
-        } else if let d = nav.destination {
-            previewCard(d)
-        }
-    }
-
-    private func previewCard(_ d: Place) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(d.name).font(.headline)
-                    if !d.subtitle.isEmpty { Text(d.subtitle).font(.footnote).foregroundColor(.secondary) }
+            if nav.phase == .navigating {
+                HStack(spacing: 12) {
+                    Image(systemName: nav.nextSymbol).font(.system(size: 30))
+                    VStack(alignment: .leading) {
+                        Text(Fmt.distance(nav.distToTurnM)).font(.title2).bold()
+                        if !nav.nextInstruction.isEmpty { Text(nav.nextInstruction).font(.subheadline) }
+                    }
                 }
-                Spacer()
-                Button { places.toggleFavorite(d) } label: {
-                    Image(systemName: places.isFavorite(d) ? "star.fill" : "star")
+                if let eta = nav.etaDate {
+                    Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
-            }
-            if let r = nav.route {
-                Text("\(Fmt.distance(r.totalM)) • \(Fmt.duration(r.totalS))").font(.subheadline)
-            } else if nav.busy {
+            } else if nav.busy && nav.routes.isEmpty {
                 HStack { ProgressView(); Text("Menghitung rute…") }
+            } else if !nav.routes.isEmpty {
+                ForEach(nav.routes.indices, id: \.self) { i in
+                    let r = nav.routes[i]
+                    Button { nav.selectRoute(i) } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: i == nav.routeIndex ? "largecircle.fill.circle" : "circle")
+                                .foregroundColor(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(routeTitle(i)).foregroundColor(.primary)
+                                Text("\(Fmt.distance(r.totalM)) • \(Fmt.duration(r.totalS))" + (r.via.isEmpty ? "" : " • via \(r.via)"))
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
-            HStack {
-                Button("Mulai") { nav.startNavigation() }
+
+            HStack(spacing: 8) {
+                if nav.phase == .navigating {
+                    Button { nav.stop() } label: {
+                        Label("Hentikan navigasi", systemImage: "xmark.octagon.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                } else {
+                    Button { nav.startNavigation() } label: {
+                        Label("Mulai", systemImage: "play.fill").frame(maxWidth: .infinity)
+                    }
                     .buttonStyle(.borderedProminent)
                     .disabled(nav.route == nil)
-                Button("Batal") { nav.stop() }
+                    Button("Batal") { nav.stop() }
+                        .buttonStyle(.bordered)
+                }
+                Button { showMap = true } label: { Image(systemName: "map") }
                     .buttonStyle(.bordered)
+            }
+            if nav.phase != .navigating, let d = nav.destination {
                 Menu("Simpan sebagai") {
                     Button("Rumah") { places.home = d }
                     Button("Kantor") { places.work = d }
                 }
+                .buttonStyle(.borderless)
             }
         }
-        .padding(12)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
-    }
-
-    private var navigatingCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                Image(systemName: nav.nextSymbol).font(.system(size: 34))
-                VStack(alignment: .leading) {
-                    Text(Fmt.distance(nav.distToTurnM)).font(.title).bold()
-                    if !nav.nextInstruction.isEmpty { Text(nav.nextInstruction).font(.subheadline) }
-                }
-            }
-            if let eta = nav.etaDate {
-                Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-            }
-            Button("Berhenti") { nav.stop() }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
+        .padding(.vertical, 4)
     }
 }
 

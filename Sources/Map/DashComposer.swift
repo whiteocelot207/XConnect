@@ -3,7 +3,7 @@ import CoreImage
 import CoreLocation
 
 enum DashScreen: Int, CaseIterable {
-    case mapData = 0, mapOnly = 1, dashboard = 2, music = 3, slideshow = 4
+    case mapData = 0, mapOnly = 1, dashboard = 2, music = 3, slideshow = 4, buttonTest = 5
 
     var title: String {
         switch self {
@@ -12,6 +12,7 @@ enum DashScreen: Int, CaseIterable {
         case .dashboard: return "Speedometer"
         case .music: return "Musik"
         case .slideshow: return "Foto"
+        case .buttonTest: return "Tes tombol"
         }
     }
 }
@@ -71,6 +72,24 @@ struct DashContent {
     var infoPhotoL = 10
     var infoPhotoR = 8
     var photoShift: CGFloat = 0
+    var greetingWord = "Halo"
+    var cardBgAlpha: CGFloat = 0.78
+    var markerX: CGFloat = 0
+    var navDX: CGFloat = 0
+    var navDY: CGFloat = 0
+    var etaDX: CGFloat = 0
+    var etaDY: CGFloat = 0
+    var dtcCount: Int?
+    var ccuSpeedKmh: Int?
+    var ccuRaw: [UInt8] = []
+    var phoneVolume = -1
+    var audioOut = ""
+    var network = ""
+    var dateText = ""
+    var headingText = ""
+    var altitudeM: Int?
+    /// baris terakhir peristiwa tombol (untuk layar Tes tombol)
+    var buttonLog: [String] = []
 }
 
 struct DashHUD {
@@ -114,6 +133,7 @@ enum DashComposer {
             case .mapData: drawMapScreen(cg, hud, vis, cards: true)
             case .music: drawMusic(cg, hud, vis)
             case .slideshow: drawSlideshow(cg, hud, vis)
+            case .buttonTest: drawButtonTest(cg, hud, vis)
             }
         }
     }
@@ -125,7 +145,7 @@ enum DashComposer {
         let withCards = cards && c.showCards
         let full = CGRect(origin: .zero, size: hud.size)
         // area peta bebas = kiri panel kartu; titik motor di tengahnya (bukan terlalu kiri)
-        let anchor = CGPoint(x: withCards ? 192 : hud.size.width / 2,
+        let anchor = CGPoint(x: (withCards ? 192 : hud.size.width / 2) + c.markerX,
                              y: vis.minY + vis.height * c.markerY)
         let vp = VMapViewport(rect: full, anchor: anchor, zoom: hud.zoom, bearing: hud.bearing,
                               center: hud.center, night: c.night, route: hud.route,
@@ -139,7 +159,9 @@ enum DashComposer {
             let k = max(0.6, min(1.4, c.navScale))
             // panel belokan di kiri atas (sedikit ke tengah supaya tidak tertutup tombol zoom dash)
             cg.saveGState()
-            cg.translateBy(x: 8, y: vis.minY + 2)
+            let navX = min(max(8 + c.navDX, 0), hud.size.width - 200 * k)
+            let navY = min(max(vis.minY + 2 + c.navDY, vis.minY), vis.maxY - 54 * k)
+            cg.translateBy(x: navX, y: navY)
             cg.scaleBy(x: k, y: k)
             let r = CGRect(x: 0, y: 0, width: 200, height: 54)
             fillRound(r, radius: 10, color: green)
@@ -153,7 +175,9 @@ enum DashComposer {
             cg.saveGState()
             let ke = max(0.6, min(1.4, c.etaScale))
             let pw: CGFloat = 150 * ke, ph: CGFloat = 26 * ke
-            cg.translateBy(x: 54, y: vis.maxY - ph - 4)
+            let etaX = min(max(54 + c.etaDX, 0), hud.size.width - pw)
+            let etaY = min(max(vis.maxY - ph - 4 + c.etaDY, vis.minY), vis.maxY - ph)
+            cg.translateBy(x: etaX, y: etaY)
             cg.scaleBy(x: ke, y: ke)
             let pill = CGRect(x: 0, y: 0, width: 150, height: 26)
             fillRound(pill, radius: 13, color: green)
@@ -175,9 +199,21 @@ enum DashComposer {
         let gap: CGFloat = 4
         func field(_ i: Int) -> DashField { DashField(rawValue: i) ?? .none }
 
-        // lapisan hampir hitam di belakang kolom kotak (seperti NConnect)
-        fillRound(CGRect(x: x - 5, y: top - 2, width: size.width - (x - 5), height: total + 4), radius: 14,
-                  color: UIColor(red: 0.02, green: 0.02, blue: 0.04, alpha: 0.86))
+        // lapisan gelap setinggi layar di belakang kolom kotak, tepi kirinya memudar (seperti NConnect)
+        let panelX = x - 6
+        let panelAlpha = min(1, max(0, c.cardBgAlpha))
+        let panelColor = UIColor(red: 0.02, green: 0.02, blue: 0.04, alpha: panelAlpha)
+        let fadeW: CGFloat = 14
+        let clear = UIColor(red: 0.02, green: 0.02, blue: 0.04, alpha: 0)
+        if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                              colors: [clear.cgColor, panelColor.cgColor] as CFArray, locations: [0, 1]) {
+            cg.saveGState()
+            cg.clip(to: CGRect(x: panelX - fadeW, y: 0, width: fadeW, height: size.height))
+            cg.drawLinearGradient(g, start: CGPoint(x: panelX - fadeW, y: 0), end: CGPoint(x: panelX, y: 0), options: [])
+            cg.restoreGState()
+        }
+        panelColor.setFill()
+        cg.fill(CGRect(x: panelX, y: 0, width: size.width - panelX, height: size.height))
 
         var smallRects = [CGRect]()
         var y = top
@@ -217,7 +253,7 @@ enum DashComposer {
         }
         cg.restoreGState()
         if f == .weather {
-            text("Halo", CGRect(x: r.minX + 10, y: r.minY + 5, width: r.width - 20, height: 13), size: 11,
+            text(c.greetingWord, CGRect(x: r.minX + 10, y: r.minY + 5, width: r.width - 20, height: 13), size: 11,
                  color: UIColor(white: 1, alpha: 0.85))
             text(c.greeting.isEmpty ? "Pengendara" : c.greeting,
                  CGRect(x: r.minX + 10, y: r.minY + 17, width: r.width - 20, height: 20), size: 16, bold: true)
@@ -480,6 +516,28 @@ enum DashComposer {
             let spd = CGRect(x: hud.size.width - w - 8, y: vis.maxY - 28, width: w, height: 24)
             fillRound(spd, radius: 12, color: UIColor(white: 0, alpha: 0.5))
             text(right, spd, size: 13, bold: true, align: .center)
+        }
+    }
+
+    // MARK: - Layar tes tombol
+
+    private static func drawButtonTest(_ cg: CGContext, _ hud: DashHUD, _ vis: CGRect) {
+        let c = hud.content
+        UIColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 1).setFill()
+        cg.fill(CGRect(origin: .zero, size: hud.size))
+        text("Tes tombol stang", CGRect(x: 10, y: vis.minY + 3, width: 300, height: 22), size: 17, bold: true)
+        text(c.clock, CGRect(x: 330, y: vis.minY + 5, width: 140, height: 18), size: 14, bold: true, align: .right)
+        let lines = Array(c.buttonLog.suffix(8))
+        if lines.isEmpty {
+            text("Tekan tombol atas/bawah di stang", CGRect(x: 10, y: vis.minY + 50, width: 460, height: 20), size: 15,
+                 color: UIColor(white: 0.8, alpha: 1))
+            text("Tiap tekan tampil di sini dan masuk ke Log", CGRect(x: 10, y: vis.minY + 74, width: 460, height: 18),
+                 size: 12, color: UIColor(white: 0.6, alpha: 1))
+            return
+        }
+        for (i, l) in lines.reversed().enumerated() {
+            text(l, CGRect(x: 10, y: vis.minY + 28 + CGFloat(i) * 17, width: 460, height: 16), size: i == 0 ? 13 : 11,
+                 bold: i == 0, color: i == 0 ? .white : UIColor(white: 0.65, alpha: 1))
         }
     }
 
