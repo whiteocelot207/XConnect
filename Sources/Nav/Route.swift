@@ -132,6 +132,11 @@ enum ValhallaClient {
         let opts: [String: Any] = ["units": "kilometers", "language": "id-ID"]
         var body: [String: Any] = ["locations": locations, "costing": costing, "directions_options": opts]
         if alternatives > 0 { body["alternates"] = alternatives }
+        if costing == "motor_scooter" {
+            // Bawaan Valhalla untuk skuter: maks 45 km/j dan menghindari jalan utama + tanjakan, sehingga rute
+            // sering memutar lewat jalan kecil dan estimasi waktunya terlalu lama. NMAX/XMAX layak di jalan utama.
+            body["costing_options"] = ["motor_scooter": ["use_primary": 1.0, "use_hills": 0.0, "top_speed": 80]]
+        }
 
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.httpMethod = "POST"

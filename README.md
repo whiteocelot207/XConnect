@@ -5,6 +5,8 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
 ## Yang baru di 0.6
+- **Rute skuter**: opsi Valhalla `motor_scooter` kini use_primary 1.0, use_hills 0, top_speed 80 (bawaan 0,5 / 0,5 / 45 km/j
+  membuat rute memutar lewat jalan kecil dan estimasi waktu terlalu lama).
 - **Tautan Google Maps dibuka seperti peramban PC**: bila alamat akhir tidak memuat koordinat, app membuka tautan di WKWebView
   tersembunyi (identitas peramban PC), menunggu JavaScript Google mengubah alamat menjadi /maps/place/…/@lat,lon/…!3d…!4d…,
   lalu membaca koordinatnya (maks. 14 dtk). Pencarian nama (Apple Maps/OSM) hanya cadangan bila langkah ini gagal.

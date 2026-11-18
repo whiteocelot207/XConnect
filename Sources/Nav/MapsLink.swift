@@ -80,7 +80,7 @@ enum MapsLink {
 
         func made(_ method: String, _ c: CLLocationCoordinate2D, _ title: String? = nil) -> Place {
             Place(name: title ?? name ?? "Lokasi dari Google Maps",
-                  subtitle: "\(method) · \(Fmt.distance(Geo.distance(near, c))) dari Anda",
+                  subtitle: "\(method) · garis lurus \(Fmt.distance(Geo.distance(near, c)))",
                   lat: c.latitude, lon: c.longitude)
         }
 
@@ -113,7 +113,7 @@ enum MapsLink {
         //    Apple Maps + OpenStreetMap, lalu pilih yang namanya paling cocok (bukan sekadar hasil pertama).
         if let n = name {
             if let hit = await geocodeText(n, near: near) {
-                return Place(name: hit.name, subtitle: "\(hit.source) · \(Fmt.distance(Geo.distance(near, hit.coord))) dari Anda",
+                return Place(name: hit.name, subtitle: "\(hit.source) · garis lurus \(Fmt.distance(Geo.distance(near, hit.coord)))",
                              lat: hit.coord.latitude, lon: hit.coord.longitude)
             }
         }
