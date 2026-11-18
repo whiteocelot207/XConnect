@@ -108,7 +108,7 @@ enum MapsLink {
     }
 
     private static func ogTitle(_ b: String) -> String? {
-        guard let m = match("property=\\"og:title\\"\\s+content=\\"([^\\"]+)\\"", in: b) ?? match("<title>([^<]+)</title>", in: b) else { return nil }
+        guard let m = match(#"property="og:title"\s+content="([^"]+)""#, in: b) ?? match("<title>([^<]+)</title>", in: b) else { return nil }
         var t = m[0].replacingOccurrences(of: " - Google Maps", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         t = t.replacingOccurrences(of: "&amp;", with: "&").replacingOccurrences(of: "&#39;", with: "'")
         return t.isEmpty || t == "Google Maps" ? nil : t
