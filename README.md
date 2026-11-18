@@ -5,6 +5,9 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
 ## Yang baru di 0.6
+- **Profil rute dapat diatur** (Pengaturan > Rute dan pencarian > Profil rute): preferensi jalan utama, batas kecepatan maksimal,
+  tanjakan, gang, jalan setapak, tol, jalan bebas hambatan, feri, dan rute terpendek. Dikirim ke Valhalla sebagai `costing_options`
+  dan ikut tersimpan di Cadangkan dan pulihkan. Ada tombol bawaan XConnect (80 km/j) dan bawaan Valhalla (45 km/j).
 - **Rute skuter**: opsi Valhalla `motor_scooter` kini use_primary 1.0, use_hills 0, top_speed 80 (bawaan 0,5 / 0,5 / 45 km/j
   membuat rute memutar lewat jalan kecil dan estimasi waktu terlalu lama).
 - **Tautan Google Maps dibuka seperti peramban PC**: bila alamat akhir tidak memuat koordinat, app membuka tautan di WKWebView

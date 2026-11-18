@@ -174,13 +174,15 @@ final class NavigationController: ObservableObject {
         let heading: Double? = (!initial && location.speedKmh > 5) ? location.bearing : nil
         let base = settings.routingBase
         let costing = settings.costing
+        let profile = settings.routeProfile
         busy = true
         message = initial ? "Menghitung rute…" : "Menghitung ulang rute…"
         let alts = (initial && phase != .navigating) ? 2 : 0
         Task { [weak self] in
             do {
                 let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from,
-                                                         to: dest.coordinate, heading: heading, alternatives: alts)
+                                                         to: dest.coordinate, heading: heading, alternatives: alts,
+                                                         profile: profile)
                 DispatchQueue.main.async {
                     self?.routes = rs
                     self?.routeIndex = 0

@@ -78,6 +78,17 @@ final class AppSettings: ObservableObject {
     /// kirim nama jalan saat ini ke bar bawah dash walau tidak sedang navigasi
     @Published var showRoadName: Bool { didSet { put("showRoadName", showRoadName) } }
 
+    /// Profil rute (dikirim ke Valhalla): lihat RouteProfile
+    @Published var routePrimary: Double { didSet { put("routePrimary", routePrimary) } }
+    @Published var routeTopSpeed: Int { didSet { put("routeTopSpeed", routeTopSpeed) } }
+    @Published var routeHills: Double { didSet { put("routeHills", routeHills) } }
+    @Published var routeLiving: Double { didSet { put("routeLiving", routeLiving) } }
+    @Published var routeTrails: Double { didSet { put("routeTrails", routeTrails) } }
+    @Published var routeFerry: Double { didSet { put("routeFerry", routeFerry) } }
+    @Published var routeAvoidTolls: Bool { didSet { put("routeAvoidTolls", routeAvoidTolls) } }
+    @Published var routeHighways: Double { didSet { put("routeHighways", routeHighways) } }
+    @Published var routeShortest: Bool { didSet { put("routeShortest", routeShortest) } }
+
     private func put(_ key: String, _ value: Any) { UserDefaults.standard.set(value, forKey: key) }
 
     init() {
@@ -96,7 +107,10 @@ final class AppSettings: ObservableObject {
             "greetingWord": "Halo", "cardBgAlpha": 0.78, "markerX": 0.0,
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
             "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
-            "showRoadName": true
+            "showRoadName": true,
+            "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
+            "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
+            "routeShortest": false
         ])
         autoConnect = d.bool(forKey: "autoConnect")
         nightMode = d.integer(forKey: "nightMode")
@@ -151,6 +165,15 @@ final class AppSettings: ObservableObject {
         Fmt.clock24 = d.bool(forKey: "clock24")
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
         showRoadName = d.bool(forKey: "showRoadName")
+        routePrimary = d.double(forKey: "routePrimary")
+        routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
+        routeHills = d.double(forKey: "routeHills")
+        routeLiving = d.double(forKey: "routeLiving")
+        routeTrails = d.double(forKey: "routeTrails")
+        routeFerry = d.double(forKey: "routeFerry")
+        routeAvoidTolls = d.bool(forKey: "routeAvoidTolls")
+        routeHighways = d.double(forKey: "routeHighways")
+        routeShortest = d.bool(forKey: "routeShortest")
     }
 
     /// Muat ulang semua nilai dari UserDefaults (dipakai setelah memulihkan cadangan).
@@ -209,6 +232,33 @@ final class AppSettings: ObservableObject {
         Fmt.clock24 = clock24
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
         showRoadName = d.bool(forKey: "showRoadName")
+        routePrimary = d.double(forKey: "routePrimary")
+        routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
+        routeHills = d.double(forKey: "routeHills")
+        routeLiving = d.double(forKey: "routeLiving")
+        routeTrails = d.double(forKey: "routeTrails")
+        routeFerry = d.double(forKey: "routeFerry")
+        routeAvoidTolls = d.bool(forKey: "routeAvoidTolls")
+        routeHighways = d.double(forKey: "routeHighways")
+        routeShortest = d.bool(forKey: "routeShortest")
+    }
+
+    var routeProfile: RouteProfile {
+        RouteProfile(primary: routePrimary, topSpeed: routeTopSpeed, hills: routeHills, living: routeLiving,
+                     trails: routeTrails, ferry: routeFerry, avoidTolls: routeAvoidTolls,
+                     highways: routeHighways, shortest: routeShortest)
+    }
+
+    func applyRouteProfile(_ p: RouteProfile) {
+        routePrimary = p.primary
+        routeTopSpeed = p.topSpeed
+        routeHills = p.hills
+        routeLiving = p.living
+        routeTrails = p.trails
+        routeFerry = p.ferry
+        routeAvoidTolls = p.avoidTolls
+        routeHighways = p.highways
+        routeShortest = p.shortest
     }
 
     func isNight(now: Date = Date()) -> Bool {

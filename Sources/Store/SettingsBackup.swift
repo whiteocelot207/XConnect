@@ -70,7 +70,16 @@ extension AppSettings {
         "doubleClickMs",
         "clock24",
         "ccuExtraIds",
-        "showRoadName"
+        "showRoadName",
+        "routePrimary",
+        "routeTopSpeed",
+        "routeHills",
+        "routeLiving",
+        "routeTrails",
+        "routeFerry",
+        "routeAvoidTolls",
+        "routeHighways",
+        "routeShortest"
     ]
 
     func exportBackup() -> Data {

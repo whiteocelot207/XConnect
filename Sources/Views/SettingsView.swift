@@ -459,6 +459,28 @@ struct RouteSettings: View {
                     Text("Mobil").tag("auto")
                 }
             }
+            Section(header: Text("Profil rute"),
+                    footer: Text("Dibaca setiap kali rute dihitung atau dihitung ulang. Bawaan Valhalla untuk skuter menghindari jalan utama dan membatasi 45 km/j sehingga rute memutar dan waktunya lama. Batas kecepatan memengaruhi estimasi waktu, bukan kecepatan Anda berkendara.")) {
+                if settings.costing != "auto" {
+                    sliderRow("Jalan utama", value: $settings.routePrimary, range: 0...1, step: 0.1, unit: "")
+                    Text("0 = hindari jalan utama, 1 = utamakan jalan utama").font(.caption).foregroundColor(.secondary)
+                }
+                Stepper("Batas kecepatan maksimal \(settings.routeTopSpeed) km/j", value: $settings.routeTopSpeed, in: 20...120, step: 5)
+                if settings.costing != "auto" {
+                    sliderRow("Tanjakan", value: $settings.routeHills, range: 0...1, step: 0.1, unit: "")
+                    Text("0 = hindari tanjakan, 1 = tidak masalah").font(.caption).foregroundColor(.secondary)
+                    sliderRow("Gang dan jalan permukiman", value: $settings.routeLiving, range: 0...1, step: 0.1, unit: "")
+                    sliderRow("Jalan setapak / tak beraspal", value: $settings.routeTrails, range: 0...1, step: 0.1, unit: "")
+                }
+                if settings.costing != "motor_scooter" {
+                    Toggle("Hindari jalan tol", isOn: $settings.routeAvoidTolls)
+                    sliderRow("Jalan bebas hambatan", value: $settings.routeHighways, range: 0...1, step: 0.1, unit: "")
+                }
+                sliderRow("Feri", value: $settings.routeFerry, range: 0...1, step: 0.1, unit: "")
+                Toggle("Rute terpendek (jarak), bukan tercepat", isOn: $settings.routeShortest)
+                Button("Pakai bawaan XConnect (jalan utama, 80 km/j)") { settings.applyRouteProfile(.appDefault) }
+                Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
+            }
             Section(header: Text("Server routing"),
                     footer: Text("Server demo Valhalla (FOSSGIS) gratis tetapi hanya untuk pemakaian wajar. Untuk pemakaian rutin, jalankan server Valhalla sendiri dan isi alamatnya di sini.")) {
                 TextField("https://…", text: $settings.routingBase)

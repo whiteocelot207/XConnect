@@ -115,10 +115,63 @@ private struct VResponse: Decodable {
     let alternates: [Alt]?
 }
 
+/// Profil rute yang dibaca dari Pengaturan > Rute dan pencarian, lalu dikirim ke Valhalla sebagai costing_options.
+struct RouteProfile {
+    /// 0 = hindari jalan utama, 1 = sangat suka jalan utama
+    var primary: Double
+    /// batas kecepatan maksimal yang dipakai Valhalla untuk menghitung waktu (km/j)
+    var topSpeed: Int
+    /// 0 = hindari tanjakan, 1 = tidak masalah
+    var hills: Double
+    /// 0 = hindari gang/jalan permukiman, 1 = sering dipakai
+    var living: Double
+    /// 0 = hindari jalan setapak/tak beraspal, 1 = tidak masalah
+    var trails: Double
+    /// 0 = hindari feri, 1 = suka feri
+    var ferry: Double
+    var avoidTolls: Bool
+    /// 0 = hindari jalan bebas hambatan, 1 = suka (hanya untuk motor besar dan mobil)
+    var highways: Double
+    /// true = rute terpendek menurut jarak, bukan tercepat
+    var shortest: Bool
+
+    /// Bawaan app (NMAX/XMAX): suka jalan utama, maks 80 km/j.
+    static let appDefault = RouteProfile(primary: 1.0, topSpeed: 80, hills: 0.0, living: 0.5, trails: 0.0,
+                                         ferry: 0.5, avoidTolls: true, highways: 1.0, shortest: false)
+    /// Bawaan Valhalla untuk skuter (menghindari jalan utama, maks 45 km/j).
+    static let valhallaScooter = RouteProfile(primary: 0.5, topSpeed: 45, hills: 0.5, living: 0.5, trails: 0.0,
+                                              ferry: 0.5, avoidTolls: true, highways: 1.0, shortest: false)
+
+    /// Hanya opsi yang dikenal oleh jenis rute tersebut yang dikirim.
+    func costingOptions(for costing: String) -> [String: Any] {
+        let speed = min(max(topSpeed, 20), 120)
+        var o: [String: Any] = ["top_speed": speed, "use_ferry": ferry, "shortest": shortest]
+        switch costing {
+        case "motor_scooter":
+            o["use_primary"] = primary
+            o["use_hills"] = hills
+            o["use_trails"] = trails
+            o["use_living_streets"] = living
+        case "motorcycle":
+            o["use_primary"] = primary
+            o["use_hills"] = hills
+            o["use_trails"] = trails
+            o["use_living_streets"] = living
+            o["use_highways"] = highways
+            o["use_tolls"] = avoidTolls ? 0.0 : 0.5
+        default: // auto
+            o["use_highways"] = highways
+            o["use_tolls"] = avoidTolls ? 0.0 : 0.5
+        }
+        return [costing: o]
+    }
+}
+
 enum ValhallaClient {
     /// Rute tercepat (indeks 0) diikuti alternatif bila ada (maks 2).
     static func routes(base: String, costing: String, from: CLLocationCoordinate2D,
-                       to: CLLocationCoordinate2D, heading: Double?, alternatives: Int) async throws -> [Route] {
+                       to: CLLocationCoordinate2D, heading: Double?, alternatives: Int,
+                       profile: RouteProfile = .appDefault) async throws -> [Route] {
         let trimmed = base.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
         guard let url = URL(string: trimmed + "/route") else { throw RouteError.badURL }
 
@@ -132,11 +185,7 @@ enum ValhallaClient {
         let opts: [String: Any] = ["units": "kilometers", "language": "id-ID"]
         var body: [String: Any] = ["locations": locations, "costing": costing, "directions_options": opts]
         if alternatives > 0 { body["alternates"] = alternatives }
-        if costing == "motor_scooter" {
-            // Bawaan Valhalla untuk skuter: maks 45 km/j dan menghindari jalan utama + tanjakan, sehingga rute
-            // sering memutar lewat jalan kecil dan estimasi waktunya terlalu lama. NMAX/XMAX layak di jalan utama.
-            body["costing_options"] = ["motor_scooter": ["use_primary": 1.0, "use_hills": 0.0, "top_speed": 80]]
-        }
+        body["costing_options"] = profile.costingOptions(for: costing)
 
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.httpMethod = "POST"
