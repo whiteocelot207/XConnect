@@ -2,7 +2,6 @@
 
 App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash TFT Yamaha (NMAX/XMAX)
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
-(Dulu bernama NmaxConnect. Bundle ID sengaja tetap `id.nmaxconnect.app` agar pengaturan lama tidak hilang.)
 
 ## Yang baru di 0.5
 - **CCU**: bila CCU menolak cmd 294 (error `01 26 01` di log), app langsung langganan data server 1248 (id 1 dan 72).
