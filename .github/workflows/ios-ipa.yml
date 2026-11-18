@@ -88,11 +88,11 @@ jobs:
           cat > source.json <<EOF
           {
             "name": "XConnect",
-            "identifier": "id.nmaxconnect.source",
+            "identifier": "id.xconnect.source",
             "apps": [
               {
                 "name": "XConnect",
-                "bundleIdentifier": "id.nmaxconnect.app",
+                "bundleIdentifier": "id.xconnect.app",
                 "developerName": "$OWNER",
                 "subtitle": "Peta, data motor, musik di dash Yamaha",
                 "version": "$V",
