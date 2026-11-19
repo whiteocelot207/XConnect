@@ -341,7 +341,7 @@ struct UpdateSettings: View {
     var body: some View {
         Form {
             Section(header: Text("Versi"),
-                    footer: Text("Update diambil dari GitHub Releases (workflow Actions menerbitkannya otomatis setiap build). iOS tidak mengizinkan app memasang IPA sendiri, jadi tombol Pasang membuka SideStore/AltStore dengan IPA terbaru: tinggal satu ketukan konfirmasi di sana.")) {
+                    footer: Text("Update diambil dari GitHub Releases (workflow Actions menerbitkannya otomatis setiap build). iOS tidak mengizinkan app memasang IPA sendiri, jadi tombol Pasang membuka SideStore, AltStore, atau LiveContainer dengan IPA terbaru: tinggal satu ketukan konfirmasi di sana. Di LiveContainer, bila bundle ID sudah ada pilih Ganti agar data app tetap. Bila XConnect sendiri dijalankan di dalam LiveContainer, jalankan dalam mode multitasking atau di LiveContainer kedua supaya LiveContainer utama bebas memproses pemasangan.")) {
                 HStack { Text("Terpasang"); Spacer(); Text("\(UpdateService.currentVersion) (build \(UpdateService.currentBuild))").foregroundColor(.secondary) }
                 if let l = updater.latest {
                     HStack { Text("Terbaru"); Spacer(); Text(l.name).foregroundColor(.secondary) }
@@ -362,10 +362,11 @@ struct UpdateSettings: View {
                     Picker("Pasang lewat", selection: $settings.updater) {
                         Text("SideStore").tag(0)
                         Text("AltStore").tag(1)
+                        Text("LiveContainer").tag(2)
                     }
                     .pickerStyle(.segmented)
                     Button("Pasang update") { updater.install(using: settings.updater) }
-                    Button("Tambah sumber ke SideStore/AltStore (cara yang disarankan)") {
+                    Button("Tambah sumber ke \(UpdateService.storeName(settings.updater)) (cara yang disarankan)") {
                         updater.addSource(repo: settings.updateRepo, using: settings.updater)
                     }
                     Button("Buka halaman unduhan") { updater.openDownloadPage() }

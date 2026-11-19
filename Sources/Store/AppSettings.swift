@@ -23,7 +23,7 @@ final class AppSettings: ObservableObject {
     @Published var defaultKmPerL: Double { didSet { put("defaultKmPerL", defaultKmPerL) } }
     /// Format pemilik/nama-repo, mis. "histrox/xconnect"
     @Published var updateRepo: String { didSet { put("updateRepo", updateRepo) } }
-    /// 0 = SideStore, 1 = AltStore
+    /// 0 = SideStore, 1 = AltStore, 2 = LiveContainer
     @Published var updater: Int { didSet { put("updater", updater) } }
     @Published var autoCheckUpdate: Bool { didSet { put("autoCheckUpdate", autoCheckUpdate) } }
     @Published var ccuEnabled: Bool { didSet { put("ccuEnabled", ccuEnabled) } }

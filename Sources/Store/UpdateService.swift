@@ -5,8 +5,8 @@ import UIKit
 /// `build-<nomor>` berisi XConnect.ipa. App membandingkan nomor build-nya dengan build yang terpasang.
 ///
 /// Catatan iOS: app tidak bisa memasang IPA sendiri (tidak ada API untuk itu, dan IPA ini tidak
-/// bertanda tangan Apple). Jalur tercepat: tombol "Pasang update" membuka SideStore/AltStore dengan
-/// URL IPA terbaru, sehingga cukup satu ketukan konfirmasi di sana.
+/// bertanda tangan Apple). Jalur tercepat: tombol "Pasang update" membuka SideStore, AltStore, atau
+/// LiveContainer dengan URL IPA terbaru, sehingga cukup satu ketukan konfirmasi di sana.
 final class UpdateService: ObservableObject {
     struct Release {
         var build: Int
@@ -79,33 +79,59 @@ final class UpdateService: ObservableObject {
         }.resume()
     }
 
-    /// Buka SideStore/AltStore dengan URL IPA. Bila tidak ada, buka halaman Release.
+    /// Aplikasi pemasang yang didukung; angkanya disimpan di pengaturan (`AppSettings.updater`).
+    /// 0 = SideStore, 1 = AltStore, 2 = LiveContainer.
+    static func storeName(_ app: Int) -> String {
+        switch app {
+        case 1: return "AltStore"
+        case 2: return "LiveContainer"
+        default: return "SideStore"
+        }
+    }
+
+    /// Buka SideStore/AltStore/LiveContainer dengan URL IPA. Bila tidak ada, buka halaman Release.
     func install(using app: Int) {
         guard let l = latest else { return }
-        let enc = l.ipaURL.absoluteString.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-        let schemes = app == 1 ? ["altstore://install?url=\(enc)"] : ["sidestore://install?url=\(enc)"]
-        for s in schemes {
-            if let u = URL(string: s) {
-                UIApplication.shared.open(u, options: [:]) { [weak self] ok in
-                    if !ok { self?.message = "App \(app == 1 ? "AltStore" : "SideStore") tidak terpasang. Membuka halaman unduhan…"
-                        UIApplication.shared.open(l.pageURL) }
-                }
-                return
+        let raw = l.ipaURL.absoluteString
+        let enc = raw.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+        let scheme: String
+        switch app {
+        case 1: scheme = "altstore://install?url=\(enc)"
+        // LiveContainer: livecontainer://install?url=<URL IPA>. URL IPA dari GitHub Releases tidak berisi
+        // karakter khusus query (& # ?), jadi dikirim apa adanya; cara ini jalan baik bila LiveContainer
+        // membaca parameter lewat URLComponents maupun memotong string secara manual. Bila bundle ID sudah
+        // ada, LiveContainer menawarkan "ganti" (data app tetap) atau pasang sebagai app baru.
+        case 2: scheme = "livecontainer://install?url=\(raw)"
+        default: scheme = "sidestore://install?url=\(enc)"
+        }
+        guard let u = URL(string: scheme) else { openDownloadPage(); return }
+        let name = UpdateService.storeName(app)
+        UIApplication.shared.open(u, options: [:]) { [weak self] ok in
+            if !ok {
+                self?.message = "App \(name) tidak terpasang. Membuka halaman unduhan…"
+                UIApplication.shared.open(l.pageURL)
             }
         }
     }
 
-    /// Tambahkan repo ini sebagai sumber di SideStore/AltStore (cukup sekali). Setelah itu update muncul
-    /// di app SideStore/AltStore dengan bundle ID yang benar, tanpa error "bundle ID tidak cocok".
+    /// Tambahkan repo ini sebagai sumber di SideStore/AltStore/LiveContainer (cukup sekali). Setelah itu update
+    /// muncul di app tersebut dengan bundle ID yang benar, tanpa error "bundle ID tidak cocok".
+    /// Di LiveContainer sumber masuk ke tab Sources (fitur sumber ada di LiveContainer 3.7 ke atas).
     func addSource(repo: String, using app: Int) {
         let r = repo.trimmingCharacters(in: .whitespacesAndNewlines)
         guard r.split(separator: "/").count == 2 else { message = "Isi repo GitHub dulu (pemilik/nama-repo)"; return }
         let src = "https://github.com/\(r)/releases/latest/download/source.json"
         let enc = src.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-        let scheme = app == 1 ? "altstore" : "sidestore"
+        let scheme: String
+        switch app {
+        case 1: scheme = "altstore"
+        case 2: scheme = "livecontainer"
+        default: scheme = "sidestore"
+        }
+        let name = UpdateService.storeName(app)
         guard let u = URL(string: "\(scheme)://source?url=\(enc)") else { return }
         UIApplication.shared.open(u, options: [:]) { [weak self] ok in
-            if !ok { self?.message = "App \(app == 1 ? "AltStore" : "SideStore") tidak terbuka. Tambahkan manual: \(src)" }
+            if !ok { self?.message = "App \(name) tidak terbuka. Tambahkan manual: \(src)" }
         }
     }
 

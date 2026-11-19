@@ -102,15 +102,19 @@ jendela, penundaannya ada di sisi dash atau Bluetooth (bukan di app).
 - **Foto**: gambar diisikan ke area yang terlihat dan ada slider geser atas/bawah.
 - **Cadangkan dan pulihkan**: Pengaturan > Cadangkan dan pulihkan (file JSON).
 - **Tautan Google Maps**: seluruh rantai pengalihan tautan pendek diperiksa (bukan hanya alamat akhir).
-- **Update**: workflow menerbitkan `source.json`; tombol "Tambah sumber ke SideStore/AltStore" menambahkannya
-  sekali, lalu update dipasang dari SideStore dengan bundle ID yang benar.
+- **Update**: workflow menerbitkan `source.json`; tombol "Tambah sumber ke ..." menambahkannya
+  sekali, lalu update dipasang dari SideStore, AltStore, atau LiveContainer dengan bundle ID yang benar.
+- **Update lewat LiveContainer**: pilih "LiveContainer" di Pengaturan > Update aplikasi. Tombol Pasang memakai
+  `livecontainer://install?url=<IPA>` dan tombol Tambah sumber memakai `livecontainer://source?url=<source.json>`
+  (tab Sources, LiveContainer 3.7+). Bila bundle ID sudah ada, pilih Ganti agar data app tetap. Bila XConnect
+  berjalan di dalam LiveContainer, pakai mode multitasking atau LiveContainer kedua.
 - **Cuaca** diambil juga saat preview Home tampil (sebelumnya hanya saat dash tersambung).
 
 ## Yang baru di 0.4
 - **Ganti nama** jadi XConnect.
 - **Update dari dalam app**: Pengaturan > Update aplikasi. Isi `pemilik/nama-repo`. Setiap build GitHub Actions
   menerbitkan Release (`build-<nomor>`, berisi XConnect.ipa). App membandingkan nomor build lalu membuka
-  SideStore/AltStore dengan URL IPA terbaru (satu ketukan konfirmasi). Repo harus **public** agar app bisa membacanya.
+  SideStore/AltStore/LiveContainer dengan URL IPA terbaru (satu ketukan konfirmasi). Repo harus **public** agar app bisa membacanya.
 - **Link CCU (BLE)**: ID+passkey dari iAP `com.yconnect.data` → scan `YCCU_<id>` → auth → langganan data.
   Aki, ODO, suhu mesin/udara, RPM tampil di kotak data. Izin Bluetooth sekarang muncul di Pengaturan iOS.
   BELUM PERNAH diuji di motor; semua langkah dicatat di log (`CCU BLE: …`).
@@ -138,4 +142,4 @@ tata letak foto/data overlay.
 1. Unggah seluruh isi folder ini (termasuk `.github`) ke repo GitHub **public**.
 2. Settings > Actions > General > Workflow permissions: **Read and write**.
 3. Tab **Actions > iOS IPA > Run workflow**. Hasilnya ada di **Releases** (dan artifact).
-4. Pasang pertama kali dengan Sideloadly; update berikutnya dari app (SideStore/AltStore).
+4. Pasang pertama kali dengan Sideloadly; update berikutnya dari app (SideStore/AltStore/LiveContainer).
