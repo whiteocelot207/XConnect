@@ -94,7 +94,7 @@ final class MusicService: ObservableObject {
     /// playback + mixWithOthers dengan audio senyap (mode latar "audio"), jadi volume dan data HP lain terus berubah.
     /// mixWithOthers: musik yang sedang diputar tidak terganggu.
     func activateAudioSession() {
-        if guidanceActive { return }          // suara petunjuk arah sedang memegang sesi
+        if guidanceActive || restartWork != nil { return }          // suara petunjuk arah sedang memegang sesi
         let s = AVAudioSession.sharedInstance()
         do {
             // selalu playback + mixWithOthers (tidak berpindah-pindah kategori, karena perpindahan itu bisa
@@ -108,7 +108,7 @@ final class MusicService: ObservableObject {
 
     /// Nyalakan/matikan audio senyap sesuai pengaturan dan status dash.
     func updateKeepAlive() {
-        if guidanceActive { return }
+        if guidanceActive || restartWork != nil { return }
         activateAudioSession()
         if keepAliveEnabled && (dashConnected || navActive) {
             if keepAlivePlayer == nil {
@@ -154,6 +154,17 @@ final class MusicService: ObservableObject {
         let opts: AVAudioSession.CategoryOptions = duck
             ? [.duckOthers, .interruptSpokenAudioAndMixWithOthers]      // = 0x13, sama dengan NConnect
             : [.mixWithOthers]
+        // NConnect (jalur Yamaha) TIDAK punya audio senyap permanen: di antara pemberitahuan sesinya mati, lalu
+        // setiap suara mengaktifkan sesi dari nol (voicePrompt + 0x13) dan melepasnya dengan notifyOthersOnDeactivation.
+        // Mengubah opsi pada sesi yang sedang aktif dan memutar audio (cara XConnect sebelumnya) membuat Apple Music
+        // berhenti dan ducking tidak dilepas bersih. Jadi lepas dulu audio senyap + sesi, baru aktifkan sesi suara.
+        restartWork?.cancel()
+        restartWork = nil
+        if !guidanceActive {
+            if let kp = keepAlivePlayer { kp.stop(); keepAlivePlayer = nil }
+            do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
+            catch { onLog("Suara: sesi lama gagal dilepas: \(error.localizedDescription)") }
+        }
         guidanceActive = true
         guidanceDuck = duck
         do {
@@ -194,39 +205,35 @@ final class MusicService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + resumeDelay, execute: w)
     }
 
-    /// Dipanggil setelah suara selesai. Dua cabang yang saling eksklusif, sama dengan NConnect (Voice.didFinish,
-    /// bercabang pada flag KeepAwake.on), hasil membaca binary-nya:
-    ///  - audio senyap hidup (mode latar belakang): HANYA kembalikan kategori tanpa duck. Sesi TIDAK dilepas.
-    ///    Opsi duck yang dilepas sudah mengakhiri ducking, dan melepas sesi saat masih ada audio yang berjalan
-    ///    justru mengganggu app musik.
-    ///  - audio senyap mati: HANYA lepas sesi dengan `notifyOthersOnDeactivation`.
+    /// Dipanggil setelah suara selesai, sama dengan NConnect (Voice.didFinish, cabang audio senyap mati):
+    /// lepas sesi dengan `notifyOthersOnDeactivation` supaya iOS melepas ducking dan musik kembali ke volume semula.
+    /// Audio senyap (bila diperlukan) dihidupkan lagi setelah jeda singkat, supaya tidak menimpa proses un-duck.
     func endGuidanceAudio() {
         guard guidanceActive else { return }
         let s = AVAudioSession.sharedInstance()
-        if keepAlivePlayer != nil {
-            do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
-            catch { onLog("Suara: kategori gagal dikembalikan: \(error.localizedDescription)") }
-        } else {
-            do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
-            catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
-        }
+        do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
+        catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
         autoResumeUntil = Date().addingTimeInterval(4.0)
         autoResumeCount = 0          // jatah baru untuk interupsi yang muncul setelah suara selesai
-        finishGuidanceAudio()
+        guidanceActive = false
+        restartWork?.cancel()
+        let w = DispatchWorkItem { [weak self] in
+            self?.restartWork = nil
+            self?.updateKeepAlive()
+        }
+        restartWork = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: w)
         resumeIfInterruptedByGuidance()
-        onLog("Suara: selesai (\(keepAlivePlayer != nil ? "sesi tetap hidup" : "sesi dilepas")), volume sistem \(Int((s.outputVolume * 100).rounded()))%")
+        onLog("Suara: selesai (sesi dilepas), volume sistem \(Int((s.outputVolume * 100).rounded()))%")
     }
+
+    private var restartWork: DispatchWorkItem?
 
     /// Perintah "jeda" yang datang saat/segera setelah suara petunjuk berbunyi bukan dari pengguna,
     /// melainkan efek samping perubahan sesi audio; jangan diteruskan ke pemutar musik.
     private var pauseGuardUntil = Date.distantPast
     private var shouldIgnorePause: Bool { guidanceActive || Date() < pauseGuardUntil }
-
-    private func finishGuidanceAudio() {
-        guidanceActive = false
-        updateKeepAlive()
-    }
 
     /// WAV mono 8 kHz, 1 detik, semua nol (senyap).
     private static func silentWAV() -> Data {
