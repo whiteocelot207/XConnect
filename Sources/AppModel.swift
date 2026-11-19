@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import Combine
 
 final class AppModel: ObservableObject {
     /// Dibuat saat app diluncurkan (termasuk peluncuran di latar belakang), bukan saat tampilan pertama muncul.
@@ -18,6 +19,7 @@ final class AppModel: ObservableObject {
     let nav: NavigationController
     let bike: BikeController
     let updater = UpdateService()
+    private var bag = Set<AnyCancellable>()
 
     init() {
         let s = AppSettings()
@@ -48,7 +50,14 @@ final class AppModel: ObservableObject {
         bike = b
         b.model = self
         music.onLog = { [weak b] s in b?.log(s) }
+        music.keepAliveEnabled = s.keepAliveAudio
         music.startMonitoring()
+        s.$keepAliveAudio.dropFirst()
+            .sink { [weak self] on in
+                self?.music.keepAliveEnabled = on
+                self?.music.updateKeepAlive()
+            }
+            .store(in: &bag)
     }
 }
 

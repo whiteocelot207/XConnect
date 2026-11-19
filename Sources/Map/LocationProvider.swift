@@ -32,6 +32,16 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         manager.distanceFilter = on ? kCLDistanceFilterNone : 100
     }
 
+    /// Posisi perkiraan "sekarang": titik GPS terakhir digeser searah gerak sejauh kecepatan x (umur fix + latensi kirim).
+    /// Dipakai untuk peta di dash supaya tidak tertinggal dari posisi sebenarnya (GPS hanya ~1x per detik).
+    func predictedCoordinate(extraLatency: TimeInterval) -> CLLocationCoordinate2D {
+        guard let l = lastLocation, l.speed > 2.0 else { return coordinate }
+        let heading = l.course >= 0 ? l.course : (bearingKnown ? bearing : -1)
+        guard heading >= 0 else { return coordinate }
+        let age = max(0, min(2.5, -l.timestamp.timeIntervalSinceNow))
+        return Geo.destination(from: l.coordinate, bearing: heading, meters: l.speed * (age + extraLatency))
+    }
+
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let l = locations.last, l.horizontalAccuracy >= 0 else { return }
         coordinate = l.coordinate

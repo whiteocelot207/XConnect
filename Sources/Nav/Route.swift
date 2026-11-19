@@ -190,7 +190,7 @@ enum ValhallaClient {
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("XConnect/0.6 (personal navigation app)", forHTTPHeaderField: "User-Agent")
+        req.setValue("XConnect/0.7 (personal navigation app)", forHTTPHeaderField: "User-Agent")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, resp) = try await URLSession.shared.data(for: req)

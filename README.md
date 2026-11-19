@@ -1,8 +1,39 @@
-# XConnect (iOS) v0.6
+# XConnect (iOS) v0.7
 
 App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash TFT Yamaha (NMAX/XMAX)
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
+
+## Yang baru di 0.7
+- **Ikon aplikasi** XConnect (Sources/Assets.xcassets/AppIcon). Ikon di source.json SideStore/AltStore ikut memakainya.
+- **Ikon putar balik** kini benar: putar balik kanan menampilkan panah ke kanan, putar balik kiri ke kiri
+  (sebelumnya terbalik; lalu lintas Indonesia di kiri, jadi putar balik yang umum adalah ke kanan).
+- **Nama jalan di petunjuk arah**: panel hijau kini memuat baris "ke <nama jalan>" (jalan tujuan belokan dari Valhalla),
+  juga di layar Speedometer.
+- **Lebar kotak hijau menyesuaikan isi teks** (panel belokan dan kotak jarak + ETA), tidak lagi tetap.
+  Sudut kotak jarak + ETA kini sama seperti panel belokan (tidak terlalu bulat).
+- **Ukuran huruf kotak data**: Pengaturan > Kotak data > Ukuran huruf (kotak besar dan kecil, 0.5x - 1.5x). Isi kotak
+  otomatis dikecilkan bila tidak muat, jadi tidak ada lagi teks terpotong atau keluar kotak. Susunan kotak cuaca
+  menyesuaikan tinggi kotak.
+- **Data HP di latar belakang**: mode latar belakang `audio` + audio senyap (kategori playback, mixWithOthers) selama
+  dash tersambung, supaya volume HP dan data HP lain tetap berubah saat app tidak dibuka atau layar terkunci.
+  Bisa dimatikan di Pengaturan > Motor dan koneksi > "Jaga data HP tetap hidup di latar belakang".
+- **Kurangi delay**:
+  - frame yang menunggu ACK dash lebih dari 0,15 dtk dibuang dan digambar ulang dengan data terbaru (dulu frame lama
+    tetap dikirim, jadi peta/angka tertinggal sepanjang waktu tunggu ACK);
+  - posisi di peta digeser searah gerak sejauh kecepatan x (umur GPS + 0,3 dtk), jadi titik motor tidak tertinggal;
+  - JPEG di-encode di luar thread utama, kualitas bisa diatur (bawaan 0,7, lebih ringan dari 0,8);
+  - frame yang sama persis dengan sebelumnya tidak dikirim (kecuali tiap 1 dtk), mengurangi beban Bluetooth;
+  - label zoom dikirim langsung saat tombol ditekan, tidak menunggu frame berikutnya.
+- **Tombol stang**: jendela klik 2x bisa sampai 2000 ms. Byte dari dash yang dibuang parser (bukan paket NaviLite sah)
+  kini dicatat di Log beserta isinya. Klik tahan: BELUM bisa, dash tidak mengirim apa pun lewat iAP saat tombol
+  ditahan (lihat catatan di bawah).
+
+### Catatan klik tahan dan klik 2x
+Semua paket dari dash di protokol NaviLite (`com.garmin.navilite.data`) dan CCU (`com.yconnect.data`) dicatat di Log.
+Bila klik tahan tidak menghasilkan baris apa pun, dash tidak mengirimnya ke iPhone lewat kedua protokol itu, jadi app tidak
+punya sinyal untuk dibaca. Untuk klik 2x, bandingkan selisih ms di Log: bila dua tekan cepat tercatat berjarak lebih dari
+jendela, penundaannya ada di sisi dash atau Bluetooth (bukan di app).
 
 ## Yang baru di 0.6
 - **Profil rute dapat diatur** (Pengaturan > Rute dan pencarian > Profil rute): preferensi jalan utama, batas kecepatan maksimal,

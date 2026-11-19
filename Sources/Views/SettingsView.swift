@@ -112,6 +112,11 @@ struct ConnectionSettings: View {
                 Toggle("Hemat baterai", isOn: $settings.saveBattery)
                 Toggle("Jaga layar tetap menyala saat terhubung", isOn: $settings.keepScreenOn)
             }
+            Section(header: Text("Kecepatan data di dash"),
+                    footer: Text("Frame lebih ringan sampai lebih cepat ke dash, jadi peta dan angka tidak terasa tertinggal, tetapi gambarnya sedikit lebih kasar. \"Jaga data HP\" memutar audio senyap (tidak mengganggu musik) supaya volume dan data HP lain tetap berubah saat app di latar belakang atau layar terkunci.")) {
+                sliderRow("Kualitas gambar dash", value: $settings.dashQuality, range: 0.4...0.95, step: 0.05, unit: "")
+                Toggle("Jaga data HP tetap hidup di latar belakang", isOn: $settings.keepAliveAudio)
+            }
             Section(header: Text("Motor")) {
                 TextField("Nama motor", text: $vehicle.name)
                 TextField("Model", text: $vehicle.model)
@@ -142,7 +147,7 @@ struct ControlSettings: View {
                     footer: Text("Dua tekan pada tombol yang sama dalam waktu ini dihitung sebagai klik 2x. Tekan 1x tetap langsung dijalankan tanpa menunggu. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
                 sliderRow("Jendela klik 2x", value: Binding(
                     get: { Double(settings.doubleClickMs) },
-                    set: { settings.doubleClickMs = Int($0) }), range: 300...1200, step: 50, unit: "ms")
+                    set: { settings.doubleClickMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
             }
             Section(footer: Text("Layar Tes tombol (Pengaturan > Layar dasbor) menampilkan tiap tekan tombol di dash dan mencatatnya di Log.")) {
                 EmptyView()
@@ -285,6 +290,15 @@ struct CardSettings: View {
                 }
                 Toggle("Tampilkan kotak data", isOn: $settings.showCards)
                 sliderRow("Kegelapan latar kolom (0 = transparan)", value: $settings.cardBgAlpha, range: 0...1, step: 0.05, unit: "")
+            }
+            Section(header: Text("Ukuran huruf"),
+                    footer: Text("1 = ukuran bawaan. Huruf otomatis dikecilkan bila isi kotak terlalu panjang, jadi tidak pernah keluar dari kotak.")) {
+                sliderRow("Kotak besar", value: $settings.cardFontBig, range: 0.5...1.5, step: 0.05, unit: "x")
+                sliderRow("Kotak kecil", value: $settings.cardFontSmall, range: 0.5...1.5, step: 0.05, unit: "x")
+                Button("Atur ulang ukuran huruf") {
+                    settings.cardFontBig = 1
+                    settings.cardFontSmall = 1
+                }
             }
             Section(header: Text("Isi kotak")) {
                 if settings.cardLayout != 2 { fieldPicker("Kotak besar", $settings.cardBig) }

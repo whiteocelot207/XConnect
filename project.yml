@@ -20,7 +20,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: id.xconnect.app
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.6.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "0.7.0"
         CURRENT_PROJECT_VERSION: "1"
     info:
       path: Sources/Info.plist
@@ -38,6 +39,7 @@ targets:
           - external-accessory
           - bluetooth-central
           - location
+          - audio
         NSBluetoothAlwaysUsageDescription: XConnect terhubung ke dash motor Yamaha lewat Bluetooth untuk menampilkan peta.
         NSLocationWhenInUseUsageDescription: XConnect memakai lokasi untuk menggambar peta di dash motor.
         NSBluetoothPeripheralUsageDescription: XConnect membaca data motor (aki, ODO, suhu) dari ECU motor lewat Bluetooth.

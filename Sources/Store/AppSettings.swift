@@ -77,6 +77,13 @@ final class AppSettings: ObservableObject {
     @Published var ccuExtraIds: String { didSet { put("ccuExtraIds", ccuExtraIds) } }
     /// kirim nama jalan saat ini ke bar bawah dash walau tidak sedang navigasi
     @Published var showRoadName: Bool { didSet { put("showRoadName", showRoadName) } }
+    /// skala huruf kotak data besar dan kecil di dash (0.5 - 1.5)
+    @Published var cardFontBig: Double { didSet { put("cardFontBig", cardFontBig) } }
+    @Published var cardFontSmall: Double { didSet { put("cardFontSmall", cardFontSmall) } }
+    /// kualitas JPEG frame dash (lebih kecil = frame lebih ringan, lebih cepat sampai ke dash)
+    @Published var dashQuality: Double { didSet { put("dashQuality", dashQuality) } }
+    /// putar audio senyap supaya app tetap aktif di latar belakang dan data HP (volume dll) tetap berubah
+    @Published var keepAliveAudio: Bool { didSet { put("keepAliveAudio", keepAliveAudio) } }
 
     /// Profil rute (dikirim ke Valhalla): lihat RouteProfile
     @Published var routePrimary: Double { didSet { put("routePrimary", routePrimary) } }
@@ -108,6 +115,7 @@ final class AppSettings: ObservableObject {
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
             "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
+            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
             "routeShortest": false
@@ -165,6 +173,10 @@ final class AppSettings: ObservableObject {
         Fmt.clock24 = d.bool(forKey: "clock24")
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
         showRoadName = d.bool(forKey: "showRoadName")
+        cardFontBig = min(max(0.5, d.double(forKey: "cardFontBig")), 1.5)
+        cardFontSmall = min(max(0.5, d.double(forKey: "cardFontSmall")), 1.5)
+        dashQuality = min(max(0.4, d.double(forKey: "dashQuality")), 0.95)
+        keepAliveAudio = d.bool(forKey: "keepAliveAudio")
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
         routeHills = d.double(forKey: "routeHills")
@@ -232,6 +244,10 @@ final class AppSettings: ObservableObject {
         Fmt.clock24 = clock24
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
         showRoadName = d.bool(forKey: "showRoadName")
+        cardFontBig = min(max(0.5, d.double(forKey: "cardFontBig")), 1.5)
+        cardFontSmall = min(max(0.5, d.double(forKey: "cardFontSmall")), 1.5)
+        dashQuality = min(max(0.4, d.double(forKey: "dashQuality")), 0.95)
+        keepAliveAudio = d.bool(forKey: "keepAliveAudio")
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
         routeHills = d.double(forKey: "routeHills")

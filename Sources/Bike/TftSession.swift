@@ -33,6 +33,7 @@ final class TftSession {
     var onVolume: (Bool) -> Void = { _ in }
     var wantsPreview: () -> Bool = { true }
     var maxFpsProvider: () -> Double = { 10 }
+    var qualityProvider: () -> Double = { 0.7 }
     var autoZoomProvider: () -> Bool = { true }
     var routeProvider: () -> [CLLocationCoordinate2D] = { [] }
     var destinationProvider: () -> CLLocationCoordinate2D? = { nil }
@@ -52,6 +53,14 @@ final class TftSession {
     private var ackPending = false
     private var renderBusy = false
     private var readyJPEG: [UInt8]?
+    private var readyAt = Date.distantPast
+    private var lastSentJPEG: [UInt8] = []
+    private var lastTransmit = Date.distantPast
+    private var lastDropLog = Date.distantPast
+    /// frame yang sudah menunggu ACK lebih lama dari ini dibuang dan digambar ulang dengan data terbaru
+    private let staleFrameLimit: TimeInterval = 0.15
+    /// frame yang sama persis dengan sebelumnya tidak dikirim, kecuali sudah selama ini (supaya dash tidak menganggap putus)
+    private let repeatInterval: TimeInterval = 1.0
     private var lastRenderStart = Date.distantPast
     private var ackTimer: Timer?
     private var lastPayload: [UInt8] = []
@@ -152,7 +161,15 @@ final class TftSession {
     // MARK: - Terima
 
     private func receive(_ data: Data) {
-        for p in parser.feed(data) { handle(p) }
+        let before = parser.droppedBytes
+        let packets = parser.feed(data)
+        let dropped = parser.droppedBytes - before
+        if dropped > 0, Date().timeIntervalSince(lastDropLog) > 1 {
+            lastDropLog = Date()
+            let sample = parser.takeDropSample().map { String(format: "%02x", $0) }.joined(separator: " ")
+            onLog("← \(dropped) B dari dash dibuang (bukan paket NaviLite sah): \(sample)")
+        }
+        for p in packets { handle(p) }
     }
 
     private func handle(_ p: NaviPacket) {
@@ -315,6 +332,8 @@ final class TftSession {
     private func changeZoom(_ d: Double) {
         zoomOffset = min(3, max(-3, zoomOffset + d))
         lastZoomLabel = ""
+        // kirim label zoom sekarang juga, jangan menunggu frame berikutnya selesai digambar
+        if authenticated { sendZoomLabel(effectiveZoom(navigating: navActive)) }
     }
 
     // MARK: - Kirim
@@ -420,6 +439,7 @@ final class TftSession {
         ackPending = false
         renderBusy = false
         readyJPEG = nil
+        lastSentJPEG = []
         seq = 0
         fpsStart = Date()
         fpsCount = 0
@@ -443,7 +463,14 @@ final class TftSession {
         guard streaming else { return }
         if !ackPending, let jpeg = readyJPEG {
             readyJPEG = nil
-            transmit(jpeg)
+            let waited = Date().timeIntervalSince(readyAt)
+            if waited > staleFrameLimit {
+                // frame ini menunggu ACK terlalu lama (peta/angka sudah ketinggalan): gambar ulang yang baru
+            } else if jpeg == lastSentJPEG, Date().timeIntervalSince(lastTransmit) < repeatInterval {
+                // tidak ada yang berubah: tidak usah memenuhi Bluetooth dengan frame yang sama
+            } else {
+                transmit(jpeg)
+            }
         }
         if !renderBusy && readyJPEG == nil {
             let minInterval = 1.0 / max(1.0, maxFpsProvider())
@@ -474,30 +501,23 @@ final class TftSession {
         let navigating = content.nav != nil
         let zoom = effectiveZoom(navigating: navigating)
         let hud = DashHUD(size: frameSize, screen: screen, content: content,
-                          center: location.coordinate, bearing: location.bearing, zoom: zoom,
+                          center: location.predictedCoordinate(extraLatency: 0.3), bearing: location.bearing, zoom: zoom,
                           route: navigating ? routeProvider() : [],
                           destination: navigating ? destinationProvider() : nil)
-        DashRenderer.render(hud) { [weak self] image in
+        let quality = CGFloat(qualityProvider())
+        DashRenderer.renderJPEG(hud, quality: quality) { [weak self] image, jpeg in
             guard let self = self, gen == self.generation else { return }
             self.renderBusy = false
             guard self.streaming else { return }
             self.sendZoomLabel(zoom)
-            self.readyJPEG = self.encode(image)
+            self.readyJPEG = jpeg
+            self.readyAt = Date()
             if self.wantsPreview(), Date().timeIntervalSince(self.lastPreview) > 0.15 {
                 self.lastPreview = Date()
                 self.onPreview(image)
             }
             self.pump()
         }
-    }
-
-    private func encode(_ image: UIImage) -> [UInt8] {
-        var jpeg = image.jpegData(compressionQuality: 0.8) ?? Data()
-        if jpeg.count <= 2048, let hq = image.jpegData(compressionQuality: 0.95) {
-            jpeg = hq
-            if jpeg.count < 2050 { jpeg.append(Data(count: 2050 - jpeg.count)) }
-        }
-        return [UInt8](jpeg)
     }
 
     private func transmit(_ jpeg: [UInt8]) {
@@ -508,6 +528,8 @@ final class TftSession {
         lastSentSeq = seq
         seq &+= 1
         ackPending = true
+        lastSentJPEG = jpeg
+        lastTransmit = Date()
         lastPayload = payload
         ackRetries = 0
         send(.pointer(NaviService.imageFrame, payload))

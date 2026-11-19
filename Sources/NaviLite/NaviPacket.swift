@@ -121,18 +121,39 @@ struct NaviPacket {
 struct NaviPacketParser {
     private var buf = [UInt8]()
     private static let magic: [UInt8] = [0x6E, 0x41, 0x6C, 0x40]
+    /// jumlah byte dari dash yang dibuang karena bukan paket NaviLite yang sah (untuk diagnosis di Log)
+    private(set) var droppedBytes = 0
+    private var dropSample = [UInt8]()
 
     mutating func reset() { buf.removeAll() }
+
+    /// Contoh byte yang dibuang (maks 32) sejak pemanggilan terakhir.
+    mutating func takeDropSample() -> [UInt8] {
+        let s = dropSample
+        dropSample.removeAll()
+        return s
+    }
+
+    private mutating func noteDrop(_ bytes: ArraySlice<UInt8>) {
+        droppedBytes += bytes.count
+        if dropSample.count < 32 { dropSample += bytes.prefix(32 - dropSample.count) }
+    }
 
     mutating func feed(_ data: Data) -> [NaviPacket] {
         buf.append(contentsOf: data)
         var out = [NaviPacket]()
         while true {
             guard let i = indexOfMagic() else {
-                if buf.count > 3 { buf.removeFirst(buf.count - 3) }
+                if buf.count > 3 {
+                    noteDrop(buf[0..<(buf.count - 3)])
+                    buf.removeFirst(buf.count - 3)
+                }
                 break
             }
-            if i > 0 { buf.removeFirst(i) }
+            if i > 0 {
+                noteDrop(buf[0..<i])
+                buf.removeFirst(i)
+            }
             if buf.count < 16 { break }
             let size = Int(le32(at: 7))
             if size > 2_000_000 { buf.removeFirst(1); continue }
@@ -145,6 +166,7 @@ struct NaviPacketParser {
                                       isPointer: header[11] == 1, payload: payload))
                 buf.removeFirst(16 + size)
             } else {
+                noteDrop(buf[0..<1])
                 buf.removeFirst(1)   // CRC salah: buang dan sinkron ulang
             }
         }

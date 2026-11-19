@@ -17,6 +17,10 @@ final class MusicService: ObservableObject {
     private var art: UIImage?
     private var monitoring = false
     private var volObs: NSKeyValueObservation?
+    private var keepAlivePlayer: AVAudioPlayer?
+    /// pengaturan "Jaga data HP tetap hidup" dan status dash; audio senyap hanya berputar bila keduanya true
+    var keepAliveEnabled = true
+    var dashConnected = false
 
     init() {
         authorized = MPMediaLibrary.authorizationStatus() == .authorized
@@ -56,28 +60,66 @@ final class MusicService: ObservableObject {
         }
         // sesi audio bisa lepas (telepon, Siri, app lain): aktifkan lagi supaya volume tetap terbaca
         nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.activateAudioSession()
+            self?.updateKeepAlive()
         }
         nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
             let t = (n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap(AVAudioSession.InterruptionType.init)
-            if t == .ended { self?.activateAudioSession() }
+            if t == .ended { self?.updateKeepAlive() }
         }
         nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.activateAudioSession()
+            self?.keepAlivePlayer = nil
+            self?.updateKeepAlive()
         }
         registerRemoteCommands()
     }
 
-    /// iOS hanya memperbarui AVAudioSession.outputVolume (dan KVO-nya) bila sesi audio AKTIF.
-    /// Kategori ambient + mixWithOthers: tidak menghentikan atau mengganggu musik yang sedang diputar.
+    /// iOS hanya memperbarui AVAudioSession.outputVolume (dan KVO-nya) bila sesi audio AKTIF, dan sesi ambient
+    /// ikut mati saat app pindah ke latar belakang atau layar terkunci. Saat dash tersambung dipakai kategori
+    /// playback + mixWithOthers dengan audio senyap (mode latar "audio"), jadi volume dan data HP lain terus berubah.
+    /// mixWithOthers: musik yang sedang diputar tidak terganggu.
     func activateAudioSession() {
         let s = AVAudioSession.sharedInstance()
+        let keep = keepAliveEnabled && dashConnected
         do {
-            try s.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            let category: AVAudioSession.Category = keep ? .playback : .ambient
+            try s.setCategory(category, mode: .default, options: [.mixWithOthers])
             try s.setActive(true)
         } catch {
             onLog("Sesi audio gagal aktif: \(error.localizedDescription)")
         }
+    }
+
+    /// Nyalakan/matikan audio senyap sesuai pengaturan dan status dash.
+    func updateKeepAlive() {
+        activateAudioSession()
+        if keepAliveEnabled && dashConnected {
+            if keepAlivePlayer == nil {
+                keepAlivePlayer = try? AVAudioPlayer(data: MusicService.silentWAV())
+                keepAlivePlayer?.numberOfLoops = -1
+                keepAlivePlayer?.volume = 0
+                keepAlivePlayer?.prepareToPlay()
+            }
+            if let p = keepAlivePlayer, !p.isPlaying {
+                if !p.play() { onLog("Audio senyap gagal diputar (data HP di latar belakang bisa tertahan)") }
+            }
+        } else if let p = keepAlivePlayer {
+            p.stop()
+            keepAlivePlayer = nil
+        }
+    }
+
+    /// WAV mono 8 kHz, 1 detik, semua nol (senyap).
+    private static func silentWAV() -> Data {
+        let rate: UInt32 = 8000
+        let dataSize: UInt32 = 8000 * 2
+        var b = [UInt8]()
+        func u32(_ v: UInt32) { b += [UInt8(v & 0xFF), UInt8((v >> 8) & 0xFF), UInt8((v >> 16) & 0xFF), UInt8((v >> 24) & 0xFF)] }
+        func u16(_ v: UInt16) { b += [UInt8(v & 0xFF), UInt8(v >> 8)] }
+        b += Array("RIFF".utf8); u32(36 + dataSize); b += Array("WAVE".utf8)
+        b += Array("fmt ".utf8); u32(16); u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
+        b += Array("data".utf8); u32(dataSize)
+        b += [UInt8](repeating: 0, count: Int(dataSize))
+        return Data(b)
     }
 
     /// Volume sistem 0...1 untuk kotak "Volume HP" di dash.

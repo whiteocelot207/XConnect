@@ -12,6 +12,8 @@ final class BikeController: NSObject, ObservableObject {
         didSet {
             updateIdleTimer()
             location.setHighPower(isConnected)
+            model?.music.dashConnected = isConnected
+            model?.music.updateKeepAlive()
         }
     }
     @Published var logLines: [String] = []
@@ -310,7 +312,8 @@ final class BikeController: NSObject, ObservableObject {
         c.rpm = live.rpm
         c.ignitionOn = live.ignitionOn
         c.card = CardConfig(layout: settings.cardLayout, big: settings.cardBig,
-                            small: [settings.cardS1, settings.cardS2, settings.cardS3, settings.cardS4])
+                            small: [settings.cardS1, settings.cardS2, settings.cardS3, settings.cardS4],
+                            bigScale: CGFloat(settings.cardFontBig), smallScale: CGFloat(settings.cardFontSmall))
         c.musicBlurBG = settings.musicBlurBG
         c.routeWidth = CGFloat(settings.routeWidth)
         c.routeBorder = CGFloat(settings.routeBorder)
@@ -476,6 +479,7 @@ final class BikeController: NSObject, ObservableObject {
         s.screenIndexProvider = { [weak self] in self?.screenIndex ?? 0 }
         s.buttonSchemeProvider = { [weak self] in self?.settings.buttonScheme ?? 1 }
         s.maxFpsProvider = { [weak self] in self?.settings.maxFps ?? 10 }
+        s.qualityProvider = { [weak self] in self?.settings.dashQuality ?? 0.7 }
         s.autoZoomProvider = { [weak self] in self?.settings.autoZoom ?? true }
         s.routeProvider = { [weak self] in self?.nav?.upcomingPoints() ?? [] }
         s.destinationProvider = { [weak self] in self?.nav?.destinationCoordinate }

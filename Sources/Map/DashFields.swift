@@ -131,4 +131,6 @@ struct CardConfig {
     var layout = 1                 // 0 = besar + 2 kecil, 1 = besar + 4 kecil, 2 = 4 kecil
     var big = 0
     var small = [1, 2, 3, 4]
+    var bigScale: CGFloat = 1      // skala huruf kotak besar (otomatis mengecil bila tidak muat)
+    var smallScale: CGFloat = 1    // skala huruf kotak kecil
 }

@@ -112,6 +112,24 @@ enum DashRenderer {
             DispatchQueue.main.async { completion(img) }
         }
     }
+
+    /// Gambar + encode JPEG di antrean render (bukan di thread utama, supaya tombol stang dan stream tidak tertahan).
+    static func renderJPEG(_ hud: DashHUD, quality: CGFloat, completion: @escaping (UIImage, [UInt8]) -> Void) {
+        queue.async {
+            let img = DashComposer.image(hud)
+            let jpeg = encode(img, quality: quality)
+            DispatchQueue.main.async { completion(img, jpeg) }
+        }
+    }
+
+    static func encode(_ image: UIImage, quality: CGFloat) -> [UInt8] {
+        var jpeg = image.jpegData(compressionQuality: quality) ?? Data()
+        if jpeg.count <= 2048, let hq = image.jpegData(compressionQuality: 0.95) {
+            jpeg = hq
+            if jpeg.count < 2050 { jpeg.append(Data(count: 2050 - jpeg.count)) }
+        }
+        return [UInt8](jpeg)
+    }
 }
 
 enum DashComposer {
@@ -157,33 +175,54 @@ enum DashComposer {
         if let n = c.nav {
             let green = UIColor(red: 0.04, green: 0.45, blue: 0.30, alpha: 0.96)
             let k = max(0.6, min(1.4, c.navScale))
-            // panel belokan di kiri atas (sedikit ke tengah supaya tidak tertutup tombol zoom dash)
+            // batas kanan area peta (kolom kotak data dimulai di x = 332)
+            let rightLimit: CGFloat = withCards ? 326 : hud.size.width - 6
+
+            // panel belokan: lebar mengikuti isi teks, ada baris nama jalan tujuan belokan
+            let street = n.street.isEmpty ? "" : "ke " + n.street
+            let hasStreet = !street.isEmpty
+            let panelH: CGFloat = hasStreet ? 68 : 54
+            let textW = max(textWidth(n.text, size: 15, bold: true),
+                            textWidth(n.dist, size: 17, bold: true),
+                            hasStreet ? textWidth(street, size: 13, bold: true) : 0)
+            let baseX = max(8 + c.navDX, 0)
+            let avail = max(150, (rightLimit - baseX) / k)
+            let panelW = min(max(150, 68 + textW + 12), avail)
+            let navX = max(0, min(baseX, hud.size.width - panelW * k))
+            let navY = min(max(vis.minY + 2 + c.navDY, vis.minY), vis.maxY - panelH * k)
             cg.saveGState()
-            let navX = min(max(8 + c.navDX, 0), hud.size.width - 200 * k)
-            let navY = min(max(vis.minY + 2 + c.navDY, vis.minY), vis.maxY - 54 * k)
             cg.translateBy(x: navX, y: navY)
             cg.scaleBy(x: k, y: k)
-            let r = CGRect(x: 0, y: 0, width: 200, height: 54)
-            fillRound(r, radius: 10, color: green)
-            TurnGlyph.draw(cg, code: n.icon, in: CGRect(x: 14, y: 3, width: 48, height: 48), color: .white)
-            text(n.text, CGRect(x: 68, y: 6, width: 128, height: 22), size: 15, bold: true)
-            text(n.dist, CGRect(x: 68, y: 28, width: 128, height: 22), size: 17, bold: true,
-                 color: UIColor(white: 1, alpha: 0.9))
+            fillRound(CGRect(x: 0, y: 0, width: panelW, height: panelH), radius: 10, color: green)
+            TurnGlyph.draw(cg, code: n.icon, in: CGRect(x: 14, y: (panelH - 48) / 2, width: 48, height: 48), color: .white)
+            let tw = panelW - 68 - 8
+            if hasStreet {
+                text(n.text, CGRect(x: 68, y: 5, width: tw, height: 20), size: 15, bold: true)
+                text(n.dist, CGRect(x: 68, y: 23, width: tw, height: 22), size: 17, bold: true,
+                     color: UIColor(white: 1, alpha: 0.9))
+                text(street, CGRect(x: 68, y: 46, width: tw, height: 18), size: 13, bold: true,
+                     color: UIColor(white: 1, alpha: 0.92))
+            } else {
+                text(n.text, CGRect(x: 68, y: 6, width: tw, height: 22), size: 15, bold: true)
+                text(n.dist, CGRect(x: 68, y: 28, width: tw, height: 22), size: 17, bold: true,
+                     color: UIColor(white: 1, alpha: 0.9))
+            }
             cg.restoreGState()
 
-            // jarak + ETA: pil di bawah, digeser ke kanan dari tombol zoom
-            cg.saveGState()
+            // jarak + ETA: kotak di bawah, lebar mengikuti isi, sudut sama seperti panel belokan
             let ke = max(0.6, min(1.4, c.etaScale))
-            let pw: CGFloat = 150 * ke, ph: CGFloat = 26 * ke
-            let etaX = min(max(54 + c.etaDX, 0), hud.size.width - pw)
+            let pillW = max(70, textWidth(n.summary, size: 13, bold: true) + 20)
+            let pillH: CGFloat = 26
+            let pw = pillW * ke, ph = pillH * ke
+            let etaX = max(0, min(max(54 + c.etaDX, 0), rightLimit - pw))
             let etaY = min(max(vis.maxY - ph - 4 + c.etaDY, vis.minY), vis.maxY - ph)
+            cg.saveGState()
             cg.translateBy(x: etaX, y: etaY)
             cg.scaleBy(x: ke, y: ke)
-            let pill = CGRect(x: 0, y: 0, width: 150, height: 26)
-            fillRound(pill, radius: 13, color: green)
+            let pill = CGRect(x: 0, y: 0, width: pillW, height: pillH)
+            fillRound(pill, radius: 10, color: green)
             text(n.summary, pill, size: 13, bold: true, align: .center, inset: 4)
             cg.restoreGState()
-            _ = pw
         }
 
         if withCards { drawCards(cg, c, vis, hud.size) }
@@ -252,24 +291,44 @@ enum DashComposer {
             cg.drawLinearGradient(g, start: CGPoint(x: r.minX, y: r.minY), end: CGPoint(x: r.maxX, y: r.maxY), options: [])
         }
         cg.restoreGState()
+        let k = max(0.5, min(1.5, c.card.bigScale))
         if f == .weather {
-            text(c.greetingWord, CGRect(x: r.minX + 10, y: r.minY + 5, width: r.width - 20, height: 13), size: 11,
-                 color: UIColor(white: 1, alpha: 0.85))
-            text(c.greeting.isEmpty ? "Pengendara" : c.greeting,
-                 CGRect(x: r.minX + 10, y: r.minY + 17, width: r.width - 20, height: 20), size: 16, bold: true)
-            let big = c.tempC.map { "\($0)°" } ?? "--°"
-            text(big, CGRect(x: r.minX + 10, y: r.minY + 37, width: 70, height: 32), size: 28, bold: true)
-            text(c.weatherText.isEmpty ? "Cuaca" : c.weatherText,
-                 CGRect(x: r.minX + 10, y: r.maxY - 18, width: r.width - 20, height: 14), size: 12,
-                 color: UIColor(white: 1, alpha: 0.9))
+            // susunan teks vertikal; skala diturunkan otomatis bila tinggi kotak tidak cukup
+            let sizes: [CGFloat] = [10, 15, 26, 11]
+            let gap: CGFloat = 2
+            let natural = sizes.reduce(CGFloat(0)) { $0 + $1 * 1.2 } + gap * 3
+            let ke = min(k, (r.height - 8) / natural)
+            let w = r.width - 20
+            var y = r.minY + 4
+            func line(_ str: String, _ base: CGFloat, bold: Bool, alpha: CGFloat) {
+                let size = fitSize(str, bold: bold, maxSize: base * ke, width: w, minSize: 7)
+                let h = ceil(size * 1.2)
+                text(str, CGRect(x: r.minX + 10, y: y, width: w, height: h), size: size, bold: bold,
+                     color: UIColor(white: 1, alpha: alpha))
+                y += h + gap
+            }
+            line(c.greetingWord, sizes[0], bold: false, alpha: 0.85)
+            line(c.greeting.isEmpty ? "Pengendara" : c.greeting, sizes[1], bold: true, alpha: 1)
+            line(c.tempC.map { "\($0)°" } ?? "--°", sizes[2], bold: true, alpha: 1)
+            line(c.weatherText.isEmpty ? "Cuaca" : c.weatherText, sizes[3], bold: false, alpha: 0.9)
         } else {
             let (label, value, unit, color) = f.resolve(c)
-            text(label, CGRect(x: r.minX + 10, y: r.minY + 8, width: r.width - 20, height: 14), size: 12,
-                 color: UIColor(white: 1, alpha: 0.85))
-            text(value, CGRect(x: r.minX + 10, y: r.minY + 26, width: r.width - 60, height: 40), size: 34, bold: true,
-                 color: color)
-            text(unit, CGRect(x: r.maxX - 52, y: r.maxY - 28, width: 44, height: 18), size: 14, bold: true,
-                 color: UIColor(white: 1, alpha: 0.85), align: .right)
+            let labelSize = fitSize(label, bold: false, maxSize: 12 * k, width: r.width - 20, minSize: 7)
+            text(label, CGRect(x: r.minX + 10, y: r.minY + 6, width: r.width - 20, height: ceil(labelSize * 1.2)),
+                 size: labelSize, color: UIColor(white: 1, alpha: 0.85))
+            let unitSize = 14 * min(k, 1.2)
+            let unitW = unit.isEmpty ? 0 : textWidth(unit, size: unitSize, bold: true) + 6
+            let top = r.minY + 6 + ceil(labelSize * 1.2)
+            let bandH = max(10, r.maxY - 6 - top)
+            let valW = r.width - 20 - unitW
+            let maxV = min(34 * k, bandH / 1.2)
+            let vs = fitSize(value, bold: true, maxSize: maxV, width: valW, minSize: 9)
+            text(value, CGRect(x: r.minX + 10, y: top, width: valW, height: bandH), size: vs, bold: true,
+                 color: color, vcenter: true)
+            if !unit.isEmpty {
+                text(unit, CGRect(x: r.maxX - unitW - 6, y: r.maxY - 8 - ceil(unitSize * 1.2), width: unitW, height: ceil(unitSize * 1.2)),
+                     size: unitSize, bold: true, color: UIColor(white: 1, alpha: 0.85), align: .right)
+            }
         }
     }
 
@@ -280,18 +339,24 @@ enum DashComposer {
         let b = UIBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 10)
         b.lineWidth = 1
         b.stroke()
+        let k = max(0.5, min(1.5, c.card.smallScale))
         let (label, value, unit, color) = f == .weather ? ("Suhu", c.tempC.map { "\($0)" } ?? "--", "°C", UIColor.white) : f.resolve(c)
-        text(label, CGRect(x: r.minX + 4, y: r.minY + 5, width: r.width - 8, height: 11), size: 9,
+        let labelSize = fitSize(label, bold: false, maxSize: 9 * min(k, 1.3), width: r.width - 8, minSize: 6)
+        let labelH = ceil(labelSize * 1.2)
+        text(label, CGRect(x: r.minX + 4, y: r.minY + 4, width: r.width - 8, height: labelH), size: labelSize,
              color: UIColor(white: 1, alpha: 0.7), align: .center)
         let tall = r.height > 60
+        let unitSize = 10 * min(k, 1.3)
+        let unitH = (tall && !unit.isEmpty) ? ceil(unitSize * 1.2) + 2 : 0
         let shown = (unit.isEmpty || tall) ? value : "\(value) \(unit)"
-        let n = shown.count
-        let fs: CGFloat = n <= 4 ? 19 : (n <= 6 ? 16 : (n <= 8 ? 13 : 11))
-        let area = CGRect(x: r.minX + 2, y: r.minY + 17, width: r.width - 4, height: tall ? r.height - 34 : r.height - 21)
+        let areaTop = r.minY + 4 + labelH
+        let area = CGRect(x: r.minX + 2, y: areaTop, width: r.width - 4, height: max(10, r.maxY - 3 - unitH - areaTop))
+        let cap = (tall ? 26 : 20) * k
+        let fs = fitSize(shown, bold: true, maxSize: min(cap, area.height / 1.2), width: area.width - 2, minSize: 7)
         text(shown, area, size: fs, bold: true, color: color, align: .center)
         if tall && !unit.isEmpty {
-            text(unit, CGRect(x: r.minX + 2, y: r.maxY - 16, width: r.width - 4, height: 12), size: 10,
-                 color: UIColor(white: 1, alpha: 0.7), align: .center)
+            text(unit, CGRect(x: r.minX + 2, y: r.maxY - 3 - unitH + 2, width: r.width - 4, height: unitH),
+                 size: unitSize, color: UIColor(white: 1, alpha: 0.7), align: .center)
         }
     }
 
@@ -371,12 +436,19 @@ enum DashComposer {
         let panelW: CGFloat = 130
         var mapTop = vis.minY + 2
         if let n = c.nav {
-            let r = CGRect(x: panelX, y: mapTop, width: panelW, height: 70)
+            let hasStreet = !n.street.isEmpty
+            let r = CGRect(x: panelX, y: mapTop, width: panelW, height: hasStreet ? 86 : 70)
             fillRound(r, radius: 10, color: UIColor(red: 0.04, green: 0.45, blue: 0.30, alpha: 1))
             TurnGlyph.draw(cg, code: n.icon, in: CGRect(x: r.minX + 6, y: r.minY + 6, width: 34, height: 34), color: .white)
             text(n.text, CGRect(x: r.minX + 44, y: r.minY + 5, width: 82, height: 16), size: 12, bold: true)
             text(n.dist, CGRect(x: r.minX + 44, y: r.minY + 22, width: 82, height: 20), size: 17, bold: true)
-            text(n.summary, CGRect(x: r.minX + 6, y: r.minY + 48, width: 118, height: 16), size: 11, bold: true,
+            var summaryY = r.minY + 48
+            if hasStreet {
+                text("ke " + n.street, CGRect(x: r.minX + 6, y: r.minY + 45, width: 118, height: 15), size: 11,
+                     align: .center)
+                summaryY = r.minY + 64
+            }
+            text(n.summary, CGRect(x: r.minX + 6, y: summaryY, width: 118, height: 16), size: 11, bold: true,
                  align: .center)
             mapTop = r.maxY + 4
         }
@@ -543,6 +615,21 @@ enum DashComposer {
 
     // MARK: - Alat gambar
 
+    private static func font(_ size: CGFloat, bold: Bool) -> UIFont {
+        bold ? UIFont.boldSystemFont(ofSize: size) : UIFont.systemFont(ofSize: size)
+    }
+
+    private static func textWidth(_ s: String, size: CGFloat, bold: Bool) -> CGFloat {
+        ceil((s as NSString).size(withAttributes: [.font: font(size, bold: bold)]).width)
+    }
+
+    /// Ukuran huruf terbesar (maks `maxSize`) yang masih muat dalam `width`; tidak lebih kecil dari `minSize`.
+    private static func fitSize(_ s: String, bold: Bool, maxSize: CGFloat, width: CGFloat, minSize: CGFloat) -> CGFloat {
+        var size = maxSize
+        while size > minSize, textWidth(s, size: size, bold: bold) > width { size -= 0.5 }
+        return max(minSize, size)
+    }
+
     private static func fillRound(_ r: CGRect, radius: CGFloat, color: UIColor) {
         color.setFill()
         UIBezierPath(roundedRect: r, cornerRadius: radius).fill()
@@ -550,7 +637,7 @@ enum DashComposer {
 
     private static func text(_ s: String, _ r: CGRect, size: CGFloat, bold: Bool = false,
                              color: UIColor = .white, align: NSTextAlignment = .left, inset: CGFloat = 0,
-                             lines: Int = 1) {
+                             lines: Int = 1, vcenter: Bool = false) {
         let ps = NSMutableParagraphStyle()
         ps.alignment = align
         ps.lineBreakMode = .byTruncatingTail
@@ -559,7 +646,7 @@ enum DashComposer {
         var rr = r.insetBy(dx: inset, dy: 0)
         let h = font.lineHeight * CGFloat(lines)
         if rr.height > h {
-            if lines == 1 && align == .center { rr.origin.y += (r.height - h) / 2 }
+            if lines == 1 && (align == .center || vcenter) { rr.origin.y += (r.height - h) / 2 }
             rr.size.height = h + 2
         }
         (s as NSString).draw(in: rr, withAttributes: attrs)
@@ -610,7 +697,8 @@ enum TurnGlyph {
             arrowHead(at: CGPoint(x: 0, y: -34), dir: CGPoint(x: 0, y: -1))
 
         case 36, 37:
-            if code == 36 { cg.scaleBy(x: -1, y: 1) }
+            // jalur dasar melengkung ke KIRI (36 = putar balik kiri, 37 = putar balik kanan -> dicerminkan)
+            if code == 37 { cg.scaleBy(x: -1, y: 1) }
             let u = UIBezierPath()
             u.move(to: CGPoint(x: 18, y: 44))
             u.addLine(to: CGPoint(x: 18, y: -8))

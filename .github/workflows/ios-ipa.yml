@@ -110,7 +110,7 @@ jobs:
                 "versionDescription": "Build $B",
                 "downloadURL": "https://github.com/$REPO/releases/download/build-$B/XConnect.ipa",
                 "localizedDescription": "XConnect untuk dash TFT Yamaha.",
-                "iconURL": "https://github.com/$OWNER.png",
+                "iconURL": "https://raw.githubusercontent.com/$REPO/main/Sources/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
                 "size": $SIZE
               }
             ],
