@@ -49,7 +49,14 @@ final class AppModel: ObservableObject {
         nav = n
         bike = b
         b.model = self
+        // konsumsi BBM dari CCU (bila diaktifkan di Pengaturan): dipakai FuelStore menghitung sisa bensin
+        fuel.ccuKmPerL = { [weak s, weak b] in
+            guard let s = s, let b = b, s.ccuFuelByte >= 0 else { return nil }
+            return b.vehicleLive.fuelKmPerL(byte: s.ccuFuelByte, wide: s.ccuFuelWide,
+                                            unit: s.ccuFuelUnit, divisor: s.ccuFuelDiv)
+        }
         music.onLog = { [weak b] s in b?.log(s) }
+        music.onSystemVolume = { [weak b] v in b?.systemVolumeChanged(v) }
         n.voice = VoiceGuide(settings: s, music: music)
         music.keepAliveEnabled = s.keepAliveAudio
         music.startMonitoring()

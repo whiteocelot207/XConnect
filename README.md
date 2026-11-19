@@ -1,8 +1,32 @@
-# XConnect (iOS) v0.8
+# XConnect (iOS) v0.8.2
 
 App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash TFT Yamaha (NMAX/XMAX)
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
+
+## Yang baru di 0.8.2
+- **Tekan tahan di layar Musik** (Pengaturan > Kontrol pada motor > Tekan tahan): tahan tombol atas = lagu berikutnya, tahan tombol
+  bawah = lagu sebelumnya, sekali per tahan; muncul pesan singkat di dash. Lama tahan bisa diatur (300-2000 ms, bawaan 700).
+  Tahan dikenali dari tekan berulang arah sama (dash mengulang tekan saat tombol ditahan) selama >= durasi tahan, minimal 3 tekan.
+  Karena itu klik 2x di layar Musik (ganti tampilan) kini menunggu 0,4 dtk untuk memastikan itu bukan awal tahan; matikan
+  "Tahan = lagu berikutnya/sebelumnya" untuk kembali ke perilaku lama. BELUM DIUJI di motor: bila tidak bereaksi, kirim baris Log
+  "Tombol: ..." saat menahan tombol (tiap tekan dicatat dengan jarak waktunya).
+- **Volume HP <-> dash**: volume yang diubah dari HP kini masuk ke dash dan klik stang berikutnya dihitung dari volume yang benar.
+  Penyebab: `outputVolume` bisa basi dan bacaan 1 dtk menimpa nilai baru. Kini volume dibaca dari KVO, notifikasi volume sistem, dan
+  slider MPVolumeView; bacaan `outputVolume` hanya dipakai bila nilainya berubah. Perubahan dari luar langsung dikirim ke dash dan
+  tercatat di Log ("Volume sistem berubah dari luar"). Langkah stang dibulatkan ke 16 langkah volume iOS.
+- **Info pojok layar Musik** kini memuat nama data: "Kecepatan 40 km/h", "Jam 12:30" (nama abu-abu kecil, nilai tebal); mengecil
+  otomatis bila tidak muat.
+- **Sisa bensin memakai konsumsi dari CCU** (Pengaturan > Motor dan koneksi > Konsumsi BBM dari CCU): pilih byte paket data CCU (id 1)
+  yang berisi rata-rata konsumsi, lebar (1/2 byte), satuan (km/L, L/100 km, L/km), dan pembagi; "Terbaca sekarang" menampilkan
+  hasilnya untuk dicocokkan dengan angka di dash. Urutan sumber: CCU, riwayat pengisian, nilai bawaan. Sisa bensin juga kini berkurang
+  bertahap (tiap ODO bertambah, memakai konsumsi saat itu), bukan dihitung ulang dari seluruh jarak sejak isi dengan konsumsi terbaru.
+  Letak byte konsumsi di data CCU belum diketahui: cari lewat Data mentah CCU.
+- **Sambung ulang saat app diminimize/dibuka**: sambung ulang pertama dalam 0,7 dtk (dulu 3 dtk); ACK dash yang terlambat tidak
+  langsung menutup sesi selama 10 dtk setelah berpindah latar/depan; aksesori yang hilang sesaat tidak langsung menutup sesi
+  (dicek lagi setelah 2,5 dtk); pratinjau Home ditahan 2,5 dtk setelah app dibuka supaya thread utama tidak sibuk; ada tambahan waktu
+  eksekusi saat masuk latar belakang. Log kini mencatat keadaan app saat sesi tertutup. Penyebab pastinya belum terbukti: bila masih
+  putus, kirim Log dari saat minimize sampai tersambung lagi.
 
 ## Yang baru di 0.8.1 (perbaikan hang)
 - **Dash macet setelah klik stang**: dari Log terlihat data CCU (yang diterima di thread utama) kadang berhenti 4-7 dtk. Penyebab yang

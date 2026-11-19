@@ -19,6 +19,23 @@ final class VehicleLive: ObservableObject {
     /// paket mentah semua id data yang pernah masuk (id -> byte)
     @Published var rawById: [Int: [UInt8]] = [:]
 
+    /// Rata-rata konsumsi BBM (km/L) dari CCU, dibaca dari byte paket id 1 sesuai Pengaturan.
+    /// Nilai di luar 3...120 km/L dianggap tidak valid (belum ada data / byte salah) dan dikembalikan nil.
+    func fuelKmPerL(byte: Int, wide: Bool, unit: Int, divisor: Double) -> Double? {
+        let need = byte + (wide ? 2 : 1)
+        guard byte >= 0, rawRecord.count >= need else { return nil }
+        var v = wide ? Double(Int(rawRecord[byte]) << 8 | Int(rawRecord[byte + 1])) : Double(rawRecord[byte])
+        v /= max(0.001, divisor)
+        guard v > 0 else { return nil }
+        let kmpl: Double
+        switch unit {
+        case 1: kmpl = 100 / v        // L/100 km
+        case 2: kmpl = 1 / v          // L/km
+        default: kmpl = v             // km/L
+        }
+        return (3...120).contains(kmpl) ? kmpl : nil
+    }
+
     func reset() {
         connected = false
         batteryV = nil; odoKm = nil; coolantC = nil; airC = nil

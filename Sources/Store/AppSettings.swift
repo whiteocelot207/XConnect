@@ -71,6 +71,18 @@ final class AppSettings: ObservableObject {
     @Published var startScreen: Int { didSet { put("startScreen", startScreen) } }
     /// jendela klik cepat 2x di tombol stang (milidetik)
     @Published var doubleClickMs: Int { didSet { put("doubleClickMs", doubleClickMs) } }
+    /// layar Musik: tahan tombol atas/bawah = lagu berikutnya/sebelumnya
+    @Published var holdSkip: Bool { didSet { put("holdSkip", holdSkip) } }
+    /// lama tombol ditahan (milidetik) sebelum dianggap tekan tahan
+    @Published var holdMs: Int { didSet { put("holdMs", holdMs) } }
+    /// rata-rata konsumsi BBM dari CCU: dibaca dari byte paket data id 1 (mentah); -1 = mati
+    @Published var ccuFuelByte: Int { didSet { put("ccuFuelByte", ccuFuelByte) } }
+    /// true = nilai 2 byte (byte n dan n+1, big-endian), false = 1 byte
+    @Published var ccuFuelWide: Bool { didSet { put("ccuFuelWide", ccuFuelWide) } }
+    /// 0 = km/L, 1 = L/100 km, 2 = L/km
+    @Published var ccuFuelUnit: Int { didSet { put("ccuFuelUnit", ccuFuelUnit) } }
+    /// nilai mentah dibagi angka ini (mis. 10 bila 352 berarti 35,2)
+    @Published var ccuFuelDiv: Double { didSet { put("ccuFuelDiv", ccuFuelDiv) } }
     /// true = jam 24 jam, false = 12 jam (untuk jam dan ETA yang digambar app)
     @Published var clock24: Bool { didSet { put("clock24", clock24); Fmt.clock24 = clock24 } }
     /// kode bahasa yang dikirim ke dash (cmd 12). -1 = tidak dikirim. 0 Inggris, 15 Vietnam. Dugaan: format jam dash mengikuti bahasa
@@ -129,7 +141,7 @@ final class AppSettings: ObservableObject {
             "infoPhotoL": 10, "infoPhotoR": 8, "photoShift": 0.0,
             "greetingWord": "Halo", "cardBgAlpha": 0.78, "markerX": 0.0,
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
-            "startScreen": -1, "doubleClickMs": 800, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
+            "startScreen": -1, "doubleClickMs": 800, "holdSkip": true, "holdMs": 700, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
             "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": false, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
@@ -185,6 +197,12 @@ final class AppSettings: ObservableObject {
         etaDY = d.double(forKey: "etaDY")
         startScreen = d.integer(forKey: "startScreen")
         doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        holdSkip = d.bool(forKey: "holdSkip")
+        holdMs = min(max(300, d.integer(forKey: "holdMs")), 2000)
+        ccuFuelByte = min(max(-1, d.integer(forKey: "ccuFuelByte")), 47)
+        ccuFuelWide = d.bool(forKey: "ccuFuelWide")
+        ccuFuelUnit = min(max(0, d.integer(forKey: "ccuFuelUnit")), 2)
+        ccuFuelDiv = max(0.001, d.double(forKey: "ccuFuelDiv"))
         dashLang = d.integer(forKey: "dashLang")
         clock24 = d.bool(forKey: "clock24")
         Fmt.clock24 = d.bool(forKey: "clock24")
@@ -264,6 +282,12 @@ final class AppSettings: ObservableObject {
         etaDY = d.double(forKey: "etaDY")
         startScreen = d.integer(forKey: "startScreen")
         doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        holdSkip = d.bool(forKey: "holdSkip")
+        holdMs = min(max(300, d.integer(forKey: "holdMs")), 2000)
+        ccuFuelByte = min(max(-1, d.integer(forKey: "ccuFuelByte")), 47)
+        ccuFuelWide = d.bool(forKey: "ccuFuelWide")
+        ccuFuelUnit = min(max(0, d.integer(forKey: "ccuFuelUnit")), 2)
+        ccuFuelDiv = max(0.001, d.double(forKey: "ccuFuelDiv"))
         dashLang = d.integer(forKey: "dashLang")
         clock24 = d.bool(forKey: "clock24")
         Fmt.clock24 = clock24

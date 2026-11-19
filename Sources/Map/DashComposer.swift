@@ -82,6 +82,8 @@ struct DashContent {
     var ccuSpeedKmh: Int?
     var ccuRaw: [UInt8] = []
     var phoneVolume = -1
+    /// pesan singkat di layar Musik (mis. "Lagu berikutnya")
+    var musicToast = ""
     var audioOut = ""
     var network = ""
     var dateText = ""
@@ -359,6 +361,30 @@ enum DashComposer {
         return u.isEmpty ? v : "\(v) \(u)"
     }
 
+    /// Info pojok dengan nama: "Kecepatan 40 km/h" (nama kecil abu-abu, nilai tebal putih). Mengecil bila tidak muat.
+    private static func drawLabeledSlot(_ raw: Int, _ c: DashContent, in r: CGRect, size: CGFloat, align: NSTextAlignment) {
+        let f = DashField(rawValue: raw) ?? .none
+        if f == .none { return }
+        let (label, v, u, _) = f.resolve(c)
+        let value = u.isEmpty ? v : "\(v) \(u)"
+        if label.isEmpty { text(value, r, size: size, bold: true, align: align); return }
+        var sz = size
+        // kecilkan sampai muat: nama berukuran 0,72x nilai
+        func width(_ s: CGFloat) -> CGFloat {
+            textWidth(label + " ", size: s * 0.72, bold: false) + textWidth(value, size: s, bold: true)
+        }
+        while sz > 10, width(sz) > r.width { sz -= 0.5 }
+        let ps = NSMutableParagraphStyle()
+        ps.alignment = align
+        ps.lineBreakMode = .byTruncatingTail
+        let out = NSMutableAttributedString(string: label + " ", attributes: [
+            .font: UIFont.systemFont(ofSize: sz * 0.72), .foregroundColor: UIColor(white: 0.72, alpha: 1), .paragraphStyle: ps])
+        out.append(NSAttributedString(string: value, attributes: [
+            .font: UIFont.boldSystemFont(ofSize: sz), .foregroundColor: UIColor.white, .paragraphStyle: ps]))
+        // sejajarkan dasar teks nama dan nilai dengan kotak yang sama
+        out.draw(in: CGRect(x: r.minX, y: r.minY + (size - sz) * 0.35, width: r.width, height: r.height))
+    }
+
     // MARK: - Layar dasbor
 
     private static func drawDashboard(_ cg: CGContext, _ hud: DashHUD, _ vis: CGRect) {
@@ -501,9 +527,17 @@ enum DashComposer {
             UIColor(white: 0, alpha: 0.42).setFill()
             cg.fill(CGRect(origin: .zero, size: hud.size))
         }
-        text(slotText(c.infoMusicL, c), CGRect(x: 8, y: vis.minY + 3, width: 130, height: 20), size: 17, bold: true)
-        text(slotText(c.infoMusicR, c), CGRect(x: 300, y: vis.minY + 5, width: 174, height: 18), size: 14, bold: true,
-             align: .right)
+        // pojok kiri/kanan atas: tampilkan NAMA data beserta nilainya (mis. "Kecepatan 40 km/h")
+        drawLabeledSlot(c.infoMusicL, c, in: CGRect(x: 8, y: vis.minY + 4, width: 228, height: 22), size: 16, align: .left)
+        drawLabeledSlot(c.infoMusicR, c, in: CGRect(x: 244, y: vis.minY + 4, width: 230, height: 22), size: 16, align: .right)
+        defer {
+            if !c.musicToast.isEmpty {
+                let w = max(150, CGFloat(c.musicToast.count) * 9 + 30)
+                let pill = CGRect(x: (hud.size.width - w) / 2, y: vis.maxY - 34, width: w, height: 26)
+                fillRound(pill, radius: 13, color: UIColor(white: 0, alpha: 0.65))
+                text(c.musicToast, pill, size: 14, bold: true, align: .center)
+            }
+        }
         guard let m = c.music, !m.title.isEmpty else {
             text("Tidak ada musik", CGRect(x: 0, y: vis.minY + 58, width: hud.size.width, height: 28), size: 21,
                  bold: true, align: .center)

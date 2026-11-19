@@ -17,6 +17,11 @@ final class MusicService: ObservableObject {
     private var art: UIImage?
     private var monitoring = false
     private var volObs: NSKeyValueObservation?
+    /// volume sistem berubah (tombol HP, Control Center, atau slider dari stang): diteruskan ke BikeController untuk dikirim ke dash
+    var onSystemVolume: (Float) -> Void = { _ in }
+    /// volume sistem terakhir yang diketahui dari KVO/notifikasi/slider (lebih mutakhir daripada outputVolume yang bisa basi)
+    private var knownVolume: Float?
+    private var lastViewVolume: Float?
     private var keepAlivePlayer: AVAudioPlayer?
     /// pengaturan "Jaga data HP tetap hidup" dan status dash; audio senyap hanya berputar bila keduanya true
     var keepAliveEnabled = true
@@ -62,7 +67,14 @@ final class MusicService: ObservableObject {
         }
         volObs = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let v = change.newValue else { return }
-            DispatchQueue.main.async { self?.onLog("Volume sistem berubah → \(Int((v * 100).rounded()))%") }
+            DispatchQueue.main.async { self?.noteSystemVolume(v, source: "KVO") }
+        }
+        // Notifikasi volume sistem (dikirim iOS tiap volume berubah, termasuk dari tombol fisik HP, selama app hidup).
+        // outputVolume/KVO kadang tidak memperbarui nilainya saat app di latar belakang, jadi ini jalur cadangan.
+        nc.addObserver(forName: NSNotification.Name("AVSystemController_SystemVolumeDidChangeNotification"),
+                       object: nil, queue: .main) { [weak self] n in
+            guard let v = (n.userInfo?["AVSystemController_AudioVolumeNotificationParameter"] as? NSNumber)?.floatValue else { return }
+            self?.noteSystemVolume(v, source: "notifikasi")
         }
         // sesi audio bisa lepas (telepon, Siri, app lain): aktifkan lagi supaya volume tetap terbaca
         nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
@@ -369,6 +381,32 @@ final class MusicService: ObservableObject {
     private var lastVolumeTarget: Float = 0
     private var lastVolumeSet = Date.distantPast
 
+    /// Semua sumber perubahan volume sistem lewat sini. Nilai yang sama dengan target yang baru kita setel dari stang
+    /// dianggap gema dan tidak mengubah apa pun; nilai lain berarti volume diubah dari luar (tombol HP), jadi target
+    /// lama dibuang dan klik stang berikutnya dihitung dari volume yang benar.
+    func noteSystemVolume(_ v: Float, source: String) {
+        if let k = knownVolume, abs(k - v) < 0.001 { return }
+        knownVolume = v
+        let echo = abs(v - lastVolumeTarget) < 0.02 && Date().timeIntervalSince(lastVolumeSet) < 1.5
+        if !echo {
+            lastVolumeSet = .distantPast
+            onLog("Volume sistem berubah dari luar → \(Int((v * 100).rounded()))% (\(source))")
+        }
+        onSystemVolume(v)
+    }
+
+    /// Cadangan ketiga: nilai slider MPVolumeView mengikuti volume sistem walau outputVolume basi. Dipanggil tiap 1 dtk.
+    func pollVolumeView() {
+        guard let v = volumeView, v.window != nil,
+              let slider = v.subviews.compactMap({ $0 as? UISlider }).first else { return }
+        let val = slider.value
+        // bacaan pertama hanya dicatat: slider bisa 0 sesaat sebelum sinkron dengan volume sistem
+        guard let prev = lastViewVolume else { lastViewVolume = val; return }
+        guard abs(prev - val) > 0.001 else { return }
+        lastViewVolume = val
+        noteSystemVolume(val, source: "slider")
+    }
+
     @discardableResult
     func adjustVolume(up: Bool) -> Float? {
         ensureVolumeView()
@@ -376,12 +414,16 @@ final class MusicService: ObservableObject {
         // outputVolume baru ikut berubah beberapa ratus ms setelah slider digeser. Bila klik berikutnya datang cepat
         // (klik 2x di stang membatalkan volume klik pertama), pakai target terakhir sebagai dasar; kalau tidak,
         // pembatalan dihitung dari nilai lama dan volume malah bergeser satu langkah.
-        let sys = AVAudioSession.sharedInstance().outputVolume
+        // Dasar: target klik stang sebelumnya bila masih baru (outputVolume belum sempat ikut berubah); selain itu volume
+        // terkini dari KVO/notifikasi/slider. outputVolume saja bisa basi setelah volume diubah dari HP, dan itu yang membuat
+        // langkah dari stang meleset.
         let fresh = Date().timeIntervalSince(lastVolumeSet) < 1.5
-        let base = fresh ? lastVolumeTarget : (sys > 0 ? sys : slider.value)
-        let target = min(1, max(0, base + (up ? 0.0625 : -0.0625)))
+        let sys = AVAudioSession.sharedInstance().outputVolume
+        let base = fresh ? lastVolumeTarget : (knownVolume ?? (sys > 0 ? sys : slider.value))
+        let target = min(1, max(0, (base * 16).rounded() / 16 + (up ? 0.0625 : -0.0625)))   // iOS: 16 langkah volume
         lastVolumeTarget = target
         lastVolumeSet = Date()
+        knownVolume = target
         slider.setValue(target, animated: false)
         slider.sendActions(for: .valueChanged)
         slider.sendActions(for: .touchUpInside)
@@ -390,6 +432,25 @@ final class MusicService: ObservableObject {
 
     func next() { MPMusicPlayerController.systemMusicPlayer.skipToNextItem() }
     func previous() { MPMusicPlayerController.systemMusicPlayer.skipToPreviousItem() }
+
+    /// Pesan singkat di layar Musik dash (mis. \"Lagu berikutnya\") selama 1,5 dtk.
+    private var toastText = ""
+    private var toastUntil = Date.distantPast
+    var activeToast: String { Date() < toastUntil ? toastText : "" }
+
+    /// Tekan tahan di stang: lagu berikutnya / sebelumnya.
+    func skip(next forward: Bool) {
+        guard authorized else {
+            onLog("Musik: izin Media & Apple Music belum diberikan, tidak bisa ganti lagu")
+            return
+        }
+        if forward { next() } else { previous() }
+        toastText = forward ? "Lagu berikutnya  ▶▶" : "◀◀  Lagu sebelumnya"
+        toastUntil = Date().addingTimeInterval(1.5)
+        onLog("Musik: \(forward ? "lagu berikutnya" : "lagu sebelumnya") (tekan tahan di stang)")
+        // perbarui info lagu secepatnya (judul baru), tidak menunggu timer 1 dtk
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.refresh() }
+    }
     func togglePlay() {
         let p = MPMusicPlayerController.systemMusicPlayer
         if p.playbackState == .playing { p.pause() } else { p.play() }

@@ -101,6 +101,23 @@ struct ConnectionSettings: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var bike: BikeController
     @EnvironmentObject var vehicle: VehicleStore
+    @EnvironmentObject var live: VehicleLive
+
+    private var ccuFuelReading: String {
+        guard settings.ccuFuelByte >= 0 else { return "mati" }
+        guard !live.rawRecord.isEmpty else { return "belum ada data CCU" }
+        let lo = settings.ccuFuelByte
+        let raw: String = {
+            guard live.rawRecord.count > lo + (settings.ccuFuelWide ? 1 : 0) else { return "byte di luar paket" }
+            return settings.ccuFuelWide
+                ? "\(Int(live.rawRecord[lo]) << 8 | Int(live.rawRecord[lo + 1]))"
+                : "\(live.rawRecord[lo])"
+        }()
+        if let k = live.fuelKmPerL(byte: lo, wide: settings.ccuFuelWide, unit: settings.ccuFuelUnit, divisor: settings.ccuFuelDiv) {
+            return "mentah \(raw) → \(Fmt.km(k)) km/L"
+        }
+        return "mentah \(raw) → tidak valid (di luar 3-120 km/L), dipakai riwayat/bawaan"
+    }
 
     var body: some View {
         Form {
@@ -123,6 +140,29 @@ struct ConnectionSettings: View {
                 Stepper("Kapasitas tangki \(Fmt.liters(vehicle.tankL))", value: $vehicle.tankL, in: 3...30, step: 0.1)
                 Stepper("Konsumsi bawaan \(Fmt.km(settings.defaultKmPerL)) km/L", value: $settings.defaultKmPerL,
                         in: 10...80, step: 0.5)
+            }
+            Section(header: Text("Konsumsi BBM dari CCU"),
+                    footer: Text("Sisa bensin dihitung dari konsumsi rata-rata yang dilaporkan CCU motor (lebih akurat daripada nilai bawaan), dan berkurang bertahap menurut konsumsi saat itu. Pilih byte di paket data CCU (id 1) yang berisi rata-rata konsumsi: lihat Pengaturan > Kotak data > Data mentah CCU, bandingkan dengan angka rata-rata BBM di dash. Atur lebar, satuan, dan pembagi sampai \"Terbaca sekarang\" sama dengan dash. Bila nilai tidak valid, dipakai riwayat pengisian lalu nilai bawaan.")) {
+                Stepper(settings.ccuFuelByte < 0 ? "Byte konsumsi: mati" : "Byte konsumsi: \(settings.ccuFuelByte)",
+                        value: $settings.ccuFuelByte, in: -1...47)
+                if settings.ccuFuelByte >= 0 {
+                    Picker("Lebar nilai", selection: $settings.ccuFuelWide) {
+                        Text("1 byte").tag(false)
+                        Text("2 byte (n dan n+1)").tag(true)
+                    }
+                    Picker("Satuan", selection: $settings.ccuFuelUnit) {
+                        Text("km/L").tag(0)
+                        Text("L/100 km").tag(1)
+                        Text("L/km").tag(2)
+                    }
+                    Picker("Pembagi nilai mentah", selection: $settings.ccuFuelDiv) {
+                        Text("1").tag(1.0)
+                        Text("10").tag(10.0)
+                        Text("100").tag(100.0)
+                        Text("1000").tag(1000.0)
+                    }
+                    Text("Terbaca sekarang: \(ccuFuelReading)").font(.footnote).foregroundColor(.secondary)
+                }
             }
         }
         .navigationTitle("Motor dan koneksi")
@@ -148,6 +188,13 @@ struct ControlSettings: View {
                 sliderRow("Jendela klik 2x", value: Binding(
                     get: { Double(settings.doubleClickMs) },
                     set: { settings.doubleClickMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
+            }
+            Section(header: Text("Tekan tahan (layar Musik)"),
+                    footer: Text("Di layar Musik: tahan tombol atas = lagu berikutnya, tahan tombol bawah = lagu sebelumnya (sekali per tahan). Tahan dikenali dari tekan berulang arah sama yang berlangsung selama durasi ini (dash mengulang tekan saat tombol ditahan). Tekan 1x tetap volume, 2x cepat tetap ganti tampilan; bila tahan aktif, ganti tampilan menunggu sekitar 0,4 dtk untuk memastikan itu bukan tahan. Bila tahan tidak bereaksi, ketuk Log setelah menahan tombol dan kirim barisnya: tiap tekan dicatat beserta jarak waktunya. Izin Media & Apple Music harus diberikan.")) {
+                Toggle("Tahan = lagu berikutnya/sebelumnya", isOn: $settings.holdSkip)
+                sliderRow("Durasi tekan tahan", value: Binding(
+                    get: { Double(settings.holdMs) },
+                    set: { settings.holdMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
             }
             Section(header: Text("Bahasa dash (eksperimen)"),
                     footer: Text("Dash menanyakan bahasa ke app lewat CCU. Bawaan: tidak dikirim. Dugaan (belum terbukti): format jam di bar atas dash mengikuti bahasa ini, bukan pengaturan jam 24 jam app. Kode yang dikenal: 0 = Inggris, 15 = Vietnam. Coba satu kode, matikan lalu nyalakan kontak, dan lihat jam dan teks bawaan dash. Kode yang ditolak CCU tercatat di Log sebagai CCU: error. Kembalikan ke -1 bila tampilan dash menjadi aneh.")) {

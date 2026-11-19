@@ -42,6 +42,12 @@ final class BikeController: NSObject, ObservableObject {
     private var manualStop = false
     private var attempts = 0
     private var reconnectWork: DispatchWorkItem?
+    /// Beberapa detik setelah app ke latar belakang / kembali ke depan: thread utama sibuk (UI, sesi audio, rute), jadi ACK
+    /// dash yang terlambat tidak boleh langsung membuat sesi ditutup.
+    private var lifecycleGraceUntil = Date.distantPast
+    /// pratinjau Home ditahan sebentar setelah app kembali ke depan, supaya thread utama tidak ikut sibuk menggambar ulang
+    private var previewHoldoffUntil = Date.distantPast
+    private var bgTask = UIBackgroundTaskIdentifier.invalid
     private var bag = Set<AnyCancellable>()
     private let ccuProbe = CcuProbe()
     let vehicleLive = VehicleLive()
@@ -63,6 +69,7 @@ final class BikeController: NSObject, ObservableObject {
     // layanan sistem sedang sibuk (musik diputar, volume berubah) thread utama tertahan: klik stang, data CCU dan frame ikut macet.
     private let sysLock = NSLock()
     private var cachedVolume: Float = 0
+    private var lastPolledVolume: Float = -1
     private var cachedRoute = ""
     private var cachedNetwork = ""
     private var cachedSignal = 0
@@ -97,26 +104,51 @@ final class BikeController: NSObject, ObservableObject {
         }
         nc.addObserver(forName: .EAAccessoryDidDisconnect, object: nil, queue: .main) { [weak self] n in
             let a = n.userInfo?[EAAccessoryKey] as? EAAccessory
-            self?.log("Aksesori terputus: \(a?.name ?? "?")")
+            self?.log("Aksesori terputus: \(a?.name ?? "?") (app \(self?.appStateText ?? "?"))")
             self?.accessoryPresent = self?.findDash() != nil
-            if self?.findDash() == nil { self?.session?.stop() }
+            // Jangan langsung menutup sesi: saat app berpindah latar/depan, daftar aksesori kadang kosong sesaat padahal
+            // dash masih tersambung. Bila dash benar-benar putus, stream iAP sendiri akan error/berakhir dan sesi ditutup.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                guard let self = self else { return }
+                self.accessoryPresent = self.findDash() != nil
+                if self.findDash() == nil {
+                    self.log("Aksesori masih tidak ada setelah 2,5 dtk, sesi ditutup")
+                    self.session?.stop()
+                }
+            }
         }
         nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
+            self.lifecycleGraceUntil = Date().addingTimeInterval(10)
+            self.previewHoldoffUntil = Date().addingTimeInterval(2.5)
+            self.endBackgroundTask()
             self.accessoryPresent = self.findDash() != nil
             self.log("App aktif (sesi dash: \(self.session == nil ? "tidak ada" : "ada"), aksesori: \(self.accessoryPresent ? "ada" : "tidak ada"))")
             self.updateIdleTimer()
+            // bila sesi sempat tertutup selama di latar belakang, sambung SEKARANG (tidak menunggu jadwal sambung ulang)
+            if self.session == nil, self.reconnectWork != nil {
+                self.reconnectWork?.cancel()
+                self.reconnectWork = nil
+            }
             self.autoConnectIfNeeded()
         }
         nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.log("App ke latar belakang (sesi dash: \(self?.session == nil ? "tidak ada" : "ada"))")
+            guard let self = self else { return }
+            self.lifecycleGraceUntil = Date().addingTimeInterval(10)
+            self.beginBackgroundTask()
+            self.log("App ke latar belakang (sesi dash: \(self.session == nil ? "tidak ada" : "ada"))")
         }
         nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.log("App kembali ke depan (sesi dash: \(self?.session == nil ? "tidak ada" : "ada"))")
+            guard let self = self else { return }
+            self.lifecycleGraceUntil = Date().addingTimeInterval(10)
+            self.log("App kembali ke depan (sesi dash: \(self.session == nil ? "tidak ada" : "ada"))")
         }
         startSysInfoPolling()
         startMainThreadWatch()
-        statusTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.pushPhoneStatus() }
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.model?.music.pollVolumeView()
+            self?.pushPhoneStatus()
+        }
 
         nav.onDashState = { [weak self] s in
             self?.session?.updateNav(active: s != nil, road: s?.currentRoad ?? "")
@@ -138,14 +170,36 @@ final class BikeController: NSObject, ObservableObject {
         ccu.prepare()   // memunculkan izin Bluetooth di Pengaturan iOS
         vehicleLive.$odoKm.compactMap { $0 }
             .sink { [weak self] odo in
-                guard let m = self?.model, odo > 0, abs(m.maint.odometerKm - odo) > 0.05 else { return }
-                m.maint.odometerKm = odo
+                guard let self = self, let m = self.model, odo > 0 else { return }
+                if abs(m.maint.odometerKm - odo) > 0.05 { m.maint.odometerKm = odo }
+                // sisa bensin berkurang menurut konsumsi saat ini (CCU/riwayat/bawaan), bukan hanya jarak total sejak isi
+                m.fuel.advance(odo: odo, tank: m.vehicle.tankL, def: self.settings.defaultKmPerL)
             }
             .store(in: &bag)
 
         SelfTest.run().forEach { log($0) }
         accessoryPresent = findDash() != nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.autoConnectIfNeeded() }
+    }
+
+    private var appStateText: String {
+        switch UIApplication.shared.applicationState {
+        case .active: return "aktif"
+        case .inactive: return "tidak aktif"
+        default: return "latar belakang"
+        }
+    }
+
+    /// Tambahan waktu eksekusi saat app berpindah ke latar belakang, supaya sesi dash tidak tertahan di tengah peralihan.
+    private func beginBackgroundTask() {
+        endBackgroundTask()
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "dash-session") { [weak self] in self?.endBackgroundTask() }
+    }
+
+    private func endBackgroundTask() {
+        guard bgTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(bgTask)
+        bgTask = .invalid
     }
 
     // MARK: - Cache info sistem & pemantau thread utama
@@ -171,7 +225,12 @@ final class BikeController: NSObject, ObservableObject {
         let hasSim = !(netInfo.serviceSubscriberCellularProviders ?? [:]).isEmpty
         let signal = !net.isEmpty ? 5 : (hasSim ? 1 : 0)
         sysLock.lock()
-        cachedVolume = vol
+        // outputVolume bisa basi (tidak ikut berubah saat volume diubah dari HP atau stang); jadi hanya dipakai bila nilainya
+        // BARU berubah dari bacaan sebelumnya. Nilai dari KVO/notifikasi/stang tidak ditimpa oleh bacaan lama.
+        if abs(vol - lastPolledVolume) > 0.001 {
+            lastPolledVolume = vol
+            cachedVolume = vol
+        }
         cachedRoute = route
         cachedNetwork = net
         cachedSignal = signal
@@ -205,6 +264,13 @@ final class BikeController: NSObject, ObservableObject {
 
     private func setCachedVolume(_ v: Float) {
         sysLock.lock(); cachedVolume = v; sysLock.unlock()
+    }
+
+    /// Volume sistem berubah (tombol HP, Control Center, atau stang): simpan dan langsung kirim ke dash,
+    /// tidak menunggu siklus 1 dtk.
+    func systemVolumeChanged(_ v: Float) {
+        setCachedVolume(v)
+        pushPhoneStatus()
     }
 
     /// Mencatat ke Log bila thread utama tertahan lebih dari 1 dtk (untuk menelusuri dash yang macet/tidak merespons klik).
@@ -314,7 +380,14 @@ final class BikeController: NSObject, ObservableObject {
     private func scheduleReconnect() {
         guard settings.autoConnect, !manualStop else { return }
         attempts += 1
-        let delay: TimeInterval = attempts <= 3 ? 3 : 8
+        // percobaan pertama cepat (putus sesaat, mis. saat app berpindah latar/depan), lalu berangsur lebih jarang
+        let delay: TimeInterval
+        switch attempts {
+        case 1: delay = 0.7
+        case 2: delay = 1.5
+        case 3: delay = 3
+        default: delay = 8
+        }
         let work = DispatchWorkItem { [weak self] in self?.autoConnectIfNeeded() }
         reconnectWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
@@ -335,6 +408,7 @@ final class BikeController: NSObject, ObservableObject {
         fps = 0
         stopCcuProbe()
         setStatus("Terputus")
+        log("Sesi dash tertutup (app \(appStateText)), menyambung ulang")
         scheduleReconnect()
     }
 
@@ -471,7 +545,9 @@ final class BikeController: NSObject, ObservableObject {
         }
         c.headingText = location.bearingKnown ? compass(location.bearing) : ""
         switch currentScreen {
-        case .music: c.music = m.music.info
+        case .music:
+            c.music = m.music.info
+            c.musicToast = m.music.activeToast
         case .slideshow: c.slide = m.slides.current(interval: settings.slideSeconds)
         default: break
         }
@@ -575,6 +651,9 @@ final class BikeController: NSObject, ObservableObject {
         s.isTestScreen = { [weak self] in self?.currentScreen == .buttonTest }
         s.onButtonEvent = { [weak self] in self?.buttonEvent($0) }
         s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 800) / 1000 }
+        s.holdSkipEnabled = { [weak self] in self?.settings.holdSkip ?? true }
+        s.holdDuration = { [weak self] in Double(self?.settings.holdMs ?? 700) / 1000 }
+        s.onMusicSkip = { [weak self] next in DispatchQueue.main.async { self?.model?.music.skip(next: next) } }
         s.onVolume = { [weak self] up in
             DispatchQueue.main.async {
                 let v = self?.model?.music.adjustVolume(up: up)
@@ -592,7 +671,13 @@ final class BikeController: NSObject, ObservableObject {
         s.routeProvider = { [weak self] in self?.nav?.upcomingPoints() ?? [] }
         s.destinationProvider = { [weak self] in self?.nav?.destinationCoordinate }
         s.wantsPreview = { [weak self] in
-            (self?.previewVisible ?? false) && UIApplication.shared.applicationState == .active
+            guard let self = self else { return false }
+            return self.previewVisible && UIApplication.shared.applicationState == .active
+                && Date() > self.previewHoldoffUntil
+        }
+        s.inLifecycleGrace = { [weak self] in
+            guard let self = self else { return false }
+            return Date() < self.lifecycleGraceUntil || UIApplication.shared.applicationState != .active
         }
     }
 

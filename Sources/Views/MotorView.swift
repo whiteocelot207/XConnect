@@ -140,7 +140,8 @@ struct MotorView: View {
     private var fuelCard: some View {
         let remaining = fuel.remainingL(odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)
         let frac = vehicle.tankL > 0 ? min(1, max(0, remaining / vehicle.tankL)) : 0
-        let kmpl = fuel.kmPerL(default: settings.defaultKmPerL)
+        let kmplInfo = fuel.kmPerLSource(default: settings.defaultKmPerL)
+        let kmpl = kmplInfo.value
         return VStack(alignment: .leading, spacing: 10) {
             Text("Sisa bahan bakar (perkiraan)").font(.headline)
             HStack {
@@ -166,7 +167,7 @@ struct MotorView: View {
                     .foregroundColor(.secondary)
             }
             ProgressView(value: fuel.levelL > 0 ? frac : 0).tint(frac < 0.2 ? .red : .green)
-            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L" + (fuel.fills.count >= 3 ? " dari riwayat pengisian Anda." : " (nilai bawaan; makin akurat setelah 3 kali isi)."))
+            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L (\(kmplInfo.source))." + (kmplInfo.source == "nilai bawaan" ? " Makin akurat setelah 3 kali isi, atau aktifkan konsumsi dari CCU di Pengaturan > Motor dan koneksi." : " Sisa bensin berkurang menurut konsumsi saat itu tiap motor berjalan."))
                 .font(.footnote)
                 .foregroundColor(.secondary)
             HStack {

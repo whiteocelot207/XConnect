@@ -22,6 +22,10 @@ final class TftSession {
     var onButtonEvent: (String) -> Void = { _ in }
     var isTestScreen: () -> Bool = { false }
     var doubleClickWindow: () -> Double = { 0.8 }
+    /// Layar Musik: tahan tombol atas/bawah = lagu berikutnya/sebelumnya (lama tahan dari Pengaturan)
+    var holdSkipEnabled: () -> Bool = { true }
+    var holdDuration: () -> Double = { 0.7 }
+    var onMusicSkip: (Bool) -> Void = { _ in }
 
     var contentProvider: () -> DashContent = { DashContent() }
     var screensProvider: () -> [DashScreen] = { [.mapData] }
@@ -32,6 +36,8 @@ final class TftSession {
     var isMusicScreen: () -> Bool = { false }
     var onVolume: (Bool) -> Void = { _ in }
     var wantsPreview: () -> Bool = { true }
+    /// true sesaat setelah app berpindah latar/depan: ACK dash yang terlambat tidak langsung menutup sesi
+    var inLifecycleGrace: () -> Bool = { false }
     var maxFpsProvider: () -> Double = { 10 }
     var qualityProvider: () -> Double = { 0.7 }
     var autoZoomProvider: () -> Bool = { true }
@@ -72,6 +78,15 @@ final class TftSession {
     private var labelSends = 0
     private var lastBtnUp = true
     private var pendingSingle: DispatchWorkItem?
+    // rangkaian tekan di layar Musik (untuk mengenali tekan tahan)
+    private var chainUp = true
+    private var chainStart = Date.distantPast
+    private var chainLast = Date.distantPast
+    private var chainCount = 0
+    private var holdFired = false
+    private var pendingScreenStep: DispatchWorkItem?
+    /// klik 2x di layar Musik: ganti tampilan ditunda sebentar untuk memastikan itu bukan awal tekan tahan
+    private let holdProbe: TimeInterval = 0.4
     private var lastNight = false
     private var lastZoomLabel = ""
     private var navActive = false
@@ -312,6 +327,12 @@ final class TftSession {
         var gap = ""
         if let last = lastBtn { gap = " (+\(Int(now.timeIntervalSince(last) * 1000)) ms)" }
         let dir = up ? "atas" : "bawah"
+        if music && !test && holdSkipEnabled() {
+            lastBtn = now
+            lastBtnUp = up
+            handleMusicButton(up: up, now: now, window: window, gap: gap)
+            return
+        }
         if let last = lastBtn, lastBtnUp == up, now.timeIntervalSince(last) < window {
             lastBtn = nil
             onButtonEvent("\(dir) 2x cepat\(gap)")
@@ -340,6 +361,57 @@ final class TftSession {
             } else {
                 changeZoom(up ? 1 : -1)
             }
+        }
+    }
+
+    /// Layar Musik dengan tekan tahan aktif.
+    /// Dash mengirim satu paket tiap tekan; saat tombol ditahan paket itu berulang. Rangkaian tekan arah sama (jeda
+    /// antar tekan maksimal sama dengan jendela klik 2x) yang berlangsung >= durasi tahan dengan >= 3 tekan dianggap
+    /// TAHAN: atas = lagu berikutnya, bawah = lagu sebelumnya (sekali per tahan).
+    /// 1 tekan = volume (langsung), 2 tekan cepat = ganti tampilan (ditunda `holdProbe` supaya tidak salah dikira awal tahan).
+    private func handleMusicButton(up: Bool, now: Date, window: Double, gap: String) {
+        let dir = up ? "atas" : "bawah"
+        if chainCount > 0, chainUp == up, now.timeIntervalSince(chainLast) <= window {
+            chainCount += 1
+        } else {
+            pendingScreenStep?.cancel()
+            pendingScreenStep = nil
+            chainUp = up
+            chainStart = now
+            chainCount = 1
+            holdFired = false
+        }
+        chainLast = now
+        let span = now.timeIntervalSince(chainStart)
+        let spanMs = Int(span * 1000)
+
+        if holdFired {
+            onButtonEvent("\(dir) tahan berlanjut (\(chainCount) tekan, \(spanMs) ms)\(gap)")
+            return
+        }
+        if chainCount >= 3 && span >= holdDuration() {
+            pendingScreenStep?.cancel()
+            pendingScreenStep = nil
+            holdFired = true
+            onButtonEvent("\(dir) TAHAN (\(chainCount) tekan, \(spanMs) ms)\(gap) → lagu \(up ? "berikutnya" : "sebelumnya")")
+            onMusicSkip(up)
+            return
+        }
+        switch chainCount {
+        case 1:
+            onButtonEvent("\(dir) 1x\(gap)")
+            onVolume(up)
+        case 2:
+            onButtonEvent("\(dir) 2x cepat\(gap)")
+            onVolume(!up)                                   // batalkan volume dari klik pertama
+            let work = DispatchWorkItem { [weak self] in
+                self?.pendingScreenStep = nil
+                self?.onStepScreen(up)
+            }
+            pendingScreenStep = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + holdProbe, execute: work)
+        default:
+            onButtonEvent("\(dir) tekan ke-\(chainCount), \(spanMs) ms dari awal (tahan butuh \(Int(holdDuration() * 1000)) ms)\(gap)")
         }
     }
 
@@ -565,12 +637,14 @@ final class TftSession {
         ackTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self = self, self.ackPending, self.streaming else { return }
             self.ackRetries += 1
-            if self.ackRetries > 3 {
+            // saat app berpindah latar/depan thread utama bisa tertahan beberapa detik; beri kesempatan lebih lama
+            let maxRetries = self.inLifecycleGrace() ? 8 : 3
+            if self.ackRetries > maxRetries {
                 self.onLog("Dash tidak membalas ACK frame (\(self.ackRetries * 3) dtk), menutup sesi")
                 self.stop()
                 return
             }
-            self.onLog("ACK frame belum datang, kirim ulang (\(self.ackRetries)/3)")
+            self.onLog("ACK frame belum datang, kirim ulang (\(self.ackRetries)/\(maxRetries))")
             self.send(.pointer(NaviService.imageFrame, self.lastPayload))
             self.armAckTimer()
         }
@@ -600,6 +674,9 @@ final class TftSession {
         readyJPEG = nil
         ackTimer?.invalidate()
         pendingSingle?.cancel()
+        pendingScreenStep?.cancel()
+        pendingScreenStep = nil
+        chainCount = 0
         onStatus("Terputus")
         onLog("Sesi ditutup")
         onClosed()

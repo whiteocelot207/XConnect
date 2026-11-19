@@ -29,14 +29,30 @@ final class FuelStore: ObservableObject {
         if let data = try? JSONEncoder().encode(fills) { UserDefaults.standard.set(data, forKey: "fuel.fills") }
     }
 
-    /// km per liter dari riwayat pengisian; kembali ke nilai bawaan bila data belum cukup.
-    func kmPerL(default def: Double) -> Double {
+    /// Rata-rata konsumsi (km/L) dari CCU motor bila diaktifkan di Pengaturan dan datanya valid. Diisi dari AppModel.
+    var ccuKmPerL: () -> Double? = { nil }
+
+    /// km per liter dari riwayat pengisian; nil bila data belum cukup.
+    private func historyKmPerL() -> Double? {
         let sorted = fills.sorted { $0.odoKm < $1.odoKm }
-        guard sorted.count >= 3, let first = sorted.first, let last = sorted.last else { return def }
+        guard sorted.count >= 3, let first = sorted.first, let last = sorted.last else { return nil }
         let km = last.odoKm - first.odoKm
         let liters = sorted.dropFirst().reduce(0) { $0 + $1.liters }
-        guard km > 80, liters > 1 else { return def }
+        guard km > 80, liters > 1 else { return nil }
         return min(80, max(10, km / liters))
+    }
+
+    /// Konsumsi yang dipakai menghitung sisa bensin: rata-rata dari CCU (paling mutakhir, mengikuti cara berkendara),
+    /// lalu riwayat pengisian, lalu nilai bawaan.
+    func kmPerL(default def: Double) -> Double {
+        kmPerLSource(default: def).value
+    }
+
+    /// Konsumsi beserta asalnya (untuk keterangan di layar Motor).
+    func kmPerLSource(default def: Double) -> (value: Double, source: String) {
+        if let c = ccuKmPerL() { return (min(80, max(5, c)), "rata-rata CCU motor") }
+        if let h = historyKmPerL() { return (h, "riwayat pengisian") }
+        return (def, "nilai bawaan")
     }
 
     func remainingL(odo: Double, tank: Double, def: Double) -> Double {
@@ -46,6 +62,19 @@ final class FuelStore: ObservableObject {
 
     func rangeKm(odo: Double, tank: Double, def: Double) -> Int {
         Int((remainingL(odo: odo, tank: tank, def: def) * kmPerL(default: def)).rounded())
+    }
+
+    /// Dipanggil tiap ODO bertambah: bensin yang terpakai dihitung dengan konsumsi SAAT ITU (CCU/riwayat/bawaan) lalu
+    /// dicatat ke levelL. Dulu seluruh jarak sejak pengisian dihitung ulang dengan konsumsi terbaru, jadi sisa bensin
+    /// ikut melompat setiap kali rata-rata konsumsi berubah.
+    func advance(odo: Double, tank: Double, def: Double) {
+        guard levelL > 0 else { return }
+        if odo < odoAtLevel { odoAtLevel = odo; return }          // ODO direset/turun: mulai dari sini
+        let km = odo - odoAtLevel
+        guard km >= 0.1 else { return }
+        let used = km / kmPerL(default: def)
+        levelL = max(0.01, min(tank, levelL - used))             // 0,01 supaya "ada data" (levelL > 0) tetap berlaku
+        odoAtLevel = odo
     }
 
     func markFull(odo: Double, tank: Double, def: Double) {
