@@ -4,6 +4,16 @@ App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
+## Yang baru di 0.8.1 (perbaikan hang)
+- **Dash macet setelah klik stang**: dari Log terlihat data CCU (yang diterima di thread utama) kadang berhenti 4-7 dtk. Penyebab yang
+  dicurigai: tiap frame (hingga 10x/dtk) thread utama membaca volume, rute audio, dan jaringan seluler, yang semuanya IPC ke layanan
+  sistem dan bisa tertahan saat musik diputar atau volume berubah. Kini nilai itu dibaca di antrean latar (1x/dtk) dan hanya disalin
+  saat menggambar frame. Volume dari klik stang langsung memperbarui nilai cache.
+- **Log baru**: "Thread utama tertahan N dtk" bila thread utama macet lebih dari 1 dtk; "App aktif / ke latar belakang / kembali ke
+  depan" beserta status sesi dash, untuk menelusuri sambung ulang saat app dibuka dari latar belakang.
+- Kategori sesi audio tidak disetel ulang bila sudah sama (setCategory berulang tiap app aktif bisa memicu perubahan rute Bluetooth).
+- Belum ada: ikon sinyal/baterai HP/headset/pesan dan format jam 24 jam di bar atas dash (butuh format perintah CCU yang belum diketahui).
+
 ## Yang baru di 0.8
 - **Teks petunjuk arah**: arah belok sudah diwakili ikon, jadi panel hijau kini hanya menulis tujuan belokan lalu jarak:
   "Ke Jalan Contoh" / "65 m" (sebelumnya "Belok kanan / 65 m / ke Jalan Contoh"). Di bundaran: "Ambil jalan keluar ke 3" / "65 m".

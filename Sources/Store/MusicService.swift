@@ -99,7 +99,11 @@ final class MusicService: ObservableObject {
         do {
             // selalu playback + mixWithOthers (tidak berpindah-pindah kategori, karena perpindahan itu bisa
             // menghentikan pemutar musik); tanpa audio yang diputar, sesi ini tidak mengganggu app lain
-            try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            // jangan menyetel ulang kategori bila sudah sama: setCategory berulang (tiap app aktif) bisa memicu
+            // perubahan rute audio Bluetooth yang sempat mengganggu sambungan dash
+            if s.category != .playback || !s.categoryOptions.contains(.mixWithOthers) {
+                try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            }
             try s.setActive(true)
         } catch {
             onLog("Sesi audio gagal aktif: \(error.localizedDescription)")

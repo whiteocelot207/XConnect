@@ -53,6 +53,16 @@ final class BikeController: NSObject, ObservableObject {
     private var lastGeocode = Date.distantPast
     private var lastGeocodeLoc: CLLocation?
     private let netInfo = CTTelephonyNetworkInfo()
+    // Nilai yang butuh IPC ke mediaserverd/CommCenter (volume, rute audio, jaringan seluler) dibaca di antrean latar
+    // tiap 1 dtk dan hanya disalin saat menggambar frame. Sebelumnya dibaca di thread utama sampai 10x/dtk, dan bila
+    // layanan sistem sedang sibuk (musik diputar, volume berubah) thread utama tertahan: klik stang, data CCU dan frame ikut macet.
+    private let sysLock = NSLock()
+    private var cachedVolume: Float = 0
+    private var cachedRoute = ""
+    private var cachedNetwork = ""
+    private var sysTimer: DispatchSourceTimer?
+    private var beatTimer: DispatchSourceTimer?
+    private let sysQueue = DispatchQueue(label: "dash.sysinfo", qos: .utility)
     private let fmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
@@ -83,10 +93,20 @@ final class BikeController: NSObject, ObservableObject {
             if self?.findDash() == nil { self?.session?.stop() }
         }
         nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.accessoryPresent = self?.findDash() != nil
-            self?.updateIdleTimer()
-            self?.autoConnectIfNeeded()
+            guard let self = self else { return }
+            self.accessoryPresent = self.findDash() != nil
+            self.log("App aktif (sesi dash: \(self.session == nil ? "tidak ada" : "ada"), aksesori: \(self.accessoryPresent ? "ada" : "tidak ada"))")
+            self.updateIdleTimer()
+            self.autoConnectIfNeeded()
         }
+        nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.log("App ke latar belakang (sesi dash: \(self?.session == nil ? "tidak ada" : "ada"))")
+        }
+        nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.log("App kembali ke depan (sesi dash: \(self?.session == nil ? "tidak ada" : "ada"))")
+        }
+        startSysInfoPolling()
+        startMainThreadWatch()
 
         nav.onDashState = { [weak self] s in
             self?.session?.updateNav(active: s != nil, road: s?.currentRoad ?? "")
@@ -116,6 +136,49 @@ final class BikeController: NSObject, ObservableObject {
         SelfTest.run().forEach { log($0) }
         accessoryPresent = findDash() != nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.autoConnectIfNeeded() }
+    }
+
+    // MARK: - Cache info sistem & pemantau thread utama
+
+    private func startSysInfoPolling() {
+        guard sysTimer == nil else { return }
+        let t = DispatchSource.makeTimerSource(queue: sysQueue)
+        t.schedule(deadline: .now(), repeating: 1.0)
+        t.setEventHandler { [weak self] in self?.pollSysInfo() }
+        t.resume()
+        sysTimer = t
+    }
+
+    private func pollSysInfo() {
+        let a = AVAudioSession.sharedInstance()
+        let vol = a.outputVolume
+        let route = a.currentRoute.outputs.first.map { Geo.ascii($0.portName, maxLen: 14) } ?? ""
+        let net = networkText()
+        sysLock.lock()
+        cachedVolume = vol
+        cachedRoute = route
+        cachedNetwork = net
+        sysLock.unlock()
+    }
+
+    private func setCachedVolume(_ v: Float) {
+        sysLock.lock(); cachedVolume = v; sysLock.unlock()
+    }
+
+    /// Mencatat ke Log bila thread utama tertahan lebih dari 1 dtk (untuk menelusuri dash yang macet/tidak merespons klik).
+    private func startMainThreadWatch() {
+        guard beatTimer == nil else { return }
+        let t = DispatchSource.makeTimerSource(queue: sysQueue)
+        t.schedule(deadline: .now() + 2, repeating: 1.0)
+        t.setEventHandler { [weak self] in
+            let sent = Date()
+            DispatchQueue.main.async {
+                let d = Date().timeIntervalSince(sent)
+                if d > 1.0 { self?.log(String(format: "Thread utama tertahan %.1f dtk", d)) }
+            }
+        }
+        t.resume()
+        beatTimer = t
     }
 
     // MARK: - Log & status
@@ -341,10 +404,12 @@ final class BikeController: NSObject, ObservableObject {
         c.ccuRaw = live.rawRecord
         c.dateText = Fmt.shortDate(Date())
         c.buttonLog = buttonLog
-        let vol = model?.music.systemVolume ?? AVAudioSession.sharedInstance().outputVolume
+        sysLock.lock()
+        let vol = cachedVolume
+        c.audioOut = cachedRoute
+        c.network = cachedNetwork
+        sysLock.unlock()
         c.phoneVolume = Int((vol * 100).rounded())
-        c.audioOut = AVAudioSession.sharedInstance().currentRoute.outputs.first.map { Geo.ascii($0.portName, maxLen: 14) } ?? ""
-        c.network = networkText()
         let bl = UIDevice.current.batteryLevel
         c.phoneBattery = bl >= 0 ? Int((bl * 100).rounded()) : -1
         guard let m = model else { return c }
@@ -471,6 +536,7 @@ final class BikeController: NSObject, ObservableObject {
         s.onVolume = { [weak self] up in
             DispatchQueue.main.async {
                 let v = self?.model?.music.adjustVolume(up: up)
+                if let v = v { self?.setCachedVolume(v) }
                 self?.log(v.map { "Volume \(up ? "naik" : "turun") → \(Int(($0 * 100).rounded()))%" } ?? "Volume: slider sistem belum siap")
             }
         }
