@@ -21,6 +21,8 @@ targets:
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Versi dasar x.y.z: x.y dan angka z terkecil. Workflow menaikkan z otomatis tiap build (0.8.0 -> 0.8.1 -> ...).
+        # Untuk naik ke 0.9, ubah jadi "0.9.0" lalu push.
         MARKETING_VERSION: "0.8.0"
         CURRENT_PROJECT_VERSION: "1"
     info:

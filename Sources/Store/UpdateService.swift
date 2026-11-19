@@ -2,13 +2,15 @@ import Foundation
 import UIKit
 
 /// Cek versi terbaru di GitHub Releases. Workflow GitHub Actions menerbitkan Release bertag
-/// `build-<nomor>` berisi XConnect.ipa. App membandingkan nomor build-nya dengan build yang terpasang.
+/// `build-<nomor>` berisi XConnect.ipa, dengan nama "XConnect x.y.z". App membandingkan versi (x.y.z)
+/// pada nama Release dengan versi yang terpasang; nomor build hanya cadangan bila nama tidak memuat versi.
 ///
 /// Catatan iOS: app tidak bisa memasang IPA sendiri (tidak ada API untuk itu, dan IPA ini tidak
 /// bertanda tangan Apple). Jalur tercepat: tombol "Pasang update" membuka SideStore, AltStore, atau
 /// LiveContainer dengan URL IPA terbaru, sehingga cukup satu ketukan konfirmasi di sana.
 final class UpdateService: ObservableObject {
     struct Release {
+        var version: String
         var build: Int
         var name: String
         var notes: String
@@ -30,6 +32,9 @@ final class UpdateService: ObservableObject {
 
     var updateAvailable: Bool {
         guard let l = latest else { return false }
+        if !l.version.isEmpty {
+            return l.version.compare(UpdateService.currentVersion, options: .numeric) == .orderedDescending
+        }
         return l.build > UpdateService.currentBuild
     }
 
@@ -68,12 +73,15 @@ final class UpdateService: ObservableObject {
                     return
                 }
                 let page = URL(string: obj["html_url"] as? String ?? "https://github.com/\(r)/releases") ?? url
-                self.latest = Release(build: build, name: obj["name"] as? String ?? tag,
+                let relName = obj["name"] as? String ?? tag
+                var ver = ""
+                if let r = relName.range(of: "[0-9]+(\\.[0-9]+)+", options: .regularExpression) { ver = String(relName[r]) }
+                self.latest = Release(version: ver, build: build, name: relName,
                                       notes: obj["body"] as? String ?? "", ipaURL: ipaURL, pageURL: page)
                 if self.updateAvailable {
                     self.message = "Tersedia: \(self.latest?.name ?? tag)"
                 } else if !silent {
-                    self.message = "Sudah versi terbaru (build \(UpdateService.currentBuild))"
+                    self.message = "Sudah versi terbaru (\(UpdateService.currentVersion))"
                 }
             }
         }.resume()

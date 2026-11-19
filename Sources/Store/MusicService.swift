@@ -168,19 +168,30 @@ final class MusicService: ObservableObject {
 
     private var guidanceDuck = false
 
-    // Pengaman: bila sistem tetap menginterupsi app Musik saat/segera setelah suara petunjuk, lanjutkan
-    // otomatis (hanya bila musik memang sedang diputar sebelumnya, maksimal 2 kali per pemberitahuan).
+    // Pengaman (tidak mengganggu selama musik baik-baik saja): iOS sering melaporkan status "terputus" sesaat
+    // ketika sesi suara berganti, padahal musik jalan terus (ducking). NConnect tidak pernah memanggil play().
+    // Di log terakhir, play() langsung pada setiap status "terputus" justru membuat jeda-putar yang terdengar
+    // tersendat dan bisa membuat volume musik tidak kembali. Jadi sekarang: tunggu dulu; hanya bila setelah
+    // `resumeDelay` musik MASIH terputus (benar-benar berhenti), kirim satu kali play().
     private var musicWasPlaying = false
     private var autoResumeUntil = Date.distantPast
     private var autoResumeCount = 0
+    private var resumeWork: DispatchWorkItem?
+    private let resumeDelay: TimeInterval = 1.2
 
     private func resumeIfInterruptedByGuidance() {
-        guard musicWasPlaying, Date() < autoResumeUntil, autoResumeCount < 2 else { return }
-        let p = MPMusicPlayerController.systemMusicPlayer
-        guard p.playbackState == .interrupted else { return }
-        autoResumeCount += 1
-        onLog("Musik: dilanjutkan otomatis (\(autoResumeCount))")
-        p.play()
+        guard musicWasPlaying, Date() < autoResumeUntil, autoResumeCount < 1 else { return }
+        resumeWork?.cancel()
+        let w = DispatchWorkItem { [weak self] in
+            guard let self = self, self.musicWasPlaying, self.autoResumeCount < 1 else { return }
+            let p = MPMusicPlayerController.systemMusicPlayer
+            guard p.playbackState == .interrupted || p.playbackState == .paused else { return }   // sudah pulih sendiri
+            self.autoResumeCount += 1
+            self.onLog("Musik: masih \(MusicService.stateName(p.playbackState)) setelah \(self.resumeDelay) dtk, dilanjutkan (1)")
+            p.play()
+        }
+        resumeWork = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + resumeDelay, execute: w)
     }
 
     /// Dipanggil setelah suara selesai. Dua cabang yang saling eksklusif, sama dengan NConnect (Voice.didFinish,
@@ -200,7 +211,7 @@ final class MusicService: ObservableObject {
             catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
         }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
-        autoResumeUntil = Date().addingTimeInterval(3.0)
+        autoResumeUntil = Date().addingTimeInterval(4.0)
         autoResumeCount = 0          // jatah baru untuk interupsi yang muncul setelah suara selesai
         finishGuidanceAudio()
         resumeIfInterruptedByGuidance()

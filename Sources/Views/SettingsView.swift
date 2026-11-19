@@ -43,7 +43,7 @@ struct SettingsView: View {
                 row("Update aplikasi", subtitle: "Cek versi terbaru di GitHub", icon: "arrow.down.circle") {
                     UpdateSettings()
                 }
-                row("Tentang", subtitle: "XConnect \(UpdateService.currentVersion) (build \(UpdateService.currentBuild))", icon: "info.circle") {
+                row("Tentang", subtitle: "XConnect \(UpdateService.currentVersion)", icon: "info.circle") {
                     AboutSettings()
                 }
             }
@@ -342,7 +342,7 @@ struct UpdateSettings: View {
         Form {
             Section(header: Text("Versi"),
                     footer: Text("Update diambil dari GitHub Releases (workflow Actions menerbitkannya otomatis setiap build). iOS tidak mengizinkan app memasang IPA sendiri, jadi tombol Pasang membuka SideStore, AltStore, atau LiveContainer dengan IPA terbaru: tinggal satu ketukan konfirmasi di sana. Di LiveContainer, bila bundle ID sudah ada pilih Ganti agar data app tetap. Bila XConnect sendiri dijalankan di dalam LiveContainer, jalankan dalam mode multitasking atau di LiveContainer kedua supaya LiveContainer utama bebas memproses pemasangan.")) {
-                HStack { Text("Terpasang"); Spacer(); Text("\(UpdateService.currentVersion) (build \(UpdateService.currentBuild))").foregroundColor(.secondary) }
+                HStack { Text("Terpasang"); Spacer(); Text("\(UpdateService.currentVersion)").foregroundColor(.secondary) }
                 if let l = updater.latest {
                     HStack { Text("Terbaru"); Spacer(); Text(l.name).foregroundColor(.secondary) }
                 }
@@ -595,7 +595,7 @@ struct AboutSettings: View {
     var body: some View {
         Form {
             Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla.")) {
-                Text("XConnect \(UpdateService.currentVersion) (build \(UpdateService.currentBuild))")
+                Text("XConnect \(UpdateService.currentVersion)")
             }
         }
         .navigationTitle("Tentang")
