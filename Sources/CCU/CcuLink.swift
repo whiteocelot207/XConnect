@@ -46,6 +46,62 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         static let unknownInd = CBUUID(string: "AB8D233A-CC58-4932-B397-A3751911E021")
     }
 
+    /// Status ponsel untuk ikon bar atas dash (sinyal, baterai HP, headset, volume). Format ctrl 316 dari docs/bike-protocol.md §6.6:
+    /// [01 3C][baterai% | cas<<7][vol panggilan% | 0x80][vol media% | 0x80][1 | headset<<1 | termal<<2 | sinyal<<4]
+    /// (bit 0 selalu 1, seperti capture app resmi; status panggilan dikirim terpisah lewat cmd 308)
+    struct PhoneStatus: Equatable {
+        var battery: Int       // 0...100
+        var charging: Bool
+        var callVol: Int       // 0...100
+        var mediaVol: Int      // 0...100
+        var signal: Int        // 0 tanpa layanan, 1 tanpa sinyal, 2...5 = 1...4 bar
+        var thermal: Int       // 0 rendah, 1 sedang, 2 tinggi
+        var headset: Bool
+    }
+    /// Kode bahasa dash untuk cmd 12 (-1 = tidak dikirim). Dikenal: 0 Inggris, 15 Vietnam (docs/protocol/link-b-ccu.md).
+    var languageProvider: () -> Int = { -1 }
+    private var lastCall: Bool?
+
+    private func sendLanguage(_ why: String) {
+        let lang = languageProvider()
+        guard lang >= 0, lang <= 255 else { return }
+        ctrl(0x000C, [nextReq(), UInt8(lang)])          // 12
+        onLog("CCU: bahasa dash → kode \(lang) (\(why))")
+    }
+
+    /// Ikon panggilan di dash: cmd 308 `[1]` saat ada panggilan, `[2]` saat selesai. Dikirim hanya saat berubah.
+    func sendCallState(_ inCall: Bool) {
+        guard authed, central != nil else { return }
+        if lastCall == nil && !inCall { lastCall = false; return }
+        guard inCall != lastCall else { return }
+        lastCall = inCall
+        ctrl(0x0134, [inCall ? 1 : 2])                  // 308
+        onLog("CCU: status panggilan → \(inCall ? "ada panggilan" : "selesai")")
+    }
+
+    private var lastStatus: PhoneStatus?
+    private var lastStatusSent = Date.distantPast
+
+    /// Dikirim saat berubah, dan diulang tiap 20 dtk supaya ikon tidak hilang bila CCU melewatkan satu paket. Panggil dari main.
+    func sendPhoneStatus(_ st: PhoneStatus) {
+        guard authed, central != nil else { return }
+        if st == lastStatus, Date().timeIntervalSince(lastStatusSent) < 20 { return }
+        func pct(_ v: Int) -> UInt8 { UInt8(min(100, max(0, v))) }
+        let b0 = pct(st.battery) | (st.charging ? 0x80 : 0)
+        let b1 = pct(st.callVol) | 0x80
+        let b2 = pct(st.mediaVol) | 0x80
+        var b3: UInt8 = 0x01
+        b3 |= UInt8(min(15, max(0, st.signal))) << 4
+        b3 |= UInt8(min(2, max(0, st.thermal))) << 2
+        if st.headset { b3 |= 0x02 }
+        ctrl(0x013C, [b0, b1, b2, b3])                  // 316
+        if st != lastStatus {
+            onLog("CCU: status ponsel → 01 3c \(hex([b0, b1, b2, b3]))")
+        }
+        lastStatus = st
+        lastStatusSent = Date()
+    }
+
     var onLog: (String) -> Void = { _ in }
     let live: VehicleLive
     /// ID data tambahan yang ikut dilanggan (eksperimen, diisi dari Pengaturan)
@@ -289,6 +345,9 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
     private func startupChain() {
         authed = true
+        lastStatus = nil
+        lastCall = nil
+        sendLanguage("setelah autentikasi")
         requested.removeAll()
         fallbackDone = false
         setState("Terautentikasi, minta daftar server data")
@@ -490,6 +549,8 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             var e = [UInt8]()
             for i in (0..<8).reversed() { e.append(UInt8((t >> UInt64(i * 8)) & 0xFF)) }
             ctrl(0x000A, [nextReq()] + e)
+        case 11:
+            sendLanguage("diminta CCU")
         case 297:
             ctrl(0x012A, [0x01])
         case 0xFF01:

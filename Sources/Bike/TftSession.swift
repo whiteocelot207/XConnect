@@ -69,6 +69,7 @@ final class TftSession {
 
     private var zoomOffset = 0.0
     private var lastBtn: Date?
+    private var labelSends = 0
     private var lastBtnUp = true
     private var pendingSingle: DispatchWorkItem?
     private var lastNight = false
@@ -290,6 +291,19 @@ final class TftSession {
     /// Di layar Musik: 1x = volume, 2x = ganti tampilan. Di layar Tes tombol: 1x hanya dicatat, 2x ganti tampilan.
     /// Tombol "+" (atas) = tampilan berikutnya/zoom in/volume naik, "-" (bawah) kebalikannya.
     private func buttonPressed(up: Bool) {
+        let before = labelSends
+        handleButton(up: up)
+        // docs/protocol/link-a-dash.md: tepat setelah tiap tekan 51/52, kirim cmd 14 (flag 1, `07 1A ...`); tanpa itu
+        // hanya tekanan pertama dalam sesi yang sampai ke app. Label zoom sudah merupakan cmd 14, tetapi hanya
+        // terkirim bila zoom berubah: klik volume di layar Musik, ganti tampilan, atau layar Tes tombol tidak mengirim
+        // apa pun sehingga tombol stang berhenti merespons ("hang"). Kini label dikirim ulang bila belum ada.
+        if authenticated && labelSends == before {
+            lastZoomLabel = ""
+            sendZoomLabel(effectiveZoom(navigating: navActive))
+        }
+    }
+
+    private func handleButton(up: Bool) {
         let scheme = buttonSchemeProvider()
         let music = isMusicScreen()
         let test = isTestScreen()
@@ -379,6 +393,7 @@ final class TftSession {
         let text = zoomLabel(z)
         guard text != lastZoomLabel else { return }
         lastZoomLabel = text
+        labelSends += 1
         let label = Array(text.utf8)
         send(.pointer(NaviService.zoomLevel, [0x07, 0x1A, UInt8(label.count), 0x00] + label))
     }

@@ -366,13 +366,22 @@ final class MusicService: ObservableObject {
     /// Ubah volume sistem lewat slider MPVolumeView (satu-satunya cara resmi di iOS).
     /// Mengembalikan volume baru (0...1), atau nil bila slider belum tersedia.
     /// Catatan: hanya andal saat app aktif di layar; iOS membatasi cara ini di latar belakang.
+    private var lastVolumeTarget: Float = 0
+    private var lastVolumeSet = Date.distantPast
+
     @discardableResult
     func adjustVolume(up: Bool) -> Float? {
         ensureVolumeView()
         guard let slider = volumeView?.subviews.compactMap({ $0 as? UISlider }).first else { return nil }
+        // outputVolume baru ikut berubah beberapa ratus ms setelah slider digeser. Bila klik berikutnya datang cepat
+        // (klik 2x di stang membatalkan volume klik pertama), pakai target terakhir sebagai dasar; kalau tidak,
+        // pembatalan dihitung dari nilai lama dan volume malah bergeser satu langkah.
         let sys = AVAudioSession.sharedInstance().outputVolume
-        let base = sys > 0 ? sys : slider.value
+        let fresh = Date().timeIntervalSince(lastVolumeSet) < 1.5
+        let base = fresh ? lastVolumeTarget : (sys > 0 ? sys : slider.value)
         let target = min(1, max(0, base + (up ? 0.0625 : -0.0625)))
+        lastVolumeTarget = target
+        lastVolumeSet = Date()
         slider.setValue(target, animated: false)
         slider.sendActions(for: .valueChanged)
         slider.sendActions(for: .touchUpInside)

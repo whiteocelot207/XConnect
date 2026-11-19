@@ -73,6 +73,8 @@ final class AppSettings: ObservableObject {
     @Published var doubleClickMs: Int { didSet { put("doubleClickMs", doubleClickMs) } }
     /// true = jam 24 jam, false = 12 jam (untuk jam dan ETA yang digambar app)
     @Published var clock24: Bool { didSet { put("clock24", clock24); Fmt.clock24 = clock24 } }
+    /// kode bahasa yang dikirim ke dash (cmd 12). -1 = tidak dikirim. 0 Inggris, 15 Vietnam. Dugaan: format jam dash mengikuti bahasa
+    @Published var dashLang: Int { didSet { put("dashLang", dashLang) } }
     /// ID data CCU tambahan yang ikut dilanggan (dipisah koma), untuk eksperimen
     @Published var ccuExtraIds: String { didSet { put("ccuExtraIds", ccuExtraIds) } }
     /// kirim nama jalan saat ini ke bar bawah dash walau tidak sedang navigasi
@@ -127,7 +129,7 @@ final class AppSettings: ObservableObject {
             "infoPhotoL": 10, "infoPhotoR": 8, "photoShift": 0.0,
             "greetingWord": "Halo", "cardBgAlpha": 0.78, "markerX": 0.0,
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
-            "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
+            "startScreen": -1, "doubleClickMs": 800, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
             "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": false, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
@@ -183,6 +185,7 @@ final class AppSettings: ObservableObject {
         etaDY = d.double(forKey: "etaDY")
         startScreen = d.integer(forKey: "startScreen")
         doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        dashLang = d.integer(forKey: "dashLang")
         clock24 = d.bool(forKey: "clock24")
         Fmt.clock24 = d.bool(forKey: "clock24")
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
@@ -261,6 +264,7 @@ final class AppSettings: ObservableObject {
         etaDY = d.double(forKey: "etaDY")
         startScreen = d.integer(forKey: "startScreen")
         doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        dashLang = d.integer(forKey: "dashLang")
         clock24 = d.bool(forKey: "clock24")
         Fmt.clock24 = clock24
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""

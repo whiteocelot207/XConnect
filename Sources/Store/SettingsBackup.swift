@@ -68,6 +68,7 @@ extension AppSettings {
         "etaDY",
         "startScreen",
         "doubleClickMs",
+        "dashLang",
         "clock24",
         "ccuExtraIds",
         "showRoadName",

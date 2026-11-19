@@ -12,7 +12,21 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 - **Log baru**: "Thread utama tertahan N dtk" bila thread utama macet lebih dari 1 dtk; "App aktif / ke latar belakang / kembali ke
   depan" beserta status sesi dash, untuk menelusuri sambung ulang saat app dibuka dari latar belakang.
 - Kategori sesi audio tidak disetel ulang bila sudah sama (setCategory berulang tiap app aktif bisa memicu perubahan rute Bluetooth).
-- Belum ada: ikon sinyal/baterai HP/headset/pesan dan format jam 24 jam di bar atas dash (butuh format perintah CCU yang belum diketahui).
+- **Ikon bar atas dash**: XConnect kini mengirim status ponsel ke CCU (ctrl 316, format dari nmax_connect `docs/bike-protocol.md` §6.6):
+  baterai HP + cas, volume, sinyal, headset, panggilan, suhu. Dikirim saat berubah dan diulang tiap 20 dtk. Log: `CCU: status ponsel → 01 3c …`.
+  Catatan: iOS tidak punya API jumlah bar sinyal, jadi diisi 4 bar bila ada jaringan data, "tanpa sinyal" bila ada SIM tanpa jaringan.
+  Ikon headset menyala bila keluaran audio memakai Bluetooth atau headphone.
+- Ikon pesan: di iOS datang lewat ANCS (iPhone → Pengaturan → Bluetooth → ⓘ YCCU… → Bagikan Notifikasi Sistem), bukan dari app.
+- **Tombol stang berhenti merespons (hang)**: menurut docs/protocol/link-a-dash.md, tepat setelah tiap tekan (cmd 51/52) app harus
+  mengirim cmd 14 (flag 1, `07 1A ...`), kalau tidak hanya tekanan pertama yang sampai. XConnect hanya mengirimnya lewat label zoom
+  saat zoom berubah, jadi klik volume di layar Musik, ganti tampilan, dan layar Tes tombol membuat tombol berhenti. Kini label dikirim
+  ulang setelah tiap tekan bila belum terkirim.
+- Status ponsel (cmd 316): bit 0 flag selalu 1 (seperti capture app resmi). Status panggilan dikirim terpisah (cmd 308: 1 = ada, 2 = selesai).
+- **Bahasa dash (eksperimen)**: Pengaturan > Kontrol pada motor. Mengirim cmd 12 dan menjawab permintaan bahasa CCU (cmd 11). Dugaan: jam
+  12/24 jam di bar atas dash mengikuti bahasa. Bawaan tidak dikirim.
+- **Klik 2x di layar Musik**: pembatalan volume klik pertama dihitung dari volume sistem yang belum terbarui, sehingga tiap klik 2x
+  menggeser volume satu langkah. Kini memakai target volume terakhir (selama 1,5 dtk) sebagai dasar.
+- Belum ada: format jam 24 jam di dash (tidak ada di dokumen protokol; kemungkinan pengaturan di dash sendiri).
 
 ## Yang baru di 0.8
 - **Teks petunjuk arah**: arah belok sudah diwakili ikon, jadi panel hijau kini hanya menulis tujuan belokan lalu jarak:

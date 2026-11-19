@@ -5,6 +5,7 @@ import Combine
 import CoreLocation
 import AVFoundation
 import CoreTelephony
+import CallKit
 
 final class BikeController: NSObject, ObservableObject {
     @Published var status = "Belum terhubung"
@@ -44,7 +45,11 @@ final class BikeController: NSObject, ObservableObject {
     private var bag = Set<AnyCancellable>()
     private let ccuProbe = CcuProbe()
     let vehicleLive = VehicleLive()
-    private lazy var ccu = CcuLink(live: vehicleLive)
+    private lazy var ccu: CcuLink = {
+        let c = CcuLink(live: vehicleLive)
+        c.languageProvider = { [weak self] in self?.settings.dashLang ?? -1 }
+        return c
+    }()
     private var ccuStarted = false
     private var previewVisible = false
     private var localTimer: Timer?
@@ -60,6 +65,10 @@ final class BikeController: NSObject, ObservableObject {
     private var cachedVolume: Float = 0
     private var cachedRoute = ""
     private var cachedNetwork = ""
+    private var cachedSignal = 0
+    private var cachedHeadset = false
+    private let callObserver = CXCallObserver()
+    private var statusTimer: Timer?
     private var sysTimer: DispatchSourceTimer?
     private var beatTimer: DispatchSourceTimer?
     private let sysQueue = DispatchQueue(label: "dash.sysinfo", qos: .utility)
@@ -107,6 +116,7 @@ final class BikeController: NSObject, ObservableObject {
         }
         startSysInfoPolling()
         startMainThreadWatch()
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.pushPhoneStatus() }
 
         nav.onDashState = { [weak self] s in
             self?.session?.updateNav(active: s != nil, road: s?.currentRoad ?? "")
@@ -154,11 +164,43 @@ final class BikeController: NSObject, ObservableObject {
         let vol = a.outputVolume
         let route = a.currentRoute.outputs.first.map { Geo.ascii($0.portName, maxLen: 14) } ?? ""
         let net = networkText()
+        let headset = a.currentRoute.outputs.contains {
+            [AVAudioSession.Port.bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .headphones].contains($0.portType)
+        }
+        // iOS tidak punya API publik untuk jumlah bar sinyal: ada jaringan data = 4 bar, SIM ada tapi tanpa jaringan = tanpa sinyal
+        let hasSim = !(netInfo.serviceSubscriberCellularProviders ?? [:]).isEmpty
+        let signal = !net.isEmpty ? 5 : (hasSim ? 1 : 0)
         sysLock.lock()
         cachedVolume = vol
         cachedRoute = route
         cachedNetwork = net
+        cachedSignal = signal
+        cachedHeadset = headset
         sysLock.unlock()
+    }
+
+    /// Ikon bar atas dash (sinyal, baterai HP, headset): kirim status ponsel ke CCU, seperti Y-Connect/NConnect.
+    private func pushPhoneStatus() {
+        guard ccuStarted else { return }
+        let dev = UIDevice.current
+        let bl = dev.batteryLevel
+        let charging = dev.batteryState == .charging || dev.batteryState == .full
+        sysLock.lock()
+        let vol = Int((cachedVolume * 100).rounded())
+        let sig = cachedSignal
+        let hs = cachedHeadset
+        sysLock.unlock()
+        let thermal: Int
+        switch ProcessInfo.processInfo.thermalState {
+        case .serious: thermal = 1
+        case .critical: thermal = 2
+        default: thermal = 0
+        }
+        let st = CcuLink.PhoneStatus(battery: bl >= 0 ? Int((bl * 100).rounded()) : 0, charging: charging,
+                                     callVol: vol, mediaVol: vol,
+                                     signal: sig, thermal: thermal, headset: hs)
+        ccu.sendPhoneStatus(st)
+        ccu.sendCallState(callObserver.calls.contains { !$0.hasEnded })
     }
 
     private func setCachedVolume(_ v: Float) {

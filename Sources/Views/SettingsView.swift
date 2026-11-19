@@ -149,6 +149,11 @@ struct ControlSettings: View {
                     get: { Double(settings.doubleClickMs) },
                     set: { settings.doubleClickMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
             }
+            Section(header: Text("Bahasa dash (eksperimen)"),
+                    footer: Text("Dash menanyakan bahasa ke app lewat CCU. Bawaan: tidak dikirim. Dugaan (belum terbukti): format jam di bar atas dash mengikuti bahasa ini, bukan pengaturan jam 24 jam app. Kode yang dikenal: 0 = Inggris, 15 = Vietnam. Coba satu kode, matikan lalu nyalakan kontak, dan lihat jam dan teks bawaan dash. Kode yang ditolak CCU tercatat di Log sebagai CCU: error. Kembalikan ke -1 bila tampilan dash menjadi aneh.")) {
+                Stepper(settings.dashLang < 0 ? "Kode bahasa: tidak dikirim" : "Kode bahasa: \(settings.dashLang)",
+                        value: $settings.dashLang, in: -1...63)
+            }
             Section(footer: Text("Layar Tes tombol (Pengaturan > Layar dasbor) menampilkan tiap tekan tombol di dash dan mencatatnya di Log.")) {
                 EmptyView()
             }
