@@ -140,24 +140,32 @@ final class MusicService: ObservableObject {
         do {
             try s.setCategory(.playback, mode: .voicePrompt, options: opts)
             try s.setActive(true)
+            onLog("Suara: sesi aktif (duck \(duck ? "ya" : "tidak"), volume sistem \(Int((s.outputVolume * 100).rounded()))%)")
         } catch {
-            onLog("Sesi suara petunjuk gagal aktif: \(error.localizedDescription)")
+            onLog("Suara: sesi gagal aktif: \(error.localizedDescription)")
         }
     }
 
-    /// Dipanggil setelah suara selesai: opsi duck dilepas dan sesi dinonaktifkan dengan
-    /// `notifyOthersOnDeactivation` supaya musik kembali ke volume semula, lalu sesi audio app
-    /// dikembalikan seperti biasa (playback + mixWithOthers + audio senyap).
+    /// Dipanggil setelah suara selesai. Urutannya sama dengan NConnect (Voice.didFinish): kategori
+    /// dikembalikan tanpa duck, lalu sesi dilepas dengan `notifyOthersOnDeactivation`. Audio senyap TIDAK
+    /// dijeda: bila iOS menolak melepas sesi karena audio senyap masih berjalan, itu tidak masalah
+    /// (ducking sudah berakhir karena opsi duck dilepas) dan sesi tetap hidup untuk mode latar belakang.
     func endGuidanceAudio() {
         guard guidanceActive else { return }
-        // audio senyap yang sedang berjalan membuat setActive(false) ditolak iOS; jeda sebentar,
-        // updateKeepAlive() di bawah menyalakannya lagi
-        keepAlivePlayer?.pause()
         let s = AVAudioSession.sharedInstance()
-        try? s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-        try? s.setActive(false, options: .notifyOthersOnDeactivation)
+        do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
+        catch { onLog("Suara: kategori gagal dikembalikan: \(error.localizedDescription)") }
+        do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
+        catch { onLog("Suara: sesi tidak dilepas (\((error as NSError).code)), diabaikan") }
+        pauseGuardUntil = Date().addingTimeInterval(2.0)
         finishGuidanceAudio()
+        onLog("Suara: selesai, volume sistem \(Int((s.outputVolume * 100).rounded()))%")
     }
+
+    /// Perintah "jeda" yang datang saat/segera setelah suara petunjuk berbunyi bukan dari pengguna,
+    /// melainkan efek samping perubahan sesi audio; jangan diteruskan ke pemutar musik.
+    private var pauseGuardUntil = Date.distantPast
+    private var shouldIgnorePause: Bool { guidanceActive || Date() < pauseGuardUntil }
 
     private func finishGuidanceAudio() {
         guidanceActive = false
@@ -190,11 +198,19 @@ final class MusicService: ObservableObject {
             return .success
         }
         c.pauseCommand.addTarget { [weak self] _ in
+            if self?.shouldIgnorePause == true {
+                self?.onLog("Perintah media: jeda DIABAIKAN (bersamaan dengan suara petunjuk)")
+                return .success
+            }
             self?.onLog("Perintah media: jeda")
             p.pause()
             return .success
         }
         c.togglePlayPauseCommand.addTarget { [weak self] _ in
+            if self?.shouldIgnorePause == true {
+                self?.onLog("Perintah media: putar/jeda DIABAIKAN (bersamaan dengan suara petunjuk)")
+                return .success
+            }
             self?.onLog("Perintah media: putar/jeda (OK)")
             if p.playbackState == .playing { p.pause() } else { p.play() }
             return .success
