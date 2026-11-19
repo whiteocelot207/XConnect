@@ -114,14 +114,13 @@ final class MusicService: ObservableObject {
 
     private var guidanceActive = false
 
-    /// Dipanggil sebelum suara petunjuk arah. Ducking bawaan iOS terlalu kuat dan tidak bisa diatur, jadi
-    /// dengan `duck` volume ponsel diturunkan sendiri ke `level` (mis. 0,5 = separuh dari volume sekarang)
-    /// selama suara berbunyi, lalu dikembalikan di `endGuidanceAudio`. Sesi memakai mixWithOthers supaya
-    /// musik tetap berjalan. Audio senyap dihentikan dulu agar sesi bisa dilepas di akhir.
+    /// Dipanggil sebelum suara petunjuk arah. Sesi audio TIDAK diubah ke mode yang menjeda app lain dan TIDAK
+    /// dilepas sesudahnya (melepas sesi atau menghentikan audio senyap bisa membuat pemutar musik berhenti).
+    /// Kategori tetap playback + mixWithOthers, sama seperti saat dash tersambung. Dengan `duck`, volume ponsel
+    /// diturunkan sendiri ke `level` (mis. 0,5 = separuh dari volume sekarang) selama suara berbunyi, lalu
+    /// dikembalikan di `endGuidanceAudio`.
     func beginGuidanceAudio(duck: Bool, level: Float) {
         guidanceActive = true
-        keepAlivePlayer?.stop()
-        keepAlivePlayer = nil
         let s = AVAudioSession.sharedInstance()
         do {
             try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
@@ -138,21 +137,10 @@ final class MusicService: ObservableObject {
         SystemVolume.set(target)
     }
 
-    /// Dipanggil setelah suara selesai: volume dikembalikan, sesi dilepas, lalu pengaturan audio app seperti semula.
+    /// Dipanggil setelah suara selesai: volume dikembalikan, lalu pengaturan audio app seperti semula.
     func endGuidanceAudio() {
         guard guidanceActive else { return }
         restoreVolume()
-        let s = AVAudioSession.sharedInstance()
-        do {
-            try s.setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            // I/O suara belum benar-benar berhenti; coba sekali lagi sebentar lagi
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-                self?.finishGuidanceAudio()
-            }
-            return
-        }
         finishGuidanceAudio()
     }
 

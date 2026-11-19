@@ -14,7 +14,7 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
   diumumkan di sekitar 300 m (500 m bila lebih dari 60 km/j) dan 100 m sebelum belokan, plus "Navigasi dimulai", "Menghitung ulang rute",
   dan "Anda telah tiba di tujuan". Saat berbunyi, musik/audio app lain dikecilkan (ducking, seperti Google Maps) lalu kembali ke volume
   semula setelah selesai. Ducking bawaan iOS terlalu kuat, jadi app menurunkan volume ponsel sendiri ke persentase yang diatur
-  (bawaan 50%: volume 70% menjadi 35%) lewat MPVolumeView tersembunyi, lalu mengembalikannya. Bisa diatur: nyala/mati, kecilkan musik atau tidak, volume suara, tombol "Coba suara".
+  (bawaan 50%: volume 70% menjadi 35%) lewat MPVolumeView tersembunyi, lalu mengembalikannya. Sesi audio tidak dilepas dan audio senyap tidak dihentikan saat suara berbunyi, supaya pemutar musik tidak ikut berhenti. Bisa diatur: nyala/mati, kecilkan musik atau tidak, volume suara, tombol "Coba suara".
   Ada juga tombol speaker di kotak rute (tab Navigasi) untuk menyalakan/membisukan cepat.
 - **Nama jalan dibaca benar**: angka Romawi pada nama jalan diucapkan sebagai angka ("Maligi I" dibaca "Maligi satu", II = dua, IV = empat,
   dst.), dan singkatan dibuka: Jl. = Jalan, Gg. = Gang, Jend. = Jenderal, Prof., Dr., Ir., Kav., No. (hanya untuk suara; tulisan di layar tidak berubah).
