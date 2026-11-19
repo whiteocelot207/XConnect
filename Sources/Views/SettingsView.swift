@@ -501,16 +501,10 @@ struct RouteSettings: View {
                 Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
             }
             Section(header: Text("Suara petunjuk arah"),
-                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik diturunkan sebentar (mis. 70% menjadi 35% bila diatur 50%) lalu kembali ke volume semula. Suara petunjuk diperkeras otomatis sebesar penurunan itu, jadi tetap terdengar sekeras volume semula. Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
+                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
                 Toggle("Suara pemberitahuan", isOn: $settings.guideVoice)
                 if settings.guideVoice {
                     Toggle("Kecilkan volume musik saat berbunyi", isOn: $settings.guideDuck)
-                    if settings.guideDuck {
-                        sliderRow("Volume musik saat pemberitahuan", value: Binding(
-                            get: { settings.guideDuckLevel * 100 },
-                            set: { settings.guideDuckLevel = $0 / 100 }),
-                                  range: 20...90, step: 5, unit: "%")
-                    }
                     sliderRow("Volume suara", value: $settings.guideVolume, range: 0.2...1, step: 0.1, unit: "")
                     Button("Coba suara") { nav.voice?.test() }
                 }

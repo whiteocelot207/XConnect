@@ -126,39 +126,37 @@ final class MusicService: ObservableObject {
     /// true selama navigasi berjalan: audio senyap dijaga hidup supaya sesi audio tidak berubah saat suara berbunyi
     var navActive = false
 
-    /// Dipanggil sebelum suara petunjuk arah. Kategori sesi tidak diubah, sesi tidak dilepas, dan audio senyap
-    /// tidak dihentikan (semua itu bisa membuat pemutar musik berhenti). Dengan `duck`, volume ponsel
-    /// diturunkan sendiri ke `level` (mis. 0,5 = separuh dari volume sekarang) selama suara berbunyi, lalu
-    /// dikembalikan di `endGuidanceAudio`.
-    func beginGuidanceAudio(duck: Bool, level: Float) {
-        activateAudioSession()                 // sama seperti biasa: playback + mixWithOthers
+    /// Dipanggil sebelum suara petunjuk arah. Musik dikecilkan lewat sesi audio, BUKAN lewat volume ponsel:
+    /// kategori `.playback` + mode `.voicePrompt` + opsi `.duckOthers` dan `.interruptSpokenAudioAndMixWithOthers`
+    /// (nilai 0x13). iOS sendiri yang mengecilkan audio app lain selama sesi ini aktif, sedangkan volume
+    /// master ponsel (`outputVolume`) tidak berubah sama sekali. Pola ini sama dengan NConnect (Voice.say).
+    /// Tanpa `duck`, suara hanya dicampur (`.mixWithOthers`) dan musik dibiarkan.
+    func beginGuidanceAudio(duck: Bool) {
         guidanceActive = true
         let s = AVAudioSession.sharedInstance()
-        guard duck, duckedFrom == nil else { return }
-        let orig = s.outputVolume
-        guard orig > 0.02 else { return }
-        let target = max(0.02, orig * min(max(level, 0.1), 1.0))
-        duckedFrom = orig
-        duckedTo = target
-        SystemVolume.set(target)
+        let opts: AVAudioSession.CategoryOptions = duck
+            ? [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
+            : [.mixWithOthers]
+        do {
+            try s.setCategory(.playback, mode: .voicePrompt, options: opts)
+            try s.setActive(true)
+        } catch {
+            onLog("Sesi suara petunjuk gagal aktif: \(error.localizedDescription)")
+        }
     }
 
-    /// Dipanggil setelah suara selesai: volume dikembalikan, lalu pengaturan audio app seperti semula.
+    /// Dipanggil setelah suara selesai: opsi duck dilepas dan sesi dinonaktifkan dengan
+    /// `notifyOthersOnDeactivation` supaya musik kembali ke volume semula, lalu sesi audio app
+    /// dikembalikan seperti biasa (playback + mixWithOthers + audio senyap).
     func endGuidanceAudio() {
         guard guidanceActive else { return }
-        restoreVolume()
+        // audio senyap yang sedang berjalan membuat setActive(false) ditolak iOS; jeda sebentar,
+        // updateKeepAlive() di bawah menyalakannya lagi
+        keepAlivePlayer?.pause()
+        let s = AVAudioSession.sharedInstance()
+        try? s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? s.setActive(false, options: .notifyOthersOnDeactivation)
         finishGuidanceAudio()
-    }
-
-    private var duckedFrom: Float?
-    private var duckedTo: Float = 0
-
-    /// Kembalikan volume ke nilai sebelum diturunkan, kecuali pengguna sudah mengubahnya sendiri (tombol volume).
-    private func restoreVolume() {
-        guard let orig = duckedFrom else { return }
-        duckedFrom = nil
-        let now = AVAudioSession.sharedInstance().outputVolume
-        if abs(now - duckedTo) < 0.08 { SystemVolume.set(orig) }
     }
 
     private func finishGuidanceAudio() {
@@ -303,36 +301,5 @@ final class MusicService: ObservableObject {
     func togglePlay() {
         let p = MPMusicPlayerController.systemMusicPlayer
         if p.playbackState == .playing { p.pause() } else { p.play() }
-    }
-}
-
-
-/// Mengatur volume sistem lewat MPVolumeView tersembunyi (satu-satunya cara di iOS untuk mengubah volume dari app).
-enum SystemVolume {
-    private static let view: MPVolumeView = {
-        let v = MPVolumeView(frame: CGRect(x: -3000, y: -3000, width: 10, height: 10))
-        v.alpha = 0.01
-        v.isUserInteractionEnabled = false
-        return v
-    }()
-
-    static func set(_ value: Float) {
-        let apply = {
-            if view.superview == nil {
-                let win = UIApplication.shared.connectedScenes
-                    .compactMap { $0 as? UIWindowScene }
-                    .flatMap { $0.windows }
-                    .first { $0.isKeyWindow } ?? UIApplication.shared.windows.first
-                win?.addSubview(view)
-            }
-            view.layoutIfNeeded()
-            if let slider = view.subviews.compactMap({ $0 as? UISlider }).first {
-                slider.value = min(max(0, value), 1)
-                slider.sendActions(for: .valueChanged)
-            }
-        }
-        if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
-        // pemasangan pertama: slider baru muncul setelah layout, ulangi sekali
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { apply() }
     }
 }

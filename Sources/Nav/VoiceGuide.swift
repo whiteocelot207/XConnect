@@ -3,22 +3,22 @@ import AVFoundation
 
 /// Suara petunjuk arah berbahasa Indonesia.
 ///
-/// iOS tidak mengizinkan app mengatur volume app musik lain, jadi musik hanya bisa dikecilkan lewat volume
-/// ponsel (diatur MusicService). Supaya suara petunjuk tidak ikut pelan, suaranya dibuat sebagai audio
-/// terpisah (teks -> buffer lewat AVSpeechSynthesizer.write, diputar lewat AVAudioEngine) lalu diperkeras
-/// sebesar kebalikan pengecilan volume, jadi terdengar sekeras volume semula.
-final class VoiceGuide: NSObject {
+/// Musik app lain dikecilkan lewat sesi audio (`.duckOthers`, diatur MusicService.beginGuidanceAudio),
+/// bukan lewat volume ponsel, jadi volume master iPhone tidak ikut turun. Suara petunjuk diucapkan
+/// langsung oleh AVSpeechSynthesizer lewat sesi audio app (mode voicePrompt) dan tetap pada volume
+/// penuh; tidak ada lagi kompensasi perkerasan. Besar pengecilan musik ditentukan iOS (tidak bisa
+/// diatur persen dari app). Pola ini sama dengan NConnect.
+final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
     private let synth = AVSpeechSynthesizer()
     private let settings: AppSettings
     private weak var music: MusicService?
-    private var generation = 0
-    private var engine: AVAudioEngine?
-    private var player: AVAudioPlayerNode?
 
     init(settings: AppSettings, music: MusicService) {
         self.settings = settings
         self.music = music
         super.init()
+        synth.usesApplicationAudioSession = true     // pakai sesi audio app (kategori/opsi dari MusicService)
+        synth.delegate = self
     }
 
     /// Mengucapkan teks bila suara petunjuk arah dinyalakan. Ucapan yang sedang berjalan diganti
@@ -45,8 +45,7 @@ final class VoiceGuide: NSObject {
     func cancel() {
         let apply = { [weak self] in
             guard let self = self else { return }
-            self.generation += 1
-            self.stopPlayback()
+            if self.synth.isSpeaking { self.synth.stopSpeaking(at: .immediate) }
             self.music?.endGuidanceAudio()
         }
         if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
@@ -55,118 +54,26 @@ final class VoiceGuide: NSObject {
     // MARK: - Ucapan
 
     private func speakNow(_ text: String) {
-        generation += 1
-        let gen = generation
-        stopPlayback()
-        music?.beginGuidanceAudio(duck: settings.guideDuck, level: Float(settings.guideDuckLevel))
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        music?.beginGuidanceAudio(duck: settings.guideDuck)
 
         let u = AVSpeechUtterance(string: VoiceGuide.normalize(text))
         u.voice = AVSpeechSynthesisVoice(language: "id-ID")
         u.rate = AVSpeechUtteranceDefaultSpeechRate
-        var buffers = [AVAudioPCMBuffer]()
-        synth.write(u) { [weak self] buf in
-            guard let pcm = buf as? AVAudioPCMBuffer else { return }
-            DispatchQueue.main.async {
-                guard let self = self, gen == self.generation else { return }
-                if pcm.frameLength > 0 {
-                    buffers.append(pcm)
-                } else {
-                    // buffer kosong = selesai disintesis; beri waktu volume ponsel turun dulu, lalu putar
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                        self?.play(buffers, gen: gen)
-                    }
-                }
-            }
-        }
+        u.volume = Float(min(max(settings.guideVolume, 0.2), 1.0))   // hanya volume suara ini, bukan volume ponsel
+        synth.speak(u)
     }
 
-    private func convert(_ b: AVAudioPCMBuffer, to fmt: AVAudioFormat) -> AVAudioPCMBuffer? {
-        guard let conv = AVAudioConverter(from: b.format, to: fmt),
-              let out = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: b.frameLength) else { return nil }
-        var used = false
-        var err: NSError?
-        conv.convert(to: out, error: &err) { _, status in
-            if used { status.pointee = .noDataNow; return nil }
-            used = true
-            status.pointee = .haveData
-            return b
-        }
-        return err == nil ? out : nil
-    }
-
-    private func play(_ bufs: [AVAudioPCMBuffer], gen: Int) {
-        guard gen == generation else { return }
-        guard let first = bufs.first,
-              let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: first.format.sampleRate,
-                                      channels: first.format.channelCount, interleaved: false) else {
-            finish(gen)
-            return
-        }
-        var floats = [AVAudioPCMBuffer]()
-        for b in bufs {
-            if b.format == fmt { floats.append(b) } else if let c = convert(b, to: fmt) { floats.append(c) }
-        }
-        guard !floats.isEmpty else { finish(gen); return }
-
-        // puncak sinyal, supaya perkerasan tidak membuat suara pecah
-        var peak: Float = 0
-        for b in floats {
-            guard let ch = b.floatChannelData else { continue }
-            for c in 0..<Int(fmt.channelCount) {
-                for i in 0..<Int(b.frameLength) { peak = max(peak, abs(ch[c][i])) }
-            }
-        }
-        // suara = volume yang diatur / sisa volume ponsel (mis. ponsel diturunkan ke 50% -> suara diperkeras 2x)
-        let level = settings.guideDuck ? Float(min(max(settings.guideDuckLevel, 0.1), 1.0)) : 1
-        var gain = Float(min(max(settings.guideVolume, 0.2), 1.0)) / level
-        if peak > 0 { gain = min(gain, 0.97 / peak) }
-        let db = max(-40, min(24, 20 * log10(max(gain, 0.01))))
-
-        let eng = AVAudioEngine()
-        let node = AVAudioPlayerNode()
-        let eq = AVAudioUnitEQ(numberOfBands: 0)
-        eq.globalGain = db
-        eng.attach(node)
-        eng.attach(eq)
-        eng.connect(node, to: eq, format: fmt)
-        eng.connect(eq, to: eng.mainMixerNode, format: fmt)
-        do {
-            try eng.start()
-        } catch {
-            finish(gen)
-            return
-        }
-        for (i, b) in floats.enumerated() {
-            if i == floats.count - 1 {
-                node.scheduleBuffer(b, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-                    DispatchQueue.main.async { self?.finish(gen) }
-                }
-            } else {
-                node.scheduleBuffer(b, completionHandler: nil)
-            }
-        }
-        engine = eng
-        player = node
-        node.play()
-    }
-
-    private func stopPlayback() {
-        player?.stop()
-        engine?.stop()
-        player = nil
-        engine = nil
-    }
-
-    /// Suara selesai: bersihkan, lalu kembalikan volume ponsel (kecuali sudah ada ucapan yang lebih baru).
-    private func finish(_ gen: Int) {
-        guard gen == generation else { return }
-        stopPlayback()
-        // jeda singkat supaya ekor suara tidak terpotong sebelum volume naik lagi
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            guard let self = self, gen == self.generation else { return }
+    /// Selesai atau dibatalkan: lepas ducking hanya bila tidak ada ucapan lain yang menyusul.
+    private func finishedOne() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, !self.synth.isSpeaking else { return }
             self.music?.endGuidanceAudio()
         }
     }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) { finishedOne() }
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) { finishedOne() }
 
     // MARK: - Teks untuk diucapkan
 
