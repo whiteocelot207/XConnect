@@ -115,7 +115,7 @@ final class MusicService: ObservableObject {
     private var guidanceActive = false
 
     /// Dipanggil sebelum suara petunjuk arah. Dengan `duck`, musik dari app lain dikecilkan selama suara
-    /// berbunyi (seperti Google Maps); podcast/buku audio dijeda sebentar. Audio senyap dihentikan dulu
+    /// berbunyi (seperti Google Maps). Audio senyap dihentikan dulu
     /// supaya sesi bisa dilepas di akhir dan volume musik kembali normal.
     func beginGuidanceAudio(duck: Bool) {
         guidanceActive = true
@@ -123,9 +123,10 @@ final class MusicService: ObservableObject {
         keepAlivePlayer = nil
         let s = AVAudioSession.sharedInstance()
         do {
-            let opts: AVAudioSession.CategoryOptions = duck
-                ? [.duckOthers, .interruptSpokenAudioAndMixWithOthers] : [.mixWithOthers]
-            try s.setCategory(.playback, mode: .voicePrompt, options: opts)
+            // duckOthers saja (tanpa interruptSpokenAudio...): musik hanya dikecilkan, tidak dijeda atau dibisukan,
+            // juga untuk pemutar yang menandai dirinya sebagai audio lisan.
+            let opts: AVAudioSession.CategoryOptions = duck ? [.duckOthers] : [.mixWithOthers]
+            try s.setCategory(.playback, mode: .default, options: opts)
             try s.setActive(true)
         } catch {
             onLog("Sesi petunjuk arah gagal aktif: \(error.localizedDescription)")

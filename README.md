@@ -13,7 +13,7 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
 - **Suara petunjuk arah** (Pengaturan > Rute dan pencarian > Suara petunjuk arah): bahasa Indonesia (suara id-ID iOS),
   diumumkan di sekitar 300 m (500 m bila lebih dari 60 km/j) dan 100 m sebelum belokan, plus "Navigasi dimulai", "Menghitung ulang rute",
   dan "Anda telah tiba di tujuan". Saat berbunyi, musik/audio app lain dikecilkan (ducking, seperti Google Maps) lalu kembali ke volume
-  semula setelah selesai. Bisa diatur: nyala/mati, kecilkan musik atau tidak, volume suara, tombol "Coba suara".
+  semula setelah selesai (hanya dikecilkan, tidak dijeda). Bisa diatur: nyala/mati, kecilkan musik atau tidak, volume suara, tombol "Coba suara".
   Ada juga tombol speaker di kotak rute (tab Navigasi) untuk menyalakan/membisukan cepat.
 - **Simulasi navigasi** (tab Navigasi, kotak rute): tombol "Simulasikan navigasi" tersedia di pratinjau rute dan saat navigasi berjalan
   (di samping "Hentikan navigasi"). Posisi buatan berjalan di sepanjang rute (20/40/80/150 km/j), mengalir ke dash, suara, dan peta
