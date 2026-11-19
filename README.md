@@ -19,6 +19,10 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
   (di samping "Hentikan navigasi"). Posisi buatan berjalan di sepanjang rute (20/40/80/150 km/j), mengalir ke dash, suara, dan peta
   seperti berkendara sungguhan; GPS asli diabaikan dan perjalanan tidak dicatat. "Hentikan simulasi" kembali ke pratinjau rute.
 
+- **Isi kotak estimasi dapat dipilih** (Pengaturan > Peta di dasbor > Kotak estimasi): estimasi jarak (sisa jarak), estimasi durasi
+  perjalanan (sisa waktu, mis. "12 mnt"), dan estimasi waktu sampai (jam tiba). Boleh dipilih satu, dua, atau ketiganya
+  (urutan: jarak · durasi · jam tiba). Bawaan: jarak dan jam tiba. Bila semuanya dimatikan, kotak disembunyikan.
+
 ## Yang baru di 0.7
 - **Ikon aplikasi** XConnect (Sources/Assets.xcassets/AppIcon). Ikon di source.json SideStore/AltStore ikut memakainya.
 - **Ikon putar balik** kini benar: putar balik kanan menampilkan panah ke kanan, putar balik kiri ke kiri

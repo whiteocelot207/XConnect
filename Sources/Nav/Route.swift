@@ -33,9 +33,34 @@ extension Maneuver {
         if type == 26 {
             return exitCount > 0 ? "di bundaran, ambil jalan keluar ke \(exitCount)" : "masuk bundaran"
         }
-        var s = (verbal.isEmpty ? instruction : verbal).trimmingCharacters(in: CharacterSet(charactersIn: ". \n"))
-        if s.isEmpty { s = title }
-        return s.prefix(1).lowercased() + s.dropFirst()
+        // Kalimat dibuat sendiri (Valhalla tidak punya bahasa Indonesia, teksnya jatuh ke bahasa Inggris).
+        let verb: String
+        switch type {
+        case 4: return "tujuan Anda ada di depan"
+        case 5: return "tujuan Anda ada di sebelah kanan"
+        case 6: return "tujuan Anda ada di sebelah kiri"
+        case 9: verb = "serong kanan"
+        case 10: verb = "belok kanan"
+        case 11: verb = "belok kanan tajam"
+        case 12, 13: verb = "putar balik"
+        case 14: verb = "belok kiri tajam"
+        case 15: verb = "belok kiri"
+        case 16: verb = "serong kiri"
+        case 18: verb = "ambil jalur kanan"
+        case 19: verb = "ambil jalur kiri"
+        case 20: verb = "ambil jalan keluar di kanan"
+        case 21: verb = "ambil jalan keluar di kiri"
+        case 22: verb = "tetap lurus"
+        case 23: verb = "tetap di kanan"
+        case 24: verb = "tetap di kiri"
+        case 25: verb = "bergabung"
+        case 37: verb = "bergabung ke kanan"
+        case 38: verb = "bergabung ke kiri"
+        case 28: verb = "naik feri"
+        case 29: verb = "turun dari feri"
+        default: verb = "lanjutkan lurus"
+        }
+        return street.isEmpty ? verb : verb + " ke " + street
     }
 
     /// Kalimat lengkap dengan jarak: "Dalam 65 meter, belok kanan ke Jalan Contoh".

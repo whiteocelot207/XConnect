@@ -199,6 +199,7 @@ enum DashComposer {
             cg.restoreGState()
 
             // jarak + ETA: kotak di bawah, lebar mengikuti isi, sudut sama seperti panel belokan
+            if !n.summary.isEmpty {
             let ke = max(0.6, min(1.4, c.etaScale))
             let pillW = max(70, textWidth(n.summary, size: 13, bold: true) + 20)
             let pillH: CGFloat = 26
@@ -212,6 +213,7 @@ enum DashComposer {
             fillRound(pill, radius: 10, color: green)
             text(n.summary, pill, size: 13, bold: true, align: .center, inset: 4)
             cg.restoreGState()
+            }
         }
 
         if withCards { drawCards(cg, c, vis, hud.size) }

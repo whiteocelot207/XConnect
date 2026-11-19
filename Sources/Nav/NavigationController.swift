@@ -31,6 +31,7 @@ final class NavigationController: ObservableObject {
     @Published var nextSymbol = "arrow.up"
     @Published var remainingM: Double = 0
     @Published var etaDate: Date?
+    @Published var remainingS: Double = 0
     @Published var currentRoad = ""
     @Published var nextTitle = ""
 
@@ -152,8 +153,11 @@ final class NavigationController: ObservableObject {
     /// Ringkasan untuk banner di dash.
     var hud: NavHUD? {
         guard phase == .navigating, let d = lastDash else { return nil }
-        var summary = Fmt.distance(remainingM)
-        if let e = etaDate { summary += " · " + Fmt.clock(e) }
+        var parts = [String]()
+        if settings.etaShowDistance { parts.append(Fmt.distance(remainingM)) }
+        if settings.etaShowDuration { parts.append(Fmt.duration(remainingS)) }
+        if settings.etaShowArrival, let e = etaDate { parts.append(Fmt.clock(e)) }
+        let summary = parts.joined(separator: " · ")
         return NavHUD(icon: d.icon, text: d.title.isEmpty ? DashIcon.shortText(d.icon) : d.title,
                       dist: Fmt.distance(d.distanceM), summary: summary)
     }
@@ -227,6 +231,7 @@ final class NavigationController: ObservableObject {
         announcedTier = 0
         remainingM = r.totalM
         etaDate = Date().addingTimeInterval(r.totalS)
+        remainingS = r.totalS
         if initial && phase != .navigating { phase = .previewing }
         if autoStart {
             autoStart = false
@@ -246,6 +251,7 @@ final class NavigationController: ObservableObject {
         segIdx = 0
         remainingM = r.totalM
         etaDate = Date().addingTimeInterval(r.totalS)
+        remainingS = r.totalS
     }
 
     func startNavigation() {
@@ -438,6 +444,7 @@ final class NavigationController: ObservableObject {
         remainingM = remaining
         currentRoad = cur
         etaDate = eta
+        remainingS = remaining / avg
 
         let comps = Calendar.current.dateComponents([.hour, .minute], from: eta)
         let minutes = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)

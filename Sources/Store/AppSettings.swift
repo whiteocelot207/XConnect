@@ -85,6 +85,11 @@ final class AppSettings: ObservableObject {
     /// putar audio senyap supaya app tetap aktif di latar belakang dan data HP (volume dll) tetap berubah
     @Published var keepAliveAudio: Bool { didSet { put("keepAliveAudio", keepAliveAudio) } }
 
+    /// isi kotak estimasi di dash: jarak tersisa, durasi tersisa, jam tiba
+    @Published var etaShowDistance: Bool { didSet { put("etaShowDistance", etaShowDistance) } }
+    @Published var etaShowDuration: Bool { didSet { put("etaShowDuration", etaShowDuration) } }
+    @Published var etaShowArrival: Bool { didSet { put("etaShowArrival", etaShowArrival) } }
+
     /// suara petunjuk arah ("Dalam 100 meter, belok kanan ke ...")
     @Published var guideVoice: Bool { didSet { put("guideVoice", guideVoice) } }
     /// kecilkan volume musik/audio app lain selama suara berbunyi, lalu kembalikan
@@ -122,7 +127,7 @@ final class AppSettings: ObservableObject {
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
             "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
-            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "guideVoice": true, "guideDuck": true, "guideVolume": 1.0,
+            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": false, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
             "routeShortest": false
@@ -184,6 +189,9 @@ final class AppSettings: ObservableObject {
         cardFontSmall = min(max(0.5, d.double(forKey: "cardFontSmall")), 1.5)
         dashQuality = min(max(0.4, d.double(forKey: "dashQuality")), 0.95)
         keepAliveAudio = d.bool(forKey: "keepAliveAudio")
+        etaShowDistance = d.bool(forKey: "etaShowDistance")
+        etaShowDuration = d.bool(forKey: "etaShowDuration")
+        etaShowArrival = d.bool(forKey: "etaShowArrival")
         guideVoice = d.bool(forKey: "guideVoice")
         guideDuck = d.bool(forKey: "guideDuck")
         guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
@@ -258,6 +266,9 @@ final class AppSettings: ObservableObject {
         cardFontSmall = min(max(0.5, d.double(forKey: "cardFontSmall")), 1.5)
         dashQuality = min(max(0.4, d.double(forKey: "dashQuality")), 0.95)
         keepAliveAudio = d.bool(forKey: "keepAliveAudio")
+        etaShowDistance = d.bool(forKey: "etaShowDistance")
+        etaShowDuration = d.bool(forKey: "etaShowDuration")
+        etaShowArrival = d.bool(forKey: "etaShowArrival")
         guideVoice = d.bool(forKey: "guideVoice")
         guideDuck = d.bool(forKey: "guideDuck")
         guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)

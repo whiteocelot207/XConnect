@@ -226,7 +226,11 @@ struct MapSettings: View {
                 sliderRow("Geser kiri ↔ kanan", value: $settings.navDX, range: -8...280, step: 2, unit: "px")
                 sliderRow("Geser atas ↔ bawah", value: $settings.navDY, range: -4...110, step: 2, unit: "px")
             }
-            Section(header: Text("Kotak estimasi (jarak dan waktu)")) {
+            Section(header: Text("Kotak estimasi (jarak dan waktu)"),
+                    footer: Text("Pilih data yang tampil di kotak estimasi. Bila semua dimatikan, kotak disembunyikan.")) {
+                Toggle("Estimasi jarak (sisa jarak)", isOn: $settings.etaShowDistance)
+                Toggle("Estimasi durasi perjalanan (sisa waktu)", isOn: $settings.etaShowDuration)
+                Toggle("Estimasi waktu sampai (jam tiba)", isOn: $settings.etaShowArrival)
                 sliderRow("Ukuran", value: $settings.etaScale, range: 0.6...1.4, step: 0.05, unit: "x")
                 sliderRow("Geser kiri ↔ kanan", value: $settings.etaDX, range: -54...300, step: 2, unit: "px")
                 sliderRow("Geser atas ↔ bawah", value: $settings.etaDY, range: -140...4, step: 2, unit: "px")
