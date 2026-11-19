@@ -146,20 +146,25 @@ final class MusicService: ObservableObject {
         }
     }
 
-    /// Dipanggil setelah suara selesai. Urutannya sama dengan NConnect (Voice.didFinish): kategori
-    /// dikembalikan tanpa duck, lalu sesi dilepas dengan `notifyOthersOnDeactivation`. Audio senyap TIDAK
-    /// dijeda: bila iOS menolak melepas sesi karena audio senyap masih berjalan, itu tidak masalah
-    /// (ducking sudah berakhir karena opsi duck dilepas) dan sesi tetap hidup untuk mode latar belakang.
+    /// Dipanggil setelah suara selesai. Dua cabang yang saling eksklusif, sama dengan NConnect (Voice.didFinish,
+    /// bercabang pada flag KeepAwake.on), hasil membaca binary-nya:
+    ///  - audio senyap hidup (mode latar belakang): HANYA kembalikan kategori tanpa duck. Sesi TIDAK dilepas.
+    ///    Opsi duck yang dilepas sudah mengakhiri ducking, dan melepas sesi saat masih ada audio yang berjalan
+    ///    justru mengganggu app musik.
+    ///  - audio senyap mati: HANYA lepas sesi dengan `notifyOthersOnDeactivation`.
     func endGuidanceAudio() {
         guard guidanceActive else { return }
         let s = AVAudioSession.sharedInstance()
-        do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
-        catch { onLog("Suara: kategori gagal dikembalikan: \(error.localizedDescription)") }
-        do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
-        catch { onLog("Suara: sesi tidak dilepas (\((error as NSError).code)), diabaikan") }
+        if keepAlivePlayer != nil {
+            do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
+            catch { onLog("Suara: kategori gagal dikembalikan: \(error.localizedDescription)") }
+        } else {
+            do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
+            catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
+        }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
         finishGuidanceAudio()
-        onLog("Suara: selesai, volume sistem \(Int((s.outputVolume * 100).rounded()))%")
+        onLog("Suara: selesai (\(keepAlivePlayer != nil ? "sesi tetap hidup" : "sesi dilepas")), volume sistem \(Int((s.outputVolume * 100).rounded()))%")
     }
 
     /// Perintah "jeda" yang datang saat/segera setelah suara petunjuk berbunyi bukan dari pengguna,
