@@ -50,6 +50,7 @@ final class MusicService: ObservableObject {
         let nc = NotificationCenter.default
         nc.addObserver(forName: .MPMusicPlayerControllerPlaybackStateDidChange, object: p, queue: .main) { [weak self] _ in
             self?.onLog("Musik: status \(MusicService.stateName(p.playbackState))")
+            self?.resumeIfInterruptedByGuidance()
         }
         nc.addObserver(forName: .MPMusicPlayerControllerNowPlayingItemDidChange, object: p, queue: .main) { [weak self] _ in
             self?.onLog("Musik: lagu berganti → \(p.nowPlayingItem?.title ?? "-")")
@@ -127,23 +128,46 @@ final class MusicService: ObservableObject {
     var navActive = false
 
     /// Dipanggil sebelum suara petunjuk arah. Musik dikecilkan lewat sesi audio, BUKAN lewat volume ponsel:
-    /// kategori `.playback` + mode `.voicePrompt` + opsi `.duckOthers` dan `.interruptSpokenAudioAndMixWithOthers`
-    /// (nilai 0x13). iOS sendiri yang mengecilkan audio app lain selama sesi ini aktif, sedangkan volume
-    /// master ponsel (`outputVolume`) tidak berubah sama sekali. Pola ini sama dengan NConnect (Voice.say).
+    /// kategori `.playback` + mode `.voicePrompt` + opsi `.mixWithOthers` dan `.duckOthers`. iOS sendiri yang
+    /// mengecilkan audio app lain selama sesi ini aktif, sedangkan volume master ponsel (`outputVolume`) tidak
+    /// berubah. Sengaja TANPA `.interruptSpokenAudioAndMixWithOthers`: flag itu meminta app lain menghentikan
+    /// audionya, dan di log terbukti app Musik jadi "terputus" tepat saat sesi diaktifkan.
     /// Tanpa `duck`, suara hanya dicampur (`.mixWithOthers`) dan musik dibiarkan.
     func beginGuidanceAudio(duck: Bool) {
-        guidanceActive = true
+        let p = MPMusicPlayerController.systemMusicPlayer
+        if !guidanceActive {
+            musicWasPlaying = p.playbackState == .playing
+            autoResumeCount = 0
+        }
+        autoResumeUntil = .distantFuture
         let s = AVAudioSession.sharedInstance()
-        let opts: AVAudioSession.CategoryOptions = duck
-            ? [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
-            : [.mixWithOthers]
+        let opts: AVAudioSession.CategoryOptions = duck ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]
+        // ucapan beruntun: sesi sudah dalam konfigurasi yang sama, jangan diubah lagi
+        if guidanceActive, s.categoryOptions == opts, s.mode == .voicePrompt { return }
+        guidanceActive = true
         do {
             try s.setCategory(.playback, mode: .voicePrompt, options: opts)
             try s.setActive(true)
             onLog("Suara: sesi aktif (duck \(duck ? "ya" : "tidak"), volume sistem \(Int((s.outputVolume * 100).rounded()))%)")
+            onLog("Suara: opsi=\(s.categoryOptions.rawValue) mode=\(s.mode.rawValue) audioLain=\(s.isOtherAudioPlaying) diamkanAudioLain=\(s.secondaryAudioShouldBeSilencedHint) musik=\(MusicService.stateName(p.playbackState))")
         } catch {
             onLog("Suara: sesi gagal aktif: \(error.localizedDescription)")
         }
+    }
+
+    // Pengaman: bila sistem tetap menginterupsi app Musik saat/segera setelah suara petunjuk, lanjutkan
+    // otomatis (hanya bila musik memang sedang diputar sebelumnya, maksimal 2 kali per pemberitahuan).
+    private var musicWasPlaying = false
+    private var autoResumeUntil = Date.distantPast
+    private var autoResumeCount = 0
+
+    private func resumeIfInterruptedByGuidance() {
+        guard musicWasPlaying, Date() < autoResumeUntil, autoResumeCount < 2 else { return }
+        let p = MPMusicPlayerController.systemMusicPlayer
+        guard p.playbackState == .interrupted else { return }
+        autoResumeCount += 1
+        onLog("Musik: dilanjutkan otomatis (\(autoResumeCount))")
+        p.play()
     }
 
     /// Dipanggil setelah suara selesai. Dua cabang yang saling eksklusif, sama dengan NConnect (Voice.didFinish,
@@ -163,7 +187,9 @@ final class MusicService: ObservableObject {
             catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
         }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
+        autoResumeUntil = Date().addingTimeInterval(3.0)
         finishGuidanceAudio()
+        resumeIfInterruptedByGuidance()
         onLog("Suara: selesai (\(keepAlivePlayer != nil ? "sesi tetap hidup" : "sesi dilepas")), volume sistem \(Int((s.outputVolume * 100).rounded()))%")
     }
 
