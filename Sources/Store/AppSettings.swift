@@ -94,6 +94,8 @@ final class AppSettings: ObservableObject {
     @Published var guideVoice: Bool { didSet { put("guideVoice", guideVoice) } }
     /// kecilkan volume musik/audio app lain selama suara berbunyi, lalu kembalikan
     @Published var guideDuck: Bool { didSet { put("guideDuck", guideDuck) } }
+    /// volume musik saat pemberitahuan, sebagai bagian dari volume sekarang (0.5 = separuh)
+    @Published var guideDuckLevel: Double { didSet { put("guideDuckLevel", guideDuckLevel) } }
     /// volume suara petunjuk arah (0.2 - 1.0, relatif terhadap volume ponsel)
     @Published var guideVolume: Double { didSet { put("guideVolume", guideVolume) } }
 
@@ -127,7 +129,7 @@ final class AppSettings: ObservableObject {
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
             "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
-            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": false, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideVolume": 1.0,
+            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": false, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
             "routeShortest": false
@@ -194,6 +196,7 @@ final class AppSettings: ObservableObject {
         etaShowArrival = d.bool(forKey: "etaShowArrival")
         guideVoice = d.bool(forKey: "guideVoice")
         guideDuck = d.bool(forKey: "guideDuck")
+        guideDuckLevel = min(max(0.2, d.double(forKey: "guideDuckLevel")), 0.9)
         guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
@@ -271,6 +274,7 @@ final class AppSettings: ObservableObject {
         etaShowArrival = d.bool(forKey: "etaShowArrival")
         guideVoice = d.bool(forKey: "guideVoice")
         guideDuck = d.bool(forKey: "guideDuck")
+        guideDuckLevel = min(max(0.2, d.double(forKey: "guideDuckLevel")), 0.9)
         guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)

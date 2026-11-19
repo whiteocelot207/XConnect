@@ -36,12 +36,12 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
     private func speakNow(_ text: String) {
         pending += 1
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
-        music?.beginGuidanceAudio(duck: settings.guideDuck)
-        let u = AVSpeechUtterance(string: text)
+        music?.beginGuidanceAudio(duck: settings.guideDuck, level: Float(settings.guideDuckLevel))
+        let u = AVSpeechUtterance(string: VoiceGuide.normalize(text))
         u.voice = AVSpeechSynthesisVoice(language: "id-ID")
         u.rate = AVSpeechUtteranceDefaultSpeechRate
         u.volume = Float(min(max(0.2, settings.guideVolume), 1.0))
-        u.preUtteranceDelay = 0.15           // beri waktu musik mengecil sebelum suara mulai
+        u.preUtteranceDelay = 0.3            // beri waktu volume musik turun sebelum suara mulai
         u.postUtteranceDelay = 0.1
         synth.speak(u)
     }
@@ -64,5 +64,59 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         utteranceEnded()
+    }
+
+    // MARK: - Teks untuk diucapkan
+
+    /// Merapikan nama jalan agar dibaca benar oleh suara Indonesia:
+    /// angka Romawi menjadi angka ("Maligi I" -> "Maligi 1", dibaca "satu") dan singkatan umum dibuka
+    /// ("Jl." -> "Jalan", "Gg." -> "Gang", "Jend." -> "Jenderal").
+    static func normalize(_ text: String) -> String {
+        var out = text
+        // singkatan
+        let abbr: [(String, String)] = [
+            ("\\b(?:Jl|Jln)\\b\\.?", "Jalan"), ("\\bGg\\b\\.?", "Gang"), ("\\bJend\\b\\.?", "Jenderal"),
+            ("\\bProf\\b\\.?", "Profesor"), ("\\bDr\\b\\.?", "Doktor"), ("\\bIr\\b\\.?", "Insinyur"),
+            ("\\bKav\\b\\.?", "Kavling"), ("\\bNo\\b\\.?(?=\\s*\\d)", "Nomor")
+        ]
+        for (pat, rep) in abbr {
+            if let re = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) {
+                out = re.stringByReplacingMatches(in: out, range: NSRange(out.startIndex..., in: out), withTemplate: rep)
+            }
+        }
+        // angka Romawi I..XXXIX yang berdiri sendiri sebagai kata
+        if let re = try? NSRegularExpression(pattern: "\\b[IVX]+\\b") {
+            let ns = out as NSString
+            let matches = re.matches(in: out, range: NSRange(location: 0, length: ns.length))
+            for m in matches.reversed() {
+                let token = ns.substring(with: m.range)
+                if let v = romanValue(token) {
+                    out = (out as NSString).replacingCharacters(in: m.range, with: String(v))
+                }
+            }
+        }
+        return out
+    }
+
+    private static func romanValue(_ s: String) -> Int? {
+        let vals: [Character: Int] = ["I": 1, "V": 5, "X": 10]
+        var total = 0
+        var prev = 0
+        for ch in s.reversed() {
+            guard let v = vals[ch] else { return nil }
+            total += v < prev ? -v : v
+            prev = max(prev, v)
+        }
+        guard total > 0, total < 40, roman(total) == s else { return nil }     // hanya angka Romawi yang valid
+        return total
+    }
+
+    private static func roman(_ n: Int) -> String {
+        var n = n
+        var r = ""
+        for (v, t) in [(10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")] {
+            while n >= v { r += t; n -= v }
+        }
+        return r
     }
 }

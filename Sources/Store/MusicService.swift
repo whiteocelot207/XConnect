@@ -114,29 +114,34 @@ final class MusicService: ObservableObject {
 
     private var guidanceActive = false
 
-    /// Dipanggil sebelum suara petunjuk arah. Dengan `duck`, musik dari app lain dikecilkan selama suara
-    /// berbunyi (seperti Google Maps). Audio senyap dihentikan dulu
-    /// supaya sesi bisa dilepas di akhir dan volume musik kembali normal.
-    func beginGuidanceAudio(duck: Bool) {
+    /// Dipanggil sebelum suara petunjuk arah. Ducking bawaan iOS terlalu kuat dan tidak bisa diatur, jadi
+    /// dengan `duck` volume ponsel diturunkan sendiri ke `level` (mis. 0,5 = separuh dari volume sekarang)
+    /// selama suara berbunyi, lalu dikembalikan di `endGuidanceAudio`. Sesi memakai mixWithOthers supaya
+    /// musik tetap berjalan. Audio senyap dihentikan dulu agar sesi bisa dilepas di akhir.
+    func beginGuidanceAudio(duck: Bool, level: Float) {
         guidanceActive = true
         keepAlivePlayer?.stop()
         keepAlivePlayer = nil
         let s = AVAudioSession.sharedInstance()
         do {
-            // duckOthers saja (tanpa interruptSpokenAudio...): musik hanya dikecilkan, tidak dijeda atau dibisukan,
-            // juga untuk pemutar yang menandai dirinya sebagai audio lisan.
-            let opts: AVAudioSession.CategoryOptions = duck ? [.duckOthers] : [.mixWithOthers]
-            try s.setCategory(.playback, mode: .default, options: opts)
+            try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try s.setActive(true)
         } catch {
             onLog("Sesi petunjuk arah gagal aktif: \(error.localizedDescription)")
         }
+        guard duck, duckedFrom == nil else { return }
+        let orig = s.outputVolume
+        guard orig > 0.02 else { return }
+        let target = max(0.02, orig * min(max(level, 0.1), 1.0))
+        duckedFrom = orig
+        duckedTo = target
+        SystemVolume.set(target)
     }
 
-    /// Dipanggil setelah suara selesai: melepas sesi (volume musik kembali ke semula) lalu mengembalikan
-    /// pengaturan audio app seperti sebelumnya.
+    /// Dipanggil setelah suara selesai: volume dikembalikan, sesi dilepas, lalu pengaturan audio app seperti semula.
     func endGuidanceAudio() {
         guard guidanceActive else { return }
+        restoreVolume()
         let s = AVAudioSession.sharedInstance()
         do {
             try s.setActive(false, options: .notifyOthersOnDeactivation)
@@ -149,6 +154,17 @@ final class MusicService: ObservableObject {
             return
         }
         finishGuidanceAudio()
+    }
+
+    private var duckedFrom: Float?
+    private var duckedTo: Float = 0
+
+    /// Kembalikan volume ke nilai sebelum diturunkan, kecuali pengguna sudah mengubahnya sendiri (tombol volume).
+    private func restoreVolume() {
+        guard let orig = duckedFrom else { return }
+        duckedFrom = nil
+        let now = AVAudioSession.sharedInstance().outputVolume
+        if abs(now - duckedTo) < 0.08 { SystemVolume.set(orig) }
     }
 
     private func finishGuidanceAudio() {
@@ -293,5 +309,36 @@ final class MusicService: ObservableObject {
     func togglePlay() {
         let p = MPMusicPlayerController.systemMusicPlayer
         if p.playbackState == .playing { p.pause() } else { p.play() }
+    }
+}
+
+
+/// Mengatur volume sistem lewat MPVolumeView tersembunyi (satu-satunya cara di iOS untuk mengubah volume dari app).
+enum SystemVolume {
+    private static let view: MPVolumeView = {
+        let v = MPVolumeView(frame: CGRect(x: -3000, y: -3000, width: 10, height: 10))
+        v.alpha = 0.01
+        v.isUserInteractionEnabled = false
+        return v
+    }()
+
+    static func set(_ value: Float) {
+        let apply = {
+            if view.superview == nil {
+                let win = UIApplication.shared.connectedScenes
+                    .compactMap { $0 as? UIWindowScene }
+                    .flatMap { $0.windows }
+                    .first { $0.isKeyWindow } ?? UIApplication.shared.windows.first
+                win?.addSubview(view)
+            }
+            view.layoutIfNeeded()
+            if let slider = view.subviews.compactMap({ $0 as? UISlider }).first {
+                slider.value = min(max(0, value), 1)
+                slider.sendActions(for: .valueChanged)
+            }
+        }
+        if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
+        // pemasangan pertama: slider baru muncul setelah layout, ulangi sekali
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { apply() }
     }
 }

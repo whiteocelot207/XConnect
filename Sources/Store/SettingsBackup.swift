@@ -80,6 +80,7 @@ extension AppSettings {
         "etaShowArrival",
         "guideVoice",
         "guideDuck",
+        "guideDuckLevel",
         "guideVolume",
         "routePrimary",
         "routeTopSpeed",
