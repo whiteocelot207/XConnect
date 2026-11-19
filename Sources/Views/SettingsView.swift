@@ -102,6 +102,9 @@ struct ConnectionSettings: View {
     @EnvironmentObject var bike: BikeController
     @EnvironmentObject var vehicle: VehicleStore
     @EnvironmentObject var live: VehicleLive
+    @State private var fuelTarget = ""
+    @State private var fuelCands: [FuelByteCandidate] = []
+    @State private var fuelSearched = false
 
     private var ccuFuelReading: String {
         guard settings.ccuFuelByte >= 0 else { return "mati" }
@@ -142,7 +145,7 @@ struct ConnectionSettings: View {
                         in: 10...80, step: 0.5)
             }
             Section(header: Text("Konsumsi BBM dari CCU"),
-                    footer: Text("Sisa bensin dihitung dari konsumsi rata-rata yang dilaporkan CCU motor (lebih akurat daripada nilai bawaan), dan berkurang bertahap menurut konsumsi saat itu. Pilih byte di paket data CCU (id 1) yang berisi rata-rata konsumsi: lihat Pengaturan > Kotak data > Data mentah CCU, bandingkan dengan angka rata-rata BBM di dash. Atur lebar, satuan, dan pembagi sampai \"Terbaca sekarang\" sama dengan dash. Bila nilai tidak valid, dipakai riwayat pengisian lalu nilai bawaan.")) {
+                    footer: Text("Sisa bensin dihitung dari konsumsi rata-rata yang dilaporkan CCU motor (lebih akurat daripada nilai bawaan), dan berkurang bertahap menurut konsumsi saat itu. Pilih byte di paket data CCU (id 1) yang berisi rata-rata konsumsi: lihat Pengaturan > Kotak data > Data mentah CCU, bandingkan dengan angka rata-rata BBM di dash. Atur lebar, satuan, dan pembagi sampai \"Terbaca sekarang\" sama dengan dash. Bila nilai tidak valid, dipakai konsumsi Anda sendiri 30 hari terakhir (dari rata-rata dash), lalu nilai bawaan.")) {
                 Stepper(settings.ccuFuelByte < 0 ? "Byte konsumsi: mati" : "Byte konsumsi: \(settings.ccuFuelByte)",
                         value: $settings.ccuFuelByte, in: -1...47)
                 if settings.ccuFuelByte >= 0 {
@@ -162,6 +165,29 @@ struct ConnectionSettings: View {
                         Text("1000").tag(1000.0)
                     }
                     Text("Terbaca sekarang: \(ccuFuelReading)").font(.footnote).foregroundColor(.secondary)
+                }
+            }
+            Section(header: Text("Cari byte dari angka di dash"),
+                    footer: Text("Saat motor menyala dan terhubung, ketik rata-rata BBM yang tampil di dash (km/L), lalu Cari. Bila ada beberapa kandidat, ulangi saat angka di dash sudah berubah: byte yang benar ikut berubah. Bila tidak ada yang cocok, rata-rata BBM mungkin ada di paket data lain (lihat Data mentah CCU).")) {
+                TextField("Rata-rata BBM di dash (km/L)", text: $fuelTarget)
+                    .keyboardType(.decimalPad)
+                Button("Cari byte") {
+                    let t = Double(fuelTarget.replacingOccurrences(of: ",", with: ".")) ?? 0
+                    fuelCands = live.fuelByteCandidates(target: t)
+                    fuelSearched = true
+                }
+                if fuelSearched && fuelCands.isEmpty {
+                    Text(live.rawRecord.isEmpty ? "Belum ada data CCU." : "Tidak ada byte yang cocok.")
+                        .font(.footnote).foregroundColor(.secondary)
+                }
+                ForEach(fuelCands) { c in
+                    Button(c.text) {
+                        settings.ccuFuelByte = c.byte
+                        settings.ccuFuelWide = c.wide
+                        settings.ccuFuelUnit = c.unit
+                        settings.ccuFuelDiv = c.div
+                    }
+                    .font(.footnote)
                 }
             }
         }
@@ -524,6 +550,17 @@ struct RouteSettings: View {
 
     var body: some View {
         Form {
+            Section(header: Text("Sumber routing"),
+                    footer: Text(settings.routeProvider == 1
+                        ? "Apple Maps (MapKit): tanpa server, jam tiba memperhitungkan lalu lintas. Untuk skuter/motor, tol dan jalan bebas hambatan selalu dihindari (iOS 16 ke atas) dan estimasi waktu dibatasi batas kecepatan maksimal. Apple Maps tetap rute mobil, jadi jalan utama, tanjakan, dan gang tidak bisa diatur dan rute masih bisa lewat jalan yang kurang cocok untuk motor."
+                        : "Valhalla: berbasis OpenStreetMap, bisa diatur untuk skuter/motor lewat profil rute di bawah.")) {
+                Picker("Sumber", selection: $settings.routeProvider) {
+                    Text("Valhalla (publik)").tag(0)
+                    Text("Apple Maps").tag(1)
+                }
+                .pickerStyle(.segmented)
+            }
+            if settings.routeProvider == 0 {
             Section(header: Text("Kendaraan")) {
                 Picker("Jenis rute", selection: $settings.costing) {
                     Text("Skuter (NMAX/XMAX)").tag("motor_scooter")
@@ -553,6 +590,25 @@ struct RouteSettings: View {
                 Button("Pakai bawaan XConnect (jalan utama, 80 km/j)") { settings.applyRouteProfile(.appDefault) }
                 Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
             }
+            }
+            if settings.routeProvider == 1 {
+            Section(header: Text("Kendaraan dan batas kecepatan (Apple Maps)"),
+                    footer: Text("Batas kecepatan maksimal dipakai membatasi estimasi waktu dan jam tiba: bila Apple Maps menghitung rata-rata lebih cepat dari batas ini, waktunya dilebarkan. Bawaan 80 km/j untuk NMAX/XMAX; ini bukan kecepatan Anda berkendara.")) {
+                Picker("Jenis rute", selection: $settings.costing) {
+                    Text("Skuter (NMAX/XMAX)").tag("motor_scooter")
+                    Text("Motor").tag("motorcycle")
+                    Text("Mobil").tag("auto")
+                }
+                Stepper("Batas kecepatan maksimal \(settings.routeTopSpeed) km/j", value: $settings.routeTopSpeed, in: 20...120, step: 5)
+                if settings.costing == "auto" {
+                    Toggle("Hindari jalan tol", isOn: $settings.routeAvoidTolls)
+                    sliderRow("Jalan bebas hambatan", value: $settings.routeHighways, range: 0...1, step: 0.1, unit: "")
+                    Text("0 sampai 0,2 = hindari jalan bebas hambatan").font(.caption).foregroundColor(.secondary)
+                } else {
+                    Text("Tol dan jalan bebas hambatan otomatis dihindari untuk skuter/motor.").font(.footnote).foregroundColor(.secondary)
+                }
+            }
+            }
             Section(header: Text("Suara petunjuk arah"),
                     footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
                 Toggle("Suara pemberitahuan", isOn: $settings.guideVoice)
@@ -562,12 +618,14 @@ struct RouteSettings: View {
                     Button("Coba suara") { nav.voice?.test() }
                 }
             }
+            if settings.routeProvider == 0 {
             Section(header: Text("Server routing"),
                     footer: Text("Server demo Valhalla (FOSSGIS) gratis tetapi hanya untuk pemakaian wajar. Untuk pemakaian rutin, jalankan server Valhalla sendiri dan isi alamatnya di sini.")) {
                 TextField("https://…", text: $settings.routingBase)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                     .keyboardType(.URL)
+            }
             }
         }
         .navigationTitle("Rute dan pencarian")
@@ -646,7 +704,7 @@ struct DebugSettings: View {
 struct AboutSettings: View {
     var body: some View {
         Form {
-            Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla.")) {
+            Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla atau Apple Maps.")) {
                 Text("XConnect \(UpdateService.currentVersion)")
             }
         }

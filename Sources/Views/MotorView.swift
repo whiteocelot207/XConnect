@@ -167,9 +167,14 @@ struct MotorView: View {
                     .foregroundColor(.secondary)
             }
             ProgressView(value: fuel.levelL > 0 ? frac : 0).tint(frac < 0.2 ? .red : .green)
-            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L (\(kmplInfo.source))." + (kmplInfo.source == "nilai bawaan" ? " Makin akurat setelah 3 kali isi, atau aktifkan konsumsi dari CCU di Pengaturan > Motor dan koneksi." : " Sisa bensin berkurang menurut konsumsi saat itu tiap motor berjalan."))
+            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L (\(kmplInfo.source)).\(kmplInfo.measured || kmplInfo.source != "nilai bawaan" ? " Sisa bensin berkurang menurut konsumsi saat itu tiap motor berjalan." : " Isi byte rata-rata BBM dari dash di Pengaturan > Motor dan koneksi supaya konsumsi mengikuti cara berkendara Anda.")")
                 .font(.footnote)
                 .foregroundColor(.secondary)
+            if fuel.mayBeOff {
+                Text("Motor menempuh lebih dari satu tangki tanpa app terhubung, jadi angka ini mungkin salah. Saat isi penuh berikutnya, ketuk \"Baru diisi\" untuk memulai lagi.")
+                    .font(.footnote)
+                    .foregroundColor(.orange)
+            }
             HStack {
                 Button {
                     fuel.markFull(odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)
@@ -180,7 +185,7 @@ struct MotorView: View {
             }
             Button { sheet = .setLevel } label: { Label("Atur sisa bensin manual", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity) }
                 .buttonStyle(.bordered)
-            Text("Ini hanya perkiraan: motor tidak melaporkan level bahan bakar. Pengisian sebagian akan membuat angka yang ditampilkan tidak akurat kecuali Anda memasukkan liternya.")
+            Text("Ini hanya perkiraan: motor tidak melaporkan level tangki. Setiap kali tangki penuh, ketuk \"Baru diisi\". Pengisian sebagian membuat angka melenceng kecuali Anda memasukkan liternya.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }

@@ -23,6 +23,7 @@ extension AppSettings {
         "nightMode",
         "costing",
         "routingBase",
+        "routeProvider",
         "keepScreenOn",
         "theme",
         "userName",

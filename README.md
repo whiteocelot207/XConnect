@@ -1,8 +1,25 @@
-# XConnect (iOS) v0.8.2
+# XConnect (iOS) v0.8.2+
 
 App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash TFT Yamaha (NMAX/XMAX)
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
+
+## Sumber routing (baru)
+- **Pengaturan > Rute dan pencarian > Sumber routing**: pilih **Valhalla (publik)** atau **Apple Maps (MapKit)**. Valhalla tetap bawaan.
+  Apple Maps: tanpa server, jam tiba memperhitungkan lalu lintas, tetapi dihitung untuk mobil (tanpa profil skuter/motor, tanpa heading
+  saat hitung ulang); hanya pilihan tol dan jalan bebas hambatan yang berlaku (iOS 16 ke atas). Ikon belokan dihitung dari sudut
+  geometri rute, bundaran/putar balik/tiba dari teks petunjuk Apple; nama jalan diambil dari teks itu (bahasa mengikuti ponsel).
+  Untuk skuter/motor, tol dan jalan bebas hambatan selalu dihindari, dan estimasi waktu dibatasi batas kecepatan maksimal
+  (Pengaturan > Rute dan pencarian). Suara petunjuk tetap bahasa Indonesia dan angka Romawi dibaca angka untuk kedua sumber.
+  BELUM DIUJI di motor: bila ikon atau nama jalan salah, kirim teks petunjuk dari Log.
+
+## Bensin ala NConnect (baru)
+- Konsumsi untuk sisa bensin: **rata-rata konsumsi di dash (CCU)** bila terbaca, lalu **konsumsi Anda sendiri 30 hari terakhir**
+  (dihitung dari pemakaian terukur dash), lalu nilai bawaan 30 km/L. Riwayat pengisian lama dihapus dari perhitungan karena melingkar
+  (liter "Baru diisi" dihitung dari estimasi sendiri, bukan dari pompa).
+- Peringatan oranye di layar Motor bila motor menempuh lebih dari satu tangki tanpa app terhubung; hilang saat "Baru diisi" atau atur manual.
+- **Pengaturan > Motor dan koneksi > Cari byte dari angka di dash**: ketik rata-rata BBM yang tampil di dash, app mencari byte paket id 1
+  yang cocok, ketuk kandidat untuk memakainya. Letak byte masih belum diketahui; BELUM DIUJI di motor.
 
 ## Yang baru di 0.8.2
 - **Tekan tahan di layar Musik** (Pengaturan > Kontrol pada motor > Tekan tahan): tahan tombol atas = lagu berikutnya, tahan tombol

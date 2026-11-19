@@ -1,6 +1,53 @@
 import Foundation
 import CoreBluetooth
 
+/// Kandidat byte rata-rata konsumsi di paket id 1 yang cocok dengan angka di dash.
+struct FuelByteCandidate: Identifiable {
+    let id = UUID()
+    let byte: Int
+    let wide: Bool
+    let unit: Int          // 0 km/L, 1 L/100 km
+    let div: Double
+    let raw: Int
+    let kmpl: Double
+
+    var text: String {
+        let width = wide ? "byte \(byte)-\(byte + 1)" : "byte \(byte)"
+        let u = unit == 1 ? "L/100 km" : "km/L"
+        return "\(width): mentah \(raw), ÷\(Int(div)), \(u) → \(String(format: "%.1f", kmpl)) km/L"
+    }
+}
+
+extension VehicleLive {
+    /// Mencari byte di paket id 1 yang nilainya cocok dengan rata-rata BBM yang tampil di dash (km/L).
+    /// Byte yang sudah dikenal (RPM, kecepatan, aki, suhu, kode gangguan) dilewati. Hanya urutan byte besar-dulu (seperti pembacaan saat ini).
+    func fuelByteCandidates(target: Double, skip: Set<Int> = [0, 1, 2, 6, 14, 15, 23]) -> [FuelByteCandidate] {
+        guard target > 0, !rawRecord.isEmpty else { return [] }
+        var out = [(Double, FuelByteCandidate)]()
+        for i in 0..<rawRecord.count {
+            for wide in [false, true] {
+                if wide && i + 1 >= rawRecord.count { continue }
+                if skip.contains(i) || (wide && skip.contains(i + 1)) { continue }
+                let raw = wide ? Int(rawRecord[i]) << 8 | Int(rawRecord[i + 1]) : Int(rawRecord[i])
+                if raw == 0 { continue }
+                for unit in 0...1 {
+                    for div in [1.0, 10.0, 100.0] {
+                        let v = Double(raw) / div
+                        let kmpl = unit == 1 ? 100 / v : v
+                        guard (3...120).contains(kmpl) else { continue }
+                        let tol = div == 1 ? max(1.0, target * 0.04) : max(0.06, target * 0.015)
+                        let diff = abs(kmpl - target)
+                        if diff <= tol {
+                            out.append((diff, FuelByteCandidate(byte: i, wide: wide, unit: unit, div: div, raw: raw, kmpl: kmpl)))
+                        }
+                    }
+                }
+            }
+        }
+        return out.sorted { $0.0 < $1.0 }.prefix(12).map { $0.1 }
+    }
+}
+
 /// Data motor yang dibaca dari CCU (docs/bike-protocol.md bagian 6.5).
 final class VehicleLive: ObservableObject {
     @Published var state = "Belum aktif"
