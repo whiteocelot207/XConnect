@@ -463,6 +463,7 @@ struct ScreensSettings: View {
 
 struct RouteSettings: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var nav: NavigationController
 
     var body: some View {
         Form {
@@ -494,6 +495,15 @@ struct RouteSettings: View {
                 Toggle("Rute terpendek (jarak), bukan tercepat", isOn: $settings.routeShortest)
                 Button("Pakai bawaan XConnect (jalan utama, 80 km/j)") { settings.applyRouteProfile(.appDefault) }
                 Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
+            }
+            Section(header: Text("Suara petunjuk arah"),
+                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik dari app lain dikecilkan sebentar lalu kembali ke volume semula. Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
+                Toggle("Suara pemberitahuan", isOn: $settings.guideVoice)
+                if settings.guideVoice {
+                    Toggle("Kecilkan volume musik saat berbunyi", isOn: $settings.guideDuck)
+                    sliderRow("Volume suara", value: $settings.guideVolume, range: 0.2...1, step: 0.1, unit: "")
+                    Button("Coba suara") { nav.voice?.test() }
+                }
             }
             Section(header: Text("Server routing"),
                     footer: Text("Server demo Valhalla (FOSSGIS) gratis tetapi hanya untuk pemakaian wajar. Untuk pemakaian rutin, jalankan server Valhalla sendiri dan isi alamatnya di sini.")) {

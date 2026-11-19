@@ -85,6 +85,13 @@ final class AppSettings: ObservableObject {
     /// putar audio senyap supaya app tetap aktif di latar belakang dan data HP (volume dll) tetap berubah
     @Published var keepAliveAudio: Bool { didSet { put("keepAliveAudio", keepAliveAudio) } }
 
+    /// suara petunjuk arah ("Dalam 100 meter, belok kanan ke ...")
+    @Published var guideVoice: Bool { didSet { put("guideVoice", guideVoice) } }
+    /// kecilkan volume musik/audio app lain selama suara berbunyi, lalu kembalikan
+    @Published var guideDuck: Bool { didSet { put("guideDuck", guideDuck) } }
+    /// volume suara petunjuk arah (0.2 - 1.0, relatif terhadap volume ponsel)
+    @Published var guideVolume: Double { didSet { put("guideVolume", guideVolume) } }
+
     /// Profil rute (dikirim ke Valhalla): lihat RouteProfile
     @Published var routePrimary: Double { didSet { put("routePrimary", routePrimary) } }
     @Published var routeTopSpeed: Int { didSet { put("routeTopSpeed", routeTopSpeed) } }
@@ -115,7 +122,7 @@ final class AppSettings: ObservableObject {
             "navDX": 0.0, "navDY": 0.0, "etaDX": 0.0, "etaDY": 0.0,
             "startScreen": -1, "doubleClickMs": 800, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
-            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true,
+            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "guideVoice": true, "guideDuck": true, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
             "routeShortest": false
@@ -177,6 +184,9 @@ final class AppSettings: ObservableObject {
         cardFontSmall = min(max(0.5, d.double(forKey: "cardFontSmall")), 1.5)
         dashQuality = min(max(0.4, d.double(forKey: "dashQuality")), 0.95)
         keepAliveAudio = d.bool(forKey: "keepAliveAudio")
+        guideVoice = d.bool(forKey: "guideVoice")
+        guideDuck = d.bool(forKey: "guideDuck")
+        guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
         routeHills = d.double(forKey: "routeHills")
@@ -248,6 +258,9 @@ final class AppSettings: ObservableObject {
         cardFontSmall = min(max(0.5, d.double(forKey: "cardFontSmall")), 1.5)
         dashQuality = min(max(0.4, d.double(forKey: "dashQuality")), 0.95)
         keepAliveAudio = d.bool(forKey: "keepAliveAudio")
+        guideVoice = d.bool(forKey: "guideVoice")
+        guideDuck = d.bool(forKey: "guideDuck")
+        guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
         routeHills = d.double(forKey: "routeHills")

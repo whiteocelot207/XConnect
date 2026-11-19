@@ -240,7 +240,7 @@ final class BikeController: NSObject, ObservableObject {
     func locationUpdated(_ loc: CLLocation) {
         session?.gpsChanged()
         if isConnected {
-            model?.trips.update(loc)
+            if !location.simulating { model?.trips.update(loc) }     // simulasi tidak dicatat sebagai perjalanan
             model?.weather.refresh(loc.coordinate)
             updateStreet(loc)
         }
@@ -357,7 +357,7 @@ final class BikeController: NSObject, ObservableObject {
         c.weatherText = m.weather.text
         c.nav = m.nav.hud
         if c.nav == nil, demoNav {
-            c.nav = NavHUD(icon: 35, text: "Belok kanan", dist: "65 m", summary: "1,6 km · 0:37", street: "Jalan Contoh")
+            c.nav = NavHUD(icon: 35, text: "Ke Jalan Contoh", dist: "65 m", summary: "1,6 km · 0:37")
         }
         if let l = location.lastLocation {
             c.altitudeM = Int(l.altitude.rounded())

@@ -4,6 +4,7 @@ import CoreLocation
 struct NavigateView: View {
     @EnvironmentObject var nav: NavigationController
     @EnvironmentObject var places: PlaceStore
+    @EnvironmentObject var settings: AppSettings
 
     @State private var lastLen = 0
     @State private var renameTarget: Place?
@@ -202,15 +203,32 @@ struct NavigateView: View {
             if nav.phase == .navigating {
                 HStack(spacing: 12) {
                     Image(systemName: nav.nextSymbol).font(.system(size: 30))
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(nav.nextTitle).font(.headline)
                         Text(Fmt.distance(nav.distToTurnM)).font(.title2).bold()
-                        if !nav.nextInstruction.isEmpty { Text(nav.nextInstruction).font(.subheadline) }
+                        if !nav.nextInstruction.isEmpty {
+                            Text(nav.nextInstruction).font(.footnote).foregroundColor(.secondary)
+                        }
                     }
                 }
                 if let eta = nav.etaDate {
                     Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
                         .font(.footnote)
                         .foregroundColor(.secondary)
+                }
+                if nav.simulating {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Mode simulasi: posisi buatan di sepanjang rute", systemImage: "play.circle.fill")
+                            .font(.footnote)
+                            .foregroundColor(.orange)
+                        Picker("Kecepatan simulasi", selection: $nav.simSpeedKmh) {
+                            Text("20 km/j").tag(20.0)
+                            Text("40 km/j").tag(40.0)
+                            Text("80 km/j").tag(80.0)
+                            Text("150 km/j").tag(150.0)
+                        }
+                        .pickerStyle(.segmented)
+                    }
                 }
             } else if nav.busy && nav.routes.isEmpty {
                 HStack { ProgressView(); Text("Menghitung rute…") }
@@ -251,8 +269,27 @@ struct NavigateView: View {
                     Button("Batal") { nav.stop() }
                         .buttonStyle(.bordered)
                 }
+                Button { settings.guideVoice.toggle() } label: {
+                    Image(systemName: settings.guideVoice ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                }
+                .buttonStyle(.bordered)
                 Button { showMap = true } label: { Image(systemName: "map") }
                     .buttonStyle(.bordered)
+            }
+            if nav.route != nil {
+                if nav.simulating {
+                    Button { nav.stopSimulation() } label: {
+                        Label("Hentikan simulasi", systemImage: "stop.circle").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
+                } else {
+                    Button { nav.startSimulation() } label: {
+                        Label("Simulasikan navigasi", systemImage: "play.circle").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(nav.route == nil)
+                }
             }
             if nav.phase != .navigating, let d = nav.destination {
                 Menu("Simpan sebagai") {

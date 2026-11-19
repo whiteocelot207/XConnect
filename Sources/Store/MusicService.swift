@@ -78,6 +78,7 @@ final class MusicService: ObservableObject {
     /// playback + mixWithOthers dengan audio senyap (mode latar "audio"), jadi volume dan data HP lain terus berubah.
     /// mixWithOthers: musik yang sedang diputar tidak terganggu.
     func activateAudioSession() {
+        if guidanceActive { return }          // suara petunjuk arah sedang memegang sesi
         let s = AVAudioSession.sharedInstance()
         let keep = keepAliveEnabled && dashConnected
         do {
@@ -91,6 +92,7 @@ final class MusicService: ObservableObject {
 
     /// Nyalakan/matikan audio senyap sesuai pengaturan dan status dash.
     func updateKeepAlive() {
+        if guidanceActive { return }
         activateAudioSession()
         if keepAliveEnabled && dashConnected {
             if keepAlivePlayer == nil {
@@ -106,6 +108,51 @@ final class MusicService: ObservableObject {
             p.stop()
             keepAlivePlayer = nil
         }
+    }
+
+    // MARK: - Suara petunjuk arah
+
+    private var guidanceActive = false
+
+    /// Dipanggil sebelum suara petunjuk arah. Dengan `duck`, musik dari app lain dikecilkan selama suara
+    /// berbunyi (seperti Google Maps); podcast/buku audio dijeda sebentar. Audio senyap dihentikan dulu
+    /// supaya sesi bisa dilepas di akhir dan volume musik kembali normal.
+    func beginGuidanceAudio(duck: Bool) {
+        guidanceActive = true
+        keepAlivePlayer?.stop()
+        keepAlivePlayer = nil
+        let s = AVAudioSession.sharedInstance()
+        do {
+            let opts: AVAudioSession.CategoryOptions = duck
+                ? [.duckOthers, .interruptSpokenAudioAndMixWithOthers] : [.mixWithOthers]
+            try s.setCategory(.playback, mode: .voicePrompt, options: opts)
+            try s.setActive(true)
+        } catch {
+            onLog("Sesi petunjuk arah gagal aktif: \(error.localizedDescription)")
+        }
+    }
+
+    /// Dipanggil setelah suara selesai: melepas sesi (volume musik kembali ke semula) lalu mengembalikan
+    /// pengaturan audio app seperti sebelumnya.
+    func endGuidanceAudio() {
+        guard guidanceActive else { return }
+        let s = AVAudioSession.sharedInstance()
+        do {
+            try s.setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            // I/O suara belum benar-benar berhenti; coba sekali lagi sebentar lagi
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                self?.finishGuidanceAudio()
+            }
+            return
+        }
+        finishGuidanceAudio()
+    }
+
+    private func finishGuidanceAudio() {
+        guidanceActive = false
+        updateKeepAlive()
     }
 
     /// WAV mono 8 kHz, 1 detik, semua nol (senyap).

@@ -28,10 +28,9 @@ struct MusicInfo {
 
 struct NavHUD {
     var icon: UInt8
-    var text: String        // "Belok kanan"
+    var text: String        // "Ke Jalan Contoh" / "Ambil jalan keluar ke 3" (arah belok diwakili ikon)
     var dist: String        // "65 m"
     var summary: String     // "10,5 km · 22:32"
-    var street: String
 }
 
 struct DashContent {
@@ -178,13 +177,10 @@ enum DashComposer {
             // batas kanan area peta (kolom kotak data dimulai di x = 332)
             let rightLimit: CGFloat = withCards ? 326 : hud.size.width - 6
 
-            // panel belokan: lebar mengikuti isi teks, ada baris nama jalan tujuan belokan
-            let street = n.street.isEmpty ? "" : "ke " + n.street
-            let hasStreet = !street.isEmpty
-            let panelH: CGFloat = hasStreet ? 68 : 54
-            let textW = max(textWidth(n.text, size: 15, bold: true),
-                            textWidth(n.dist, size: 17, bold: true),
-                            hasStreet ? textWidth(street, size: 13, bold: true) : 0)
+            // panel belokan: ikon arah di kiri; teks = judul ("Ke Jalan Contoh" / "Ambil jalan keluar ke 3")
+            // lalu jarak. Arah belok tidak ditulis karena sudah diwakili ikon.
+            let panelH: CGFloat = 54
+            let textW = max(textWidth(n.text, size: 15, bold: true), textWidth(n.dist, size: 17, bold: true))
             let baseX = max(8 + c.navDX, 0)
             let avail = max(150, (rightLimit - baseX) / k)
             let panelW = min(max(150, 68 + textW + 12), avail)
@@ -196,17 +192,10 @@ enum DashComposer {
             fillRound(CGRect(x: 0, y: 0, width: panelW, height: panelH), radius: 10, color: green)
             TurnGlyph.draw(cg, code: n.icon, in: CGRect(x: 14, y: (panelH - 48) / 2, width: 48, height: 48), color: .white)
             let tw = panelW - 68 - 8
-            if hasStreet {
-                text(n.text, CGRect(x: 68, y: 5, width: tw, height: 20), size: 15, bold: true)
-                text(n.dist, CGRect(x: 68, y: 23, width: tw, height: 22), size: 17, bold: true,
-                     color: UIColor(white: 1, alpha: 0.9))
-                text(street, CGRect(x: 68, y: 46, width: tw, height: 18), size: 13, bold: true,
-                     color: UIColor(white: 1, alpha: 0.92))
-            } else {
-                text(n.text, CGRect(x: 68, y: 6, width: tw, height: 22), size: 15, bold: true)
-                text(n.dist, CGRect(x: 68, y: 28, width: tw, height: 22), size: 17, bold: true,
-                     color: UIColor(white: 1, alpha: 0.9))
-            }
+            let titleSize = fitSize(n.text, bold: true, maxSize: 15, width: tw, minSize: 9)
+            text(n.text, CGRect(x: 68, y: 6, width: tw, height: 22), size: titleSize, bold: true)
+            text(n.dist, CGRect(x: 68, y: 28, width: tw, height: 22), size: 17, bold: true,
+                 color: UIColor(white: 1, alpha: 0.9))
             cg.restoreGState()
 
             // jarak + ETA: kotak di bawah, lebar mengikuti isi, sudut sama seperti panel belokan
@@ -436,19 +425,13 @@ enum DashComposer {
         let panelW: CGFloat = 130
         var mapTop = vis.minY + 2
         if let n = c.nav {
-            let hasStreet = !n.street.isEmpty
-            let r = CGRect(x: panelX, y: mapTop, width: panelW, height: hasStreet ? 86 : 70)
+            let r = CGRect(x: panelX, y: mapTop, width: panelW, height: 86)
             fillRound(r, radius: 10, color: UIColor(red: 0.04, green: 0.45, blue: 0.30, alpha: 1))
-            TurnGlyph.draw(cg, code: n.icon, in: CGRect(x: r.minX + 6, y: r.minY + 6, width: 34, height: 34), color: .white)
-            text(n.text, CGRect(x: r.minX + 44, y: r.minY + 5, width: 82, height: 16), size: 12, bold: true)
-            text(n.dist, CGRect(x: r.minX + 44, y: r.minY + 22, width: 82, height: 20), size: 17, bold: true)
-            var summaryY = r.minY + 48
-            if hasStreet {
-                text("ke " + n.street, CGRect(x: r.minX + 6, y: r.minY + 45, width: 118, height: 15), size: 11,
-                     align: .center)
-                summaryY = r.minY + 64
-            }
-            text(n.summary, CGRect(x: r.minX + 6, y: summaryY, width: 118, height: 16), size: 11, bold: true,
+            let titleSize = fitSize(n.text, bold: true, maxSize: 12, width: 118, minSize: 8)
+            text(n.text, CGRect(x: r.minX + 6, y: r.minY + 4, width: 118, height: 16), size: titleSize, bold: true)
+            TurnGlyph.draw(cg, code: n.icon, in: CGRect(x: r.minX + 6, y: r.minY + 24, width: 34, height: 34), color: .white)
+            text(n.dist, CGRect(x: r.minX + 44, y: r.minY + 29, width: 82, height: 24), size: 19, bold: true)
+            text(n.summary, CGRect(x: r.minX + 6, y: r.minY + 64, width: 118, height: 16), size: 11, bold: true,
                  align: .center)
             mapTop = r.maxY + 4
         }

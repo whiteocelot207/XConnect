@@ -7,6 +7,8 @@ struct DashNavState {
     var nextRoad: String
     var currentRoad: String
     var etaMinutes: Int
+    /// judul panel: "Ke Jalan Contoh" / "Ambil jalan keluar ke 3"
+    var title: String = ""
 }
 
 final class NavigationController: ObservableObject {
@@ -30,6 +32,20 @@ final class NavigationController: ObservableObject {
     @Published var remainingM: Double = 0
     @Published var etaDate: Date?
     @Published var currentRoad = ""
+    @Published var nextTitle = ""
+
+    // Simulasi navigasi (uji rute tanpa berkendara)
+    @Published var simulating = false
+    @Published var simSpeedKmh = 40.0
+    @Published var simCoordinate: CLLocationCoordinate2D?
+    private var simTimer: Timer?
+    private var simDist = 0.0
+    private var simSeg = 0
+
+    /// Suara petunjuk arah; dipasang oleh AppModel.
+    var voice: VoiceGuide?
+    private var announcedKey = -1
+    private var announcedTier = 0
 
     /// nil = navigasi berhenti.
     var onDashState: ((DashNavState?) -> Void)?
@@ -138,8 +154,8 @@ final class NavigationController: ObservableObject {
         guard phase == .navigating, let d = lastDash else { return nil }
         var summary = Fmt.distance(remainingM)
         if let e = etaDate { summary += " · " + Fmt.clock(e) }
-        return NavHUD(icon: d.icon, text: DashIcon.shortText(d.icon), dist: Fmt.distance(d.distanceM),
-                      summary: summary, street: d.nextRoad)
+        return NavHUD(icon: d.icon, text: d.title.isEmpty ? DashIcon.shortText(d.icon) : d.title,
+                      dist: Fmt.distance(d.distanceM), summary: summary)
     }
 
     func pin(_ c: CLLocationCoordinate2D) {
@@ -177,6 +193,7 @@ final class NavigationController: ObservableObject {
         let profile = settings.routeProfile
         busy = true
         message = initial ? "Menghitung rute…" : "Menghitung ulang rute…"
+        if !initial && phase == .navigating { voice?.speak("Menghitung ulang rute") }
         let alts = (initial && phase != .navigating) ? 2 : 0
         Task { [weak self] in
             do {
@@ -206,6 +223,8 @@ final class NavigationController: ObservableObject {
         routeVersion += 1
         segIdx = 0
         offRouteSince = nil
+        announcedKey = -1
+        announcedTier = 0
         remainingM = r.totalM
         etaDate = Date().addingTimeInterval(r.totalS)
         if initial && phase != .navigating { phase = .previewing }
@@ -234,11 +253,75 @@ final class NavigationController: ObservableObject {
         phase = .navigating
         segIdx = 0
         offRouteSince = nil
+        announcedKey = -1
+        announcedTier = 0
+        voice?.speak("Navigasi dimulai")
         if let l = location.lastLocation { locationUpdated(l) }
     }
 
+    // MARK: - Simulasi
+
+    /// Menjalankan navigasi dengan posisi buatan di sepanjang rute yang sedang dipilih: dash, suara,
+    /// dan peta bekerja seperti berkendara sungguhan. Bisa dimulai dari pratinjau maupun saat navigasi berjalan.
+    func startSimulation() {
+        guard let r = route, r.points.count >= 2 else { return }
+        stopSimTimer()
+        simulating = true
+        simDist = 0
+        simSeg = 0
+        location.beginSimulation()
+        simStep(dt: 0)                         // posisi awal di titik pertama rute
+        startNavigation()
+        simTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.simStep(dt: 0.5)
+        }
+        RunLoop.main.add(simTimer!, forMode: .common)
+    }
+
+    /// Berhenti simulasi dan kembali ke pratinjau rute (rute tetap ada, bisa diulang atau dimulai sungguhan).
+    func stopSimulation() {
+        guard simulating else { return }
+        phase = .previewing                    // sebelum lokasi asli kembali, supaya tidak dianggap keluar jalur
+        endSimulationState()
+        lastDash = nil
+        onDashState?(nil)
+        voice?.cancel()
+        routeVersion += 1
+    }
+
+    private func stopSimTimer() {
+        simTimer?.invalidate()
+        simTimer = nil
+    }
+
+    private func endSimulationState() {
+        stopSimTimer()
+        simulating = false
+        simCoordinate = nil
+        location.endSimulation()
+    }
+
+    private func simStep(dt: Double) {
+        guard simulating, let r = route, r.points.count >= 2 else { return }
+        let mps = simSpeedKmh / 3.6
+        simDist = min(r.totalM, simDist + mps * dt)
+        let n = r.points.count - 1
+        while simSeg < n - 1 && r.cum[simSeg + 1] <= simDist { simSeg += 1 }
+        let a = r.points[simSeg], b = r.points[simSeg + 1]
+        let segLen = max(0.01, r.cum[simSeg + 1] - r.cum[simSeg])
+        let t = min(1, max(0, (simDist - r.cum[simSeg]) / segLen))
+        let c = CLLocationCoordinate2D(latitude: a.latitude + (b.latitude - a.latitude) * t,
+                                       longitude: a.longitude + (b.longitude - a.longitude) * t)
+        let course = Geo.bearing(from: a, to: b)
+        simCoordinate = c
+        location.simulate(CLLocation(coordinate: c, altitude: 0, horizontalAccuracy: 5, verticalAccuracy: -1,
+                                     course: course, speed: mps, timestamp: Date()))
+    }
+
     func stop() {
+        voice?.cancel()
         phase = .idle
+        if simulating { endSimulationState() }
         route = nil
         routes = []
         routeIndex = 0
@@ -303,8 +386,13 @@ final class NavigationController: ObservableObject {
         let remaining = max(0, r.totalM - progress)
 
         if remaining < 25 {
+            if simulating {
+                stopSimulation()
+            } else {
+                stop()
+            }
             message = "Anda sudah tiba di tujuan"
-            stop()
+            voice?.speak("Anda telah tiba di tujuan")
             return
         }
 
@@ -320,13 +408,16 @@ final class NavigationController: ObservableObject {
         var nextRoad = ""
         var instr = ""
         var symbol = "arrow.up"
+        var title = "Lurus"
         if let k = nextIdx {
             let m = r.maneuvers[k]
             icon = DashIcon.forValhalla(m.type)
             dist = max(0, r.cum[m.beginIdx] - progress)
             nextRoad = m.street
-            instr = m.instruction
+            instr = m.sentence(distanceM: dist)
+            title = m.title
             symbol = DashIcon.symbol(m.type)
+            announce(k, m, dist: dist)
         }
         var cur = ""
         for m in r.maneuvers {
@@ -342,6 +433,7 @@ final class NavigationController: ObservableObject {
 
         distToTurnM = dist
         nextInstruction = instr
+        nextTitle = title
         nextSymbol = symbol
         remainingM = remaining
         currentRoad = cur
@@ -350,9 +442,31 @@ final class NavigationController: ObservableObject {
         let comps = Calendar.current.dateComponents([.hour, .minute], from: eta)
         let minutes = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
         let state = DashNavState(icon: icon, distanceM: dist, nextRoad: nextRoad,
-                                 currentRoad: cur, etaMinutes: minutes)
+                                 currentRoad: cur, etaMinutes: minutes, title: title)
         lastDash = state
         onDashState?(state)
+    }
+
+    /// Suara petunjuk: pertama "Dalam 300 meter, ..." (500 m bila cepat), lalu "Dalam 100 meter, ...".
+    /// Jarak yang diucapkan adalah jarak sebenarnya saat itu, jadi tidak salah bila belokan berdekatan.
+    private func announce(_ k: Int, _ m: Maneuver, dist: Double) {
+        if announcedKey != k {
+            announcedKey = k
+            announcedTier = 0
+        }
+        switch m.type {
+        case 0, 1, 2, 3, 8: return          // mulai / lurus: tidak diumumkan
+        default: break
+        }
+        let far: Double = (simulating ? simSpeedKmh : location.speedKmh) >= 60 ? 500 : 300
+        let mid: Double = 100
+        if dist <= mid && announcedTier < 2 {
+            announcedTier = 2
+            voice?.speak(m.sentence(distanceM: dist))
+        } else if dist <= far && dist > mid && announcedTier < 1 {
+            announcedTier = 1
+            voice?.speak(m.sentence(distanceM: dist))
+        }
     }
 
     /// Titik rute di depan posisi saat ini (untuk digambar di peta dash).

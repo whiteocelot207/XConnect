@@ -7,6 +7,58 @@ struct Maneuver {
     let street: String
     let lengthM: Double
     let beginIdx: Int
+    /// nomor jalan keluar di bundaran (0 = tidak ada)
+    var exitCount: Int = 0
+    /// kalimat lisan dari Valhalla, mis. "Belok kanan ke Jalan Contoh."
+    var verbal: String = ""
+}
+
+extension Maneuver {
+    /// Baris judul di dash dan ponsel. Arah belok sudah diwakili ikon, jadi yang ditulis hanya
+    /// tujuan belokan: "Ke Jalan Contoh". Di bundaran: "Ambil jalan keluar ke 3".
+    var title: String {
+        switch type {
+        case 4, 5, 6:
+            return DashIcon.shortText(DashIcon.forValhalla(type))
+        case 26:
+            return exitCount > 0 ? "Ambil jalan keluar ke \(exitCount)" : "Masuk bundaran"
+        default:
+            return street.isEmpty ? DashIcon.shortText(DashIcon.forValhalla(type)) : "Ke " + street
+        }
+    }
+
+    /// Isi kalimat lengkap tanpa awalan jarak (huruf pertama kecil), dipakai untuk suara dan teks ponsel:
+    /// "belok kanan ke Jalan Contoh", "di bundaran, ambil jalan keluar ke 3".
+    var spokenBody: String {
+        if type == 26 {
+            return exitCount > 0 ? "di bundaran, ambil jalan keluar ke \(exitCount)" : "masuk bundaran"
+        }
+        var s = (verbal.isEmpty ? instruction : verbal).trimmingCharacters(in: CharacterSet(charactersIn: ". \n"))
+        if s.isEmpty { s = title }
+        return s.prefix(1).lowercased() + s.dropFirst()
+    }
+
+    /// Kalimat lengkap dengan jarak: "Dalam 65 meter, belok kanan ke Jalan Contoh".
+    func sentence(distanceM: Double) -> String {
+        "Dalam \(Maneuver.spokenDistance(distanceM)), " + spokenBody
+    }
+
+    /// Kalimat tanpa jarak: "Belok kanan ke Jalan Contoh".
+    var sentenceNow: String {
+        spokenBody.prefix(1).uppercased() + spokenBody.dropFirst()
+    }
+
+    /// Jarak dibulatkan seperti yang diucapkan: 65 -> "70 meter", 240 -> "250 meter", 1500 -> "1,5 kilometer".
+    static func spokenDistance(_ m: Double) -> String {
+        if m >= 950 {
+            let km = (m / 100).rounded() / 10
+            let t = km == km.rounded() ? String(Int(km)) : String(format: "%.1f", km).replacingOccurrences(of: ".", with: ",")
+            return t + " kilometer"
+        }
+        let step = m >= 200 ? 50.0 : 10.0
+        let r = max(10, Int((m / step).rounded() * step))
+        return "\(r) meter"
+    }
 }
 
 struct Route {
@@ -97,6 +149,8 @@ private struct VResponse: Decodable {
                 let length: Double
                 let time: Double
                 let begin_shape_index: Int
+                let roundabout_exit_count: Int?
+                let verbal_pre_transition_instruction: String?
             }
             let shape: String
             let maneuvers: [Man]
@@ -234,7 +288,9 @@ enum ValhallaClient {
                                  instruction: m.instruction ?? "",
                                  street: street,
                                  lengthM: m.length * 1000,
-                                 beginIdx: min(max(0, m.begin_shape_index), pts.count - 1)))
+                                 beginIdx: min(max(0, m.begin_shape_index), pts.count - 1),
+                                 exitCount: m.roundabout_exit_count ?? 0,
+                                 verbal: m.verbal_pre_transition_instruction ?? ""))
             if !street.isEmpty, m.length > longest { longest = m.length; via = street }
         }
         var route = Route(points: pts, cum: cum, maneuvers: mans,

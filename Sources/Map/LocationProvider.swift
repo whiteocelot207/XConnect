@@ -12,6 +12,24 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
 
     var onUpdate: ((CLLocation) -> Void)?
 
+    /// Mode simulasi navigasi: posisi dari GPS asli diabaikan dan diganti posisi buatan di sepanjang rute.
+    private(set) var simulating = false
+    private var realLocation: CLLocation?
+
+    func beginSimulation() { simulating = true }
+
+    func endSimulation() {
+        guard simulating else { return }
+        simulating = false
+        if let l = realLocation { apply(l) }     // kembali ke posisi GPS asli
+    }
+
+    /// Posisi buatan (hanya dipakai saat simulasi); mengalir ke peta dash dan navigasi seperti GPS asli.
+    func simulate(_ l: CLLocation) {
+        guard simulating else { return }
+        apply(l)
+    }
+
     override init() {
         super.init()
         manager.delegate = self
@@ -44,6 +62,12 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let l = locations.last, l.horizontalAccuracy >= 0 else { return }
+        realLocation = l
+        if simulating { return }
+        apply(l)
+    }
+
+    private func apply(_ l: CLLocation) {
         coordinate = l.coordinate
         lastLocation = l
         hasFix = true

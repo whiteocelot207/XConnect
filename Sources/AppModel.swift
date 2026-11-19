@@ -50,6 +50,7 @@ final class AppModel: ObservableObject {
         bike = b
         b.model = self
         music.onLog = { [weak b] s in b?.log(s) }
+        n.voice = VoiceGuide(settings: s, music: music)
         music.keepAliveEnabled = s.keepAliveAudio
         music.startMonitoring()
         s.$keepAliveAudio.dropFirst()

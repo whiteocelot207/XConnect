@@ -34,6 +34,8 @@ struct NavMapView: UIViewRepresentable {
         private var destAnno: MLNPointAnnotation?
         private var destID = ""
         private var lastPhase: NavigationController.Phase = .idle
+        private var simAnno: MLNPointAnnotation?
+        private var lastSim = false
 
         init(onLongPress: @escaping (CLLocationCoordinate2D) -> Void) {
             self.onLongPress = onLongPress
@@ -82,9 +84,35 @@ struct NavMapView: UIViewRepresentable {
                 }
             }
 
+            // simulasi: titik biru buatan menggantikan titik lokasi asli, peta mengikutinya
+            if nav.simulating, let c = nav.simCoordinate {
+                if !lastSim {
+                    lastSim = true
+                    v.userTrackingMode = .none
+                    v.showsUserLocation = false
+                    if v.zoomLevel < 16 { v.zoomLevel = 16 }
+                }
+                if let a = simAnno {
+                    a.coordinate = c
+                } else {
+                    let a = MLNPointAnnotation()
+                    a.coordinate = c
+                    v.addAnnotation(a)
+                    simAnno = a
+                }
+                v.setCenter(c, animated: false)
+            } else if lastSim {
+                lastSim = false
+                if let a = simAnno {
+                    v.removeAnnotation(a)
+                    simAnno = nil
+                }
+                v.showsUserLocation = true
+            }
+
             if nav.phase != lastPhase {
                 lastPhase = nav.phase
-                if nav.phase == .navigating {
+                if nav.phase == .navigating && !nav.simulating {
                     v.userTrackingMode = .followWithCourse
                     v.zoomLevel = 16
                 } else {
@@ -99,6 +127,18 @@ struct NavMapView: UIViewRepresentable {
                 centered = true
                 mapView.setCenter(c, zoomLevel: 14, animated: false)
             }
+        }
+
+        func mapView(_ mapView: MLNMapView, viewFor annotation: MLNAnnotation) -> MLNAnnotationView? {
+            guard let a = annotation as? MLNPointAnnotation, a === simAnno else { return nil }
+            let id = "sim"
+            let view = mapView.dequeueReusableAnnotationView(withIdentifier: id) ?? MLNAnnotationView(reuseIdentifier: id)
+            view.frame = CGRect(x: 0, y: 0, width: 20, height: 20)
+            view.backgroundColor = UIColor.systemBlue
+            view.layer.cornerRadius = 10
+            view.layer.borderWidth = 3
+            view.layer.borderColor = UIColor.white.cgColor
+            return view
         }
 
         func mapView(_ mapView: MLNMapView, strokeColorForShapeAnnotation annotation: MLNShape) -> UIColor {

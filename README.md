@@ -1,8 +1,23 @@
-# XConnect (iOS) v0.7
+# XConnect (iOS) v0.8
 
 App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash TFT Yamaha (NMAX/XMAX)
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
+
+## Yang baru di 0.8
+- **Teks petunjuk arah**: arah belok sudah diwakili ikon, jadi panel hijau kini hanya menulis tujuan belokan lalu jarak:
+  "Ke Jalan Contoh" / "65 m" (sebelumnya "Belok kanan / 65 m / ke Jalan Contoh"). Di bundaran: "Ambil jalan keluar ke 3" / "65 m".
+  Berlaku untuk semua jenis belokan, di layar Peta + data dan Speedometer, dan di layar ponsel. Bila belokan tidak punya
+  nama jalan, dipakai teks arah ("Belok kanan"). Kalimat lengkap tetap ada sebagai data: "Dalam 65 meter, belok kanan ke Jalan Contoh",
+  "Dalam 65 meter, di bundaran, ambil jalan keluar ke 3" (dipakai untuk suara dan teks kecil di tab Navigasi).
+- **Suara petunjuk arah** (Pengaturan > Rute dan pencarian > Suara petunjuk arah): bahasa Indonesia (suara id-ID iOS),
+  diumumkan di sekitar 300 m (500 m bila lebih dari 60 km/j) dan 100 m sebelum belokan, plus "Navigasi dimulai", "Menghitung ulang rute",
+  dan "Anda telah tiba di tujuan". Saat berbunyi, musik/audio app lain dikecilkan (ducking, seperti Google Maps) lalu kembali ke volume
+  semula setelah selesai. Bisa diatur: nyala/mati, kecilkan musik atau tidak, volume suara, tombol "Coba suara".
+  Ada juga tombol speaker di kotak rute (tab Navigasi) untuk menyalakan/membisukan cepat.
+- **Simulasi navigasi** (tab Navigasi, kotak rute): tombol "Simulasikan navigasi" tersedia di pratinjau rute dan saat navigasi berjalan
+  (di samping "Hentikan navigasi"). Posisi buatan berjalan di sepanjang rute (20/40/80/150 km/j), mengalir ke dash, suara, dan peta
+  seperti berkendara sungguhan; GPS asli diabaikan dan perjalanan tidak dicatat. "Hentikan simulasi" kembali ke pratinjau rute.
 
 ## Yang baru di 0.7
 - **Ikon aplikasi** XConnect (Sources/Assets.xcassets/AppIcon). Ikon di source.json SideStore/AltStore ikut memakainya.
