@@ -64,11 +64,21 @@ final class MusicService: ObservableObject {
         }
         nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
             let t = (n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap(AVAudioSession.InterruptionType.init)
+            self?.onLog("Audio: interupsi \(t == .began ? "mulai" : "selesai")")
             if t == .ended { self?.updateKeepAlive() }
         }
         nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
             self?.keepAlivePlayer = nil
             self?.updateKeepAlive()
+        }
+        // catatan di Log untuk menelusuri bila musik berhenti saat suara petunjuk arah berbunyi
+        nc.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] n in
+            let r = (n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt) ?? 0
+            self?.onLog("Audio: rute berubah (alasan \(r))")
+        }
+        nc.addObserver(forName: AVAudioSession.silenceSecondaryAudioHintNotification, object: nil, queue: .main) { [weak self] n in
+            let t = (n.userInfo?[AVAudioSessionSilenceSecondaryAudioHintTypeKey] as? UInt) ?? 99
+            self?.onLog("Audio: app lain meminta audio lain diam (tipe \(t))")
         }
         registerRemoteCommands()
     }
@@ -80,10 +90,10 @@ final class MusicService: ObservableObject {
     func activateAudioSession() {
         if guidanceActive { return }          // suara petunjuk arah sedang memegang sesi
         let s = AVAudioSession.sharedInstance()
-        let keep = keepAliveEnabled && dashConnected
         do {
-            let category: AVAudioSession.Category = keep ? .playback : .ambient
-            try s.setCategory(category, mode: .default, options: [.mixWithOthers])
+            // selalu playback + mixWithOthers (tidak berpindah-pindah kategori, karena perpindahan itu bisa
+            // menghentikan pemutar musik); tanpa audio yang diputar, sesi ini tidak mengganggu app lain
+            try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try s.setActive(true)
         } catch {
             onLog("Sesi audio gagal aktif: \(error.localizedDescription)")
@@ -94,7 +104,7 @@ final class MusicService: ObservableObject {
     func updateKeepAlive() {
         if guidanceActive { return }
         activateAudioSession()
-        if keepAliveEnabled && dashConnected {
+        if keepAliveEnabled && (dashConnected || navActive) {
             if keepAlivePlayer == nil {
                 keepAlivePlayer = try? AVAudioPlayer(data: MusicService.silentWAV())
                 keepAlivePlayer?.numberOfLoops = -1
@@ -113,21 +123,17 @@ final class MusicService: ObservableObject {
     // MARK: - Suara petunjuk arah
 
     private var guidanceActive = false
+    /// true selama navigasi berjalan: audio senyap dijaga hidup supaya sesi audio tidak berubah saat suara berbunyi
+    var navActive = false
 
-    /// Dipanggil sebelum suara petunjuk arah. Sesi audio TIDAK diubah ke mode yang menjeda app lain dan TIDAK
-    /// dilepas sesudahnya (melepas sesi atau menghentikan audio senyap bisa membuat pemutar musik berhenti).
-    /// Kategori tetap playback + mixWithOthers, sama seperti saat dash tersambung. Dengan `duck`, volume ponsel
+    /// Dipanggil sebelum suara petunjuk arah. Kategori sesi tidak diubah, sesi tidak dilepas, dan audio senyap
+    /// tidak dihentikan (semua itu bisa membuat pemutar musik berhenti). Dengan `duck`, volume ponsel
     /// diturunkan sendiri ke `level` (mis. 0,5 = separuh dari volume sekarang) selama suara berbunyi, lalu
     /// dikembalikan di `endGuidanceAudio`.
     func beginGuidanceAudio(duck: Bool, level: Float) {
+        activateAudioSession()                 // sama seperti biasa: playback + mixWithOthers
         guidanceActive = true
         let s = AVAudioSession.sharedInstance()
-        do {
-            try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try s.setActive(true)
-        } catch {
-            onLog("Sesi petunjuk arah gagal aktif: \(error.localizedDescription)")
-        }
         guard duck, duckedFrom == nil else { return }
         let orig = s.outputVolume
         guard orig > 0.02 else { return }

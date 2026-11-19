@@ -14,6 +14,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
         self.music = music
         super.init()
         synth.delegate = self
+        synth.usesApplicationAudioSession = true     // pakai sesi app (mixWithOthers), bukan sesi sistem yang menjeda musik
     }
 
     /// Mengucapkan teks bila suara petunjuk arah dinyalakan. Ucapan yang sedang berjalan diganti
@@ -21,6 +22,15 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
     func speak(_ text: String, force: Bool = false) {
         guard force || settings.guideVoice, !text.isEmpty else { return }
         if Thread.isMainThread { speakNow(text) } else { DispatchQueue.main.async { self.speakNow(text) } }
+    }
+
+    /// Navigasi mulai/selesai: audio senyap dijaga selama navigasi supaya sesi audio tetap sama saat suara berbunyi.
+    func setNavigating(_ on: Bool) {
+        let apply = { [weak self] in
+            self?.music?.navActive = on
+            self?.music?.updateKeepAlive()
+        }
+        if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
     }
 
     func test() {

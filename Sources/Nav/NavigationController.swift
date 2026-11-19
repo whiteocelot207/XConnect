@@ -261,6 +261,7 @@ final class NavigationController: ObservableObject {
         offRouteSince = nil
         announcedKey = -1
         announcedTier = 0
+        voice?.setNavigating(true)
         voice?.speak("Navigasi dimulai")
         if let l = location.lastLocation { locationUpdated(l) }
     }
@@ -287,6 +288,7 @@ final class NavigationController: ObservableObject {
     /// Berhenti simulasi dan kembali ke pratinjau rute (rute tetap ada, bisa diulang atau dimulai sungguhan).
     func stopSimulation() {
         guard simulating else { return }
+        voice?.setNavigating(false)
         phase = .previewing                    // sebelum lokasi asli kembali, supaya tidak dianggap keluar jalur
         endSimulationState()
         lastDash = nil
@@ -326,6 +328,7 @@ final class NavigationController: ObservableObject {
 
     func stop() {
         voice?.cancel()
+        voice?.setNavigating(false)
         phase = .idle
         if simulating { endSimulationState() }
         route = nil
