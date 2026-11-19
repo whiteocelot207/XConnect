@@ -21,6 +21,11 @@ final class MusicService: ObservableObject {
     /// pengaturan "Jaga data HP tetap hidup" dan status dash; audio senyap hanya berputar bila keduanya true
     var keepAliveEnabled = true
     var dashConnected = false
+    /// Handler MPRemoteCommandCenter (putar/jeda/next/prev) dari dash. Default MATI: NConnect (jalur Yamaha) tidak
+    /// mendaftarkan satu pun handler ini (hasil membaca binary 0.11.2). Aplikasi yang punya handler remote command dan
+    /// sesi .playback yang aktif ikut dihitung iOS sebagai kandidat "Now Playing", dan itu bisa membuat app Musik
+    /// berstatus terputus saat suara petunjuk berbunyi. Tombol dash lewat AVRCP tetap diproses iOS langsung ke app Musik.
+    var remoteCommandsEnabled = false
 
     init() {
         authorized = MPMediaLibrary.authorizationStatus() == .authorized
@@ -81,7 +86,7 @@ final class MusicService: ObservableObject {
             let t = (n.userInfo?[AVAudioSessionSilenceSecondaryAudioHintTypeKey] as? UInt) ?? 99
             self?.onLog("Audio: app lain meminta audio lain diam (tipe \(t))")
         }
-        registerRemoteCommands()
+        if remoteCommandsEnabled { registerRemoteCommands() }
     }
 
     /// iOS hanya memperbarui AVAudioSession.outputVolume (dan KVO-nya) bila sesi audio AKTIF, dan sesi ambient
@@ -127,24 +132,30 @@ final class MusicService: ObservableObject {
     /// true selama navigasi berjalan: audio senyap dijaga hidup supaya sesi audio tidak berubah saat suara berbunyi
     var navActive = false
 
-    /// Dipanggil sebelum suara petunjuk arah. Musik dikecilkan lewat sesi audio, BUKAN lewat volume ponsel:
-    /// kategori `.playback` + mode `.voicePrompt` + opsi `.mixWithOthers` dan `.duckOthers`. iOS sendiri yang
-    /// mengecilkan audio app lain selama sesi ini aktif, sedangkan volume master ponsel (`outputVolume`) tidak
-    /// berubah. Sengaja TANPA `.interruptSpokenAudioAndMixWithOthers`: flag itu meminta app lain menghentikan
-    /// audionya, dan di log terbukti app Musik jadi "terputus" tepat saat sesi diaktifkan.
+    /// Dipanggil sebelum suara petunjuk arah. Musik dikecilkan lewat sesi audio, BUKAN lewat volume ponsel.
+    /// Konfigurasi ini disalin persis dari NConnect 0.11.2 (Voice.say, hasil membaca binary):
+    /// setCategory(.playback, mode: .voicePrompt, options: 0x13) lalu setActive(true).
+    /// 0x13 = `.duckOthers` (0x02) + `.interruptSpokenAudioAndMixWithOthers` (0x11, sudah memuat mixWithOthers).
+    /// Versi sebelumnya memakai opsi 3 (mixWithOthers + duckOthers) tanpa flag interruptSpoken; di log app Musik
+    /// tetap menjadi "terputus" saat sesi diaktifkan, sedangkan NConnect dengan opsi 0x13 tidak.
     /// Tanpa `duck`, suara hanya dicampur (`.mixWithOthers`) dan musik dibiarkan.
     func beginGuidanceAudio(duck: Bool) {
         let p = MPMusicPlayerController.systemMusicPlayer
+        let s = AVAudioSession.sharedInstance()
         if !guidanceActive {
             musicWasPlaying = p.playbackState == .playing
             autoResumeCount = 0
+            // keadaan SEBELUM sesi suara diubah, untuk membedakan "terputus oleh sesi suara" dari "sudah terputus sebelumnya"
+            onLog("Suara: sebelum sesi: musik=\(MusicService.stateName(p.playbackState)) audioLain=\(s.isOtherAudioPlaying) opsi=\(s.categoryOptions.rawValue) mode=\(s.mode.rawValue) senyap=\(keepAlivePlayer?.isPlaying == true ? "jalan" : "mati")")
         }
         autoResumeUntil = .distantFuture
-        let s = AVAudioSession.sharedInstance()
-        let opts: AVAudioSession.CategoryOptions = duck ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]
         // ucapan beruntun: sesi sudah dalam konfigurasi yang sama, jangan diubah lagi
-        if guidanceActive, s.categoryOptions == opts, s.mode == .voicePrompt { return }
+        if guidanceActive, guidanceDuck == duck { return }
+        let opts: AVAudioSession.CategoryOptions = duck
+            ? [.duckOthers, .interruptSpokenAudioAndMixWithOthers]      // = 0x13, sama dengan NConnect
+            : [.mixWithOthers]
         guidanceActive = true
+        guidanceDuck = duck
         do {
             try s.setCategory(.playback, mode: .voicePrompt, options: opts)
             try s.setActive(true)
@@ -154,6 +165,8 @@ final class MusicService: ObservableObject {
             onLog("Suara: sesi gagal aktif: \(error.localizedDescription)")
         }
     }
+
+    private var guidanceDuck = false
 
     // Pengaman: bila sistem tetap menginterupsi app Musik saat/segera setelah suara petunjuk, lanjutkan
     // otomatis (hanya bila musik memang sedang diputar sebelumnya, maksimal 2 kali per pemberitahuan).
@@ -188,6 +201,7 @@ final class MusicService: ObservableObject {
         }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
         autoResumeUntil = Date().addingTimeInterval(3.0)
+        autoResumeCount = 0          // jatah baru untuk interupsi yang muncul setelah suara selesai
         finishGuidanceAudio()
         resumeIfInterruptedByGuidance()
         onLog("Suara: selesai (\(keepAlivePlayer != nil ? "sesi tetap hidup" : "sesi dilepas")), volume sistem \(Int((s.outputVolume * 100).rounded()))%")
