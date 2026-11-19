@@ -501,7 +501,7 @@ struct RouteSettings: View {
                 Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
             }
             Section(header: Text("Suara petunjuk arah"),
-                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, volume ponsel diturunkan sebentar (mis. 70% menjadi 35% bila diatur 50%) lalu kembali ke volume semula; suara petunjuk ikut sedikit lebih pelan. Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
+                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik diturunkan sebentar (mis. 70% menjadi 35% bila diatur 50%) lalu kembali ke volume semula. Suara petunjuk diperkeras otomatis sebesar penurunan itu, jadi tetap terdengar sekeras volume semula. Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
                 Toggle("Suara pemberitahuan", isOn: $settings.guideVoice)
                 if settings.guideVoice {
                     Toggle("Kecilkan volume musik saat berbunyi", isOn: $settings.guideDuck)
