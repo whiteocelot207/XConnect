@@ -21,7 +21,7 @@ struct SettingsView: View {
                     : "Tombol atas/bawah: ganti tampilan, 2x untuk zoom", icon: "hand.tap") {
                     ControlSettings()
                 }
-                row("Peta di dasbor", subtitle: "Siang/malam, zoom otomatis, warna rute", icon: "map") {
+                row("Peta di dasbor", subtitle: "Peta offline, siang/malam, zoom otomatis, warna rute", icon: "map") {
                     MapSettings()
                 }
                 row("Layar dasbor", subtitle: "\(bike.screens().count) layar aktif · kartu info · foto · musik",
@@ -268,9 +268,25 @@ struct DashPreviewBox: View {
 struct MapSettings: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var bike: BikeController
+    @ObservedObject private var offline = OfflineMapStore.shared
 
     var body: some View {
         Form {
+            Section(footer: Text("Unduh area yang sering Anda lewati supaya peta di dasbor tetap tampil tanpa jaringan seluler.")) {
+                NavigationLink(destination: OfflineMapView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.down.circle.fill").foregroundColor(.blue).frame(width: 26)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Peta offline")
+                            Text(offline.areas.isEmpty
+                                 ? "Belum ada area diunduh"
+                                 : "\(offline.areas.count) area · \(OfflineMapStore.mbText(offline.totalBytes))")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
             Section(header: Text("Pratinjau"),
                     footer: Text("Pilih layar Peta + data atau Peta saja. Contoh panel navigasi tampil selama halaman ini terbuka.")) {
                 DashPreviewBox()

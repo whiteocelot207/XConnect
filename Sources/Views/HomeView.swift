@@ -14,6 +14,7 @@ struct HomeView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    greetingHeader
                     statusCard
                     previewCard
                     if nav.phase == .navigating { navCard }
@@ -27,12 +28,37 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Home")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitle("", displayMode: .inline)
+            .navigationBarHidden(true)
             .onAppear { bike.setPreviewVisible(true) }
             .onDisappear { bike.setPreviewVisible(false) }
         }
         .navigationViewStyle(.stack)
+    }
+
+    // MARK: - Sapaan
+
+    private var greetingHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                if !settings.greetingWord.isEmpty {
+                    Text(settings.greetingWord).font(.title2).foregroundColor(.primary)
+                }
+                if !settings.userName.isEmpty {
+                    Text(settings.userName).font(.system(size: 34, weight: .bold))
+                }
+                HStack(spacing: 5) {
+                    Image(systemName: "heart.fill").font(.caption2).foregroundColor(.blue)
+                    Text("Hati-hati di jalan!").font(.footnote).foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            Image("AppLogo")
+                .resizable()
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        }
+        .padding(.top, 4)
     }
 
     // MARK: - Status koneksi
@@ -101,8 +127,6 @@ struct HomeView: View {
                 Spacer()
                 if bike.isConnected && bike.fps > 0 {
                     Text(String(format: "%.1f fps", bike.fps)).font(.caption).foregroundColor(.secondary)
-                } else if !bike.isConnected {
-                    Text("simulasi").font(.caption).foregroundColor(.secondary)
                 }
             }
             ZStack {
@@ -149,7 +173,7 @@ struct HomeView: View {
             }
             if !nav.nextInstruction.isEmpty { Text(nav.nextInstruction).font(.subheadline) }
             if let eta = nav.etaDate {
-                Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
+                Text("Sisa \(Fmt.distance(nav.remainingM)) • \(Fmt.duration(nav.remainingS)) • tiba \(Fmt.clock(eta))")
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }

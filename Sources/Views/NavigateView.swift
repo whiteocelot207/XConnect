@@ -21,28 +21,6 @@ struct NavigateView: View {
     private var listScreen: some View {
         NavigationView {
             List {
-                if nav.phase == .navigating {
-                    Section { activeBox }
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Pencarian lebih cepat dengan Google Maps").font(.headline)
-                        Text("Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                        VStack(spacing: 8) {
-                            Button {
-                                if let u = URL(string: "https://www.google.com/maps") { UIApplication.shared.open(u) }
-                            } label: { leftLabel("Buka Google Maps", icon: "map") }
-                                .buttonStyle(.bordered)
-                            Button { pasteLink() } label: { leftLabel("Tempel tautan", icon: "doc.on.clipboard") }
-                                .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
                 Section {
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
@@ -64,14 +42,34 @@ struct NavigateView: View {
                     }
                 }
 
-                if !nav.message.isEmpty {
-                    Section { Text(nav.message).font(.footnote) }
-                }
-
                 if !nav.searchResults.isEmpty {
                     Section(header: Text("Hasil")) {
                         ForEach(nav.searchResults) { p in placeRow(p, icon: "mappin.circle.fill") }
                     }
+                }
+
+                if nav.phase == .navigating {
+                    Section { activeBox }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Button {
+                            if let u = URL(string: "https://www.google.com/maps") { UIApplication.shared.open(u) }
+                        } label: { leftLabel("Buka Google Maps", icon: "map").padding(.vertical, 10) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                        Button { pasteLink() } label: { leftLabel("Tempel tautan", icon: "doc.on.clipboard").padding(.vertical, 10) }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                        if !nav.message.isEmpty {
+                            Text(nav.message).font(.footnote).foregroundColor(.orange)
+                        }
+                        Text("Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 6)
                 }
 
                 Section(header: Text("Tempat tersimpan")) {
@@ -387,11 +385,14 @@ struct NavigateView: View {
             .buttonStyle(.borderedProminent)
             .disabled(nav.route == nil)
             if nav.phase != .navigating, let d = nav.destination {
-                Menu("Simpan sebagai") {
+                Menu {
                     Button("Rumah") { places.home = d }
                     Button("Kantor") { places.work = d }
+                } label: {
+                    centerLabel("Simpan sebagai", icon: "mappin.and.ellipse")
+                        .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.bordered)
             }
         }
         .padding(.vertical, 4)

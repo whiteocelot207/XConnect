@@ -207,7 +207,32 @@ final class VectorTileStore {
         return hit
     }
 
+    /// Dekode data tile (MVT, bisa gzip) di antrean dekode, lalu simpan di cache memori.
+    private func decodeAndStore(_ key: String, _ data: Data) {
+        queue.async {
+            var bytes = [UInt8](data)
+            if bytes.count > 2 && bytes[0] == 0x1F && bytes[1] == 0x8B {
+                bytes = VectorTileStore.gunzip(bytes) ?? bytes
+            }
+            let tile = VTile.build(MVT.decode(bytes))
+            self.lock.lock()
+            self.cache[key] = tile
+            self.order.append(key)
+            if self.order.count > 80 {
+                let drop = self.order.removeFirst()
+                self.cache[drop] = nil
+            }
+            self.pending.remove(key)
+            self.lock.unlock()
+        }
+    }
+
     private func load(_ key: String, _ x: Int, _ y: Int, _ tpl: String?) {
+        // peta offline yang sudah diunduh dipakai lebih dulu (tanpa jaringan)
+        if let local = OfflineMapStore.shared.data(x: x, y: y) {
+            decodeAndStore(key, local)
+            return
+        }
         guard let tpl = tpl else {
             lock.lock(); pending.remove(key); lock.unlock()
             refreshTemplate()
@@ -230,22 +255,7 @@ final class VectorTileStore {
                 self.lock.unlock()
                 return
             }
-            self.queue.async {
-                var bytes = [UInt8](data)
-                if bytes.count > 2 && bytes[0] == 0x1F && bytes[1] == 0x8B {
-                    bytes = VectorTileStore.gunzip(bytes) ?? bytes
-                }
-                let tile = VTile.build(MVT.decode(bytes))
-                self.lock.lock()
-                self.cache[key] = tile
-                self.order.append(key)
-                if self.order.count > 80 {
-                    let drop = self.order.removeFirst()
-                    self.cache[drop] = nil
-                }
-                self.pending.remove(key)
-                self.lock.unlock()
-            }
+            self.decodeAndStore(key, data)
         }.resume()
     }
 
