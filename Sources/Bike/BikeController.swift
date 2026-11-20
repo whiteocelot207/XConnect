@@ -60,6 +60,10 @@ final class BikeController: NSObject, ObservableObject {
     private var previewOwners = Set<String>()
     private var localTimer: Timer?
     private var localBusy = false
+    /// Waktu render pratinjau lokal dimulai dan nomor render terakhir; dipakai pengawas supaya satu render yang
+    /// macet tidak membekukan pratinjau selamanya.
+    private var localBusySince = Date.distantPast
+    private var localRenderID = 0
     private let geocoder = CLGeocoder()
     private var lastGeocode = Date.distantPast
     private var lastGeocodeLoc: CLLocation?
@@ -474,6 +478,7 @@ final class BikeController: NSObject, ObservableObject {
         let n = max(1, screens().count)
         screenIndex = (min(screenIndex, n - 1) + (forward ? 1 : n - 1)) % n
         log("Tampilan dash: \(currentScreen.title)")
+        renderLocalPreview()
     }
 
     func dashContent() -> DashContent {
@@ -604,19 +609,36 @@ final class BikeController: NSObject, ObservableObject {
     }
 
     private func renderLocalPreview() {
-        guard previewVisible, !isConnected, !localBusy,
+        guard previewVisible, !isConnected,
               UIApplication.shared.applicationState == .active else { return }
+        if localBusy {
+            // render sebelumnya belum selesai: beri waktu 2 dtk, lalu anggap macet dan jalankan yang baru
+            let stuck = Date().timeIntervalSince(localBusySince)
+            guard stuck > 2.0 else { return }
+            log("Pratinjau: render \(currentScreen.title) macet \(Int(stuck)) dtk, dicoba ulang")
+            localBusy = false
+        }
         localBusy = true
+        localBusySince = Date()
+        localRenderID += 1
+        let id = localRenderID
+        let started = Date()
+        let screen = currentScreen
         let content = dashContent()
         let navigating = content.nav != nil
-        let hud = DashHUD(size: CGSize(width: 480, height: 234), screen: currentScreen, content: content,
+        let hud = DashHUD(size: CGSize(width: 480, height: 234), screen: screen, content: content,
                           center: location.coordinate, bearing: location.bearing,
                           zoom: navigating ? 17.2 : 16.8,
                           route: navigating ? (nav?.upcomingPoints() ?? []) : [],
                           destination: navigating ? nav?.destinationCoordinate : nil)
         DashRenderer.render(hud) { [weak self] img in
-            self?.localBusy = false
-            if self?.isConnected == false { self?.preview = img }
+            guard let self = self else { return }
+            let took = Date().timeIntervalSince(started)
+            if took > 1.0 { self.log("Pratinjau: render \(screen.title) selesai \(String(format: "%.1f", took)) dtk") }
+            // hasil render lama (yang sudah dianggap macet) tidak boleh menimpa render yang lebih baru,
+            // tetapi gambarnya tetap dipakai bila belum ada yang lebih baru
+            if id == self.localRenderID { self.localBusy = false }
+            if !self.isConnected { self.preview = img }
         }
     }
 
