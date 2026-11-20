@@ -20,10 +20,6 @@ struct NavigateView: View {
     private var listScreen: some View {
         NavigationView {
             List {
-                if nav.destination != nil || nav.phase != .idle {
-                    Section { routeBox }
-                }
-
                 Section {
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
@@ -61,16 +57,20 @@ struct NavigateView: View {
                         Text("Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
-                        HStack {
+                        VStack(spacing: 8) {
                             Button {
                                 if let u = URL(string: "https://www.google.com/maps") { UIApplication.shared.open(u) }
-                            } label: { Label("Buka Google Maps", systemImage: "map") }
+                            } label: { leftLabel("Buka Google Maps", icon: "map") }
                                 .buttonStyle(.bordered)
-                            Button { pasteLink() } label: { Label("Tempel tautan", systemImage: "doc.on.clipboard") }
+                            Button { pasteLink() } label: { leftLabel("Tempel tautan", icon: "doc.on.clipboard") }
                                 .buttonStyle(.borderedProminent)
                         }
                     }
                     .padding(.vertical, 4)
+                }
+
+                if nav.destination != nil || nav.phase != .idle {
+                    Section { routeBox }
                 }
 
                 Section(header: Text("Tempat tersimpan")) {
@@ -182,6 +182,31 @@ struct NavigateView: View {
 
     // MARK: - Kotak rute (muncul di atas daftar saat ada tujuan)
 
+    private func leftLabel(_ title: String, icon: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).frame(width: 22)
+            Text(title).lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func centerLabel(_ title: String, icon: String?) -> some View {
+        HStack(spacing: 6) {
+            if let icon = icon { Image(systemName: icon) }
+            Text(title).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+    }
+
+    private var voiceButton: some View {
+        Button { settings.guideVoice.toggle() } label: {
+            Image(systemName: settings.guideVoice ? "speaker.wave.2.fill" : "speaker.slash.fill")
+        }
+        .buttonStyle(.bordered)
+    }
+
     private func routeTitle(_ i: Int) -> String { i == 0 ? "Tercepat" : "Alternatif \(i)" }
 
     private var routeBox: some View {
@@ -285,43 +310,39 @@ struct NavigateView: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                if nav.phase == .navigating {
+            if nav.phase == .navigating {
+                HStack(spacing: 8) {
                     Button { nav.stop() } label: {
-                        Label("Hentikan navigasi", systemImage: "xmark.octagon.fill").frame(maxWidth: .infinity)
+                        centerLabel("Hentikan navigasi", icon: "xmark.octagon.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
-                } else {
-                    Button { nav.startNavigation() } label: {
-                        Label("Mulai", systemImage: "play.fill").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(nav.route == nil)
-                    Button("Batal") { nav.stop() }
-                        .buttonStyle(.bordered)
+                    voiceButton
                 }
-                Button { settings.guideVoice.toggle() } label: {
-                    Image(systemName: settings.guideVoice ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                }
-                .buttonStyle(.bordered)
-                Button { showMap = true } label: { Image(systemName: "map") }
-                    .buttonStyle(.bordered)
-            }
-            if nav.route != nil {
                 if nav.simulating {
                     Button { nav.stopSimulation() } label: {
-                        Label("Hentikan simulasi", systemImage: "stop.circle").frame(maxWidth: .infinity)
+                        centerLabel("Hentikan simulasi", icon: "stop.circle")
                     }
                     .buttonStyle(.bordered)
                     .tint(.orange)
-                } else {
+                }
+            } else {
+                HStack(spacing: 8) {
                     Button { nav.startSimulation() } label: {
-                        Label("Simulasikan navigasi", systemImage: "play.circle").frame(maxWidth: .infinity)
+                        centerLabel("Simulasi", icon: "play.circle")
                     }
                     .buttonStyle(.bordered)
                     .disabled(nav.route == nil)
+                    Button { nav.stop() } label: { centerLabel("Batal", icon: nil) }
+                        .buttonStyle(.bordered)
+                    voiceButton
                 }
+                Button { nav.startNavigation() } label: {
+                    centerLabel("Mulai Navigasi", icon: "play.fill")
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(nav.route == nil)
             }
             if nav.phase != .navigating, let d = nav.destination {
                 Menu("Simpan sebagai") {

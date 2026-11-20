@@ -718,7 +718,7 @@ struct BackupSettings: View {
                     }
                 }
                 Button("Pulihkan dari file cadangan") { importing = true }
-                    .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+                    .fileImporter(isPresented: $importing, allowedContentTypes: [.json, .plainText, .text, .data]) { result in
                         switch result {
                         case .success(let url):
                             let ok = url.startAccessingSecurityScopedResource()

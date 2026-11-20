@@ -11,11 +11,15 @@ struct RoutePreviewMap: UIViewRepresentable {
     let destination: Place?
     let onSelect: (Int) -> Void
     let onOpen: () -> Void
+    @EnvironmentObject private var settings: AppSettings
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var dark: Bool { MapStyle.isDark(theme: settings.theme, system: colorScheme) }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> MLNMapView {
-        let v = MLNMapView(frame: .zero, styleURL: URL(string: "https://tiles.openfreemap.org/styles/liberty"))
+        let v = MLNMapView(frame: .zero, styleURL: MapStyle.url(dark: dark))
         v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         v.delegate = context.coordinator
         v.showsUserLocation = true
@@ -24,6 +28,8 @@ struct RoutePreviewMap: UIViewRepresentable {
         v.allowsRotating = false
         v.allowsTilting = false
         v.compassView.isHidden = true
+        MapStyle.hideBranding(v)
+        context.coordinator.dark = dark
         v.setCenter(CLLocationCoordinate2D(latitude: -6.2, longitude: 106.82), zoomLevel: 10, animated: false)
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
         v.addGestureRecognizer(tap)
@@ -35,6 +41,10 @@ struct RoutePreviewMap: UIViewRepresentable {
         let c = context.coordinator
         c.onSelect = onSelect
         c.onOpen = onOpen
+        if c.dark != dark {
+            c.dark = dark
+            v.styleURL = MapStyle.url(dark: dark)
+        }
         c.update(v, routes: routes, selected: selected, destination: destination)
     }
 
@@ -42,6 +52,7 @@ struct RoutePreviewMap: UIViewRepresentable {
         weak var mapView: MLNMapView?
         var onSelect: (Int) -> Void = { _ in }
         var onOpen: () -> Void = {}
+        var dark = false
 
         private var routes = [Route]()
         private var selected = 0

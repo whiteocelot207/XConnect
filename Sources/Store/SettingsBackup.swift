@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 /// Dokumen JSON untuk cadangan pengaturan.
 struct SettingsBackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] { [.json, .plainText, .data] }
     var data: Data
 
     init(data: Data = Data()) { self.data = data }
