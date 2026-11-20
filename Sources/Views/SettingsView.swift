@@ -1,11 +1,22 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Membuka halaman tertentu di tab Pengaturan dari tempat lain (mis. kotak di Home).
+final class SettingsRouter: ObservableObject {
+    static let shared = SettingsRouter()
+    enum Target { case maps, screens }
+    @Published var request: Target?
+}
+
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var bike: BikeController
     @EnvironmentObject var vehicle: VehicleStore
     @ObservedObject private var offline = OfflineMapStore.shared
+    @ObservedObject private var router = SettingsRouter.shared
+    @State private var rootID = UUID()
+    @State private var openMaps = false
+    @State private var openScreens = false
 
     var body: some View {
         NavigationView {
@@ -25,7 +36,7 @@ struct SettingsView: View {
                 }
                 Section(header: Text("Dasbor di motor")) {
                     row("Layar dasbor", subtitle: "\(bike.screens().count) layar aktif · layar awal · musik · foto",
-                        icon: "rectangle.on.rectangle") {
+                        icon: "rectangle.on.rectangle", isActive: $openScreens) {
                         ScreensSettings()
                     }
                     row("Kartu Data", subtitle: "Isi kartu, tata letak, ukuran huruf", icon: "square.grid.2x2") {
@@ -33,7 +44,8 @@ struct SettingsView: View {
                     }
                     row("Peta", subtitle: offline.areas.isEmpty
                         ? "Peta offline · siang/malam · rute · titik motor"
-                        : "\(offline.areas.count) area offline · siang/malam · rute · titik motor", icon: "map") {
+                        : "\(offline.areas.count) area offline · siang/malam · rute · titik motor", icon: "map",
+                        isActive: $openMaps) {
                         MapSettings()
                     }
                     row("Kontrol pada motor", subtitle: "Tombol atas/bawah di stang", icon: "hand.tap") {
@@ -62,6 +74,38 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .navigationViewStyle(.stack)
+        .id(rootID)
+        .onAppear { consumeRequest() }
+        .onChange(of: router.request) { _ in consumeRequest() }
+    }
+
+    /// Permintaan dari luar (kotak Peta dasar / Layar aktif di Home): kembali ke daftar utama, lalu buka halamannya.
+    private func consumeRequest() {
+        guard let target = router.request else { return }
+        router.request = nil
+        openMaps = false
+        openScreens = false
+        rootID = UUID()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            switch target {
+            case .maps: openMaps = true
+            case .screens: openScreens = true
+            }
+        }
+    }
+
+    private func row<D: View>(_ title: String, subtitle: String, icon: String, isActive: Binding<Bool>,
+                              @ViewBuilder destination: () -> D) -> some View {
+        NavigationLink(destination: destination(), isActive: isActive) {
+            HStack(spacing: 14) {
+                Image(systemName: icon).foregroundColor(.blue).frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.headline)
+                    Text(subtitle).font(.footnote).foregroundColor(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+        }
     }
 
     private func row<D: View>(_ title: String, subtitle: String, icon: String,
@@ -303,22 +347,26 @@ struct ControlSettings: View {
     var body: some View {
         Form {
             Section(header: Text("Tombol atas/bawah di stang"),
-                    footer: Text("Tombol atas (+) = tampilan berikutnya, tombol bawah (−) = tampilan sebelumnya. Pengaturan ini menentukan mana yang dipakai untuk satu tekan dan mana untuk dua tekan cepat. Di layar Musik skema ini tidak dipakai: lihat bagian Gesture tombol (layar Musik) di bawah.")) {
-                Picker("Skema", selection: $settings.buttonScheme) {
-                    Text("Tekan 2x: ganti tampilan · 1x: zoom").tag(1)
-                    Text("Tekan 1x: ganti tampilan · 2x: zoom").tag(0)
+                    footer: Text("Tombol atas (+) dan bawah (−) di stang motor. Tekan 1x langsung dijalankan tanpa menunggu. Tekan 2x cepat pada tombol yang sama = ganti tampilan: atas ke tampilan berikutnya, bawah ke tampilan sebelumnya. Layar Musik punya aturan sendiri (lihat bagian paling bawah).")) {
+                HStack {
+                    Text("Tekan 1x")
+                    Spacer()
+                    Text("Zoom peta").foregroundColor(.secondary)
                 }
-                .pickerStyle(.inline)
-                .labelsHidden()
+                HStack {
+                    Text("Tekan 2x cepat")
+                    Spacer()
+                    Text("Ganti tampilan").foregroundColor(.secondary)
+                }
             }
-            Section(header: Text("Klik cepat 2x"),
-                    footer: Text("Dua tekan pada tombol yang sama dalam waktu ini dihitung sebagai klik 2x. Tekan 1x tetap langsung dijalankan tanpa menunggu. Jendela yang sama juga dipakai gesture 3x cepat dan atas-bawah di layar Musik. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
-                sliderRow("Jendela klik 2x", value: Binding(
+            Section(header: Text("Durasi klik cepat"),
+                    footer: Text("Jarak waktu terlama antar dua tekan agar dihitung \"cepat\". Berlaku untuk semua gesture cepat: 2x cepat (ganti tampilan) di semua layar, serta 3x cepat dan atas-bawah di layar Musik. Naikkan bila sulit menekan secepat itu, turunkan bila dua tekan biasa terbaca sebagai gesture cepat. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
+                sliderRow("Durasi klik cepat", value: Binding(
                     get: { Double(settings.doubleClickMs) },
                     set: { settings.doubleClickMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
             }
             Section(header: Text("Gesture tombol (layar Musik)"),
-                    footer: Text("Di layar Musik: 1x = volume. 2x cepat = ganti tampilan (menunggu sekitar 0,4 dtk). 3x cepat arah sama = lagu berikutnya (atas) atau sebelumnya (bawah). Atas lalu bawah cepat, atau bawah lalu atas, = putar/jeda. Jarak antar tekan memakai Jendela klik 2x di atas. Tombol tahan tidak didukung karena dash tidak mengirim apa pun saat tombol ditahan. Izin Media & Apple Music harus diberikan.")) {
+                    footer: Text("Khusus layar Musik: 1x = volume (atas naik, bawah turun). 2x cepat = ganti tampilan, dijalankan setelah jeda sekitar 0,4 dtk untuk memastikan itu bukan gesture lain. 3x cepat arah sama = lagu berikutnya (atas) atau sebelumnya (bawah). Atas lalu bawah cepat, atau bawah lalu atas, = putar/jeda. Jarak antar tekan mengikuti Durasi klik cepat. Tombol tahan tidak didukung karena dash tidak mengirim apa pun saat tombol ditahan. Izin Media & Apple Music harus diberikan.")) {
                 Toggle("Aktifkan gesture musik di stang", isOn: $settings.holdSkip)
             }
         }

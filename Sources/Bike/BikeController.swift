@@ -692,7 +692,7 @@ final class BikeController: NSObject, ObservableObject {
         s.contentProvider = { [weak self] in self?.dashContent() ?? DashContent() }
         s.screensProvider = { [weak self] in self?.screens() ?? [.mapData] }
         s.screenIndexProvider = { [weak self] in self?.screenIndex ?? 0 }
-        s.buttonSchemeProvider = { [weak self] in self?.settings.buttonScheme ?? 1 }
+        s.buttonSchemeProvider = { 1 }   // skema tunggal: 1x zoom, 2x cepat ganti tampilan (pilihan skema dihapus dari Pengaturan)
         s.maxFpsProvider = { [weak self] in self?.settings.maxFps ?? 10 }
         s.qualityProvider = { [weak self] in self?.settings.dashQuality ?? 0.7 }
         s.autoZoomProvider = { [weak self] in self?.settings.autoZoom ?? true }

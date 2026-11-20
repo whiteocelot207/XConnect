@@ -227,8 +227,14 @@ struct HomeView: View {
             tile("Hemat baterai", settings.saveBattery ? "Nyala" : "Mati", "battery.100") {
                 settings.saveBattery.toggle()
             }
-            tile("Peta dasar", "OpenFreeMap", "map.fill") { openSettings() }
-            tile("Layar aktif", "\(bike.screens().count) layar", "square.stack.fill") { openSettings() }
+            tile("Peta dasar", "OpenFreeMap", "map.fill") {
+                SettingsRouter.shared.request = .maps
+                openSettings()
+            }
+            tile("Layar aktif", "\(bike.screens().count) layar", "square.stack.fill") {
+                SettingsRouter.shared.request = .screens
+                openSettings()
+            }
         }
     }
 
