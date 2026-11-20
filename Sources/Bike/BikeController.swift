@@ -81,7 +81,7 @@ final class BikeController: NSObject, ObservableObject {
     private var cachedNetwork = ""
     private var cachedSignal = 0
     private var cachedHeadset = false
-    private let callObserver = CXCallObserver()
+    private let callWatcher = CallWatcher()
     private var statusTimer: Timer?
     private var sysTimer: DispatchSourceTimer?
     private var beatTimer: DispatchSourceTimer?
@@ -272,7 +272,7 @@ final class BikeController: NSObject, ObservableObject {
                                      callVol: vol, mediaVol: vol,
                                      signal: sig, thermal: thermal, headset: hs)
         ccu.sendPhoneStatus(st)
-        ccu.sendCallState(callObserver.calls.contains { !$0.hasEnded })
+        ccu.sendCallState(callWatcher.inCall)
     }
 
     private func setCachedVolume(_ v: Float) {
@@ -646,8 +646,11 @@ final class BikeController: NSObject, ObservableObject {
         var navSymbol = ""
         var connected = false
         var inCall = false
+        var missedCall = false
         var tempC: Int?
     }
+
+    func clearMissedCall() { callWatcher.clearMissed() }
 
     func barStatus() -> BarStatus {
         var b = BarStatus()
@@ -669,7 +672,8 @@ final class BikeController: NSObject, ObservableObject {
         sysLock.unlock()
         b.gps = location.hasFix
         b.connected = isConnected
-        b.inCall = callObserver.calls.contains { !$0.hasEnded }
+        b.inCall = callWatcher.inCall
+        b.missedCall = callWatcher.hasMissed
         b.tempC = model?.weather.tempC
         if let n = nav, n.phase == .navigating {
             b.navigating = true

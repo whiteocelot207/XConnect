@@ -18,7 +18,8 @@ extension Maneuver {
     /// nama jalan tujuan belokan saja: "Jalan Lingkar Luar Jakarta" (tanpa awalan "Ke"). Di bundaran: "Ambil jalan keluar ke 3".
     var title: String {
         switch type {
-        case 4, 5, 6:
+        case 4, 5, 6, 12, 13:
+            // tiba dan putar balik: hanya teks pendek ("Putar balik"), tanpa nama jalan
             return DashIcon.shortText(DashIcon.forValhalla(type))
         case 26:
             return exitCount > 0 ? "Ambil jalan keluar ke \(exitCount)" : "Masuk bundaran"
@@ -42,7 +43,7 @@ extension Maneuver {
         case 9: verb = "serong kanan"
         case 10: verb = "belok kanan"
         case 11: verb = "belok kanan tajam"
-        case 12, 13: verb = "putar balik"
+        case 12, 13: return "putar balik"       // tanpa "ke <jalan>"
         case 14: verb = "belok kiri tajam"
         case 15: verb = "belok kiri"
         case 16: verb = "serong kiri"

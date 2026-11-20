@@ -46,41 +46,57 @@ struct DashFrameView: View {
     // Kiri: jam besar, ikon peta, telepon, pesan, sinyal, baterai HP, lencana "App". Kanan: suhu.
 
     private func topBar(_ st: BikeController.BarStatus, _ s: CGFloat) -> some View {
-        HStack(spacing: 8 * s) {
+        HStack(spacing: 7 * s) {
             Text(st.clock)
-                .font(.system(size: 29 * s, weight: .medium))
+                .font(.system(size: 22 * s, weight: .medium))
                 .monospacedDigit()
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .fixedSize()
-            Image(systemName: st.gps ? "map" : "map.fill")
-                .font(.system(size: 21 * s, weight: .regular))
-                .foregroundColor(st.gps ? .white : dim)
+            // Ikon hanya muncul bila ada pemicunya dari HP (seperti dash asli)
+            if st.connected {
+                Image(systemName: "map")
+                    .font(.system(size: 16 * s))
+                    .foregroundColor(.white)
+            }
             if st.inCall {
                 Image(systemName: "phone.fill")
-                    .font(.system(size: 19 * s))
+                    .font(.system(size: 15 * s))
+                    .foregroundColor(.white)
+            }
+            if st.missedCall {
+                Image(systemName: "phone.arrow.down.left")
+                    .font(.system(size: 15 * s, weight: .semibold))
                     .foregroundColor(Color(red: 1, green: 0.25, blue: 0.2))
+                    .contentShape(Rectangle())
+                    .onTapGesture { bike.clearMissedCall() }
             }
             if st.headset {
                 Image(systemName: "headphones")
-                    .font(.system(size: 19 * s))
+                    .font(.system(size: 15 * s))
                     .foregroundColor(.white)
             }
-            SignalBars(level: st.signal)
-                .frame(width: 19 * s, height: 20 * s)
-            PhoneBattery(percent: st.battery, charging: st.charging)
-                .frame(width: 13 * s, height: 22 * s)
-            Text("App")
-                .font(.system(size: 14 * s, weight: .bold))
-                .foregroundColor(.black)
-                .padding(.horizontal, 4 * s)
-                .frame(height: 20 * s)
-                .background(RoundedRectangle(cornerRadius: 3 * s).fill(st.connected ? Color.white : Color.white.opacity(0.85)))
+            if st.connected && st.signal > 0 {
+                SignalBars(level: st.signal)
+                    .frame(width: 14 * s, height: 15 * s)
+            }
+            if st.connected && st.battery >= 0 {
+                PhoneBattery(percent: st.battery, charging: st.charging)
+                    .frame(width: 10 * s, height: 17 * s)
+            }
+            if st.connected {
+                Text("App")
+                    .font(.system(size: 11 * s, weight: .bold))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 3 * s)
+                    .frame(height: 15 * s)
+                    .background(RoundedRectangle(cornerRadius: 2.5 * s).fill(Color.white))
+            }
             Spacer(minLength: 4 * s)
             if let t = st.tempC {
                 HStack(alignment: .firstTextBaseline, spacing: 1 * s) {
-                    Text("\(t)").font(.system(size: 29 * s, weight: .medium)).monospacedDigit()
-                    Text("\u{00B0}C").font(.system(size: 18 * s, weight: .medium))
+                    Text("\(t)").font(.system(size: 22 * s, weight: .medium)).monospacedDigit()
+                    Text("\u{00B0}C").font(.system(size: 14 * s, weight: .medium))
                 }
                 .foregroundColor(.white)
                 .lineLimit(1)
@@ -98,15 +114,15 @@ struct DashFrameView: View {
         HStack(spacing: 6 * s) {
             if st.navigating && !st.navSymbol.isEmpty {
                 Image(systemName: st.navSymbol)
-                    .font(.system(size: 26 * s, weight: .bold))
+                    .font(.system(size: 19 * s, weight: .bold))
                     .foregroundColor(Color(red: 0.35, green: 0.65, blue: 1))
             } else if !st.road.isEmpty {
                 Image(systemName: "triangle.fill")
-                    .font(.system(size: 15 * s))
+                    .font(.system(size: 11 * s))
                     .foregroundColor(.white)
             }
             Text(st.road)
-                .font(.system(size: 28 * s, weight: .semibold))
+                .font(.system(size: 20 * s, weight: .semibold))
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
