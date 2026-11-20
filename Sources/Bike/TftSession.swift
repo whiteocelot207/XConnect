@@ -41,6 +41,12 @@ final class TftSession {
     var maxFpsProvider: () -> Double = { 10 }
     var qualityProvider: () -> Double = { 0.7 }
     var autoZoomProvider: () -> Bool = { true }
+    /// zoom dasar menurut kecepatan GPS (km/j); dari pengaturan Zoom peta
+    var zoomProvider: (Double) -> Double = { _ in 16.8 }
+    /// lama perpindahan zoom halus (detik), 0 = langsung
+    var zoomSmoothProvider: () -> Double = { 0.8 }
+    private let zoomSmoother = ZoomSmoother()
+    private var smoothBase = 16.8
     var routeProvider: () -> [CLLocationCoordinate2D] = { [] }
     var destinationProvider: () -> CLLocationCoordinate2D? = { nil }
 
@@ -446,12 +452,7 @@ final class TftSession {
     }
 
     private func effectiveZoom(navigating: Bool) -> Double {
-        let v = location.speedKmh
-        var base = 16.8
-        if navigating && autoZoomProvider() {
-            if v < 15 { base = 17.8 } else if v < 35 { base = 17.0 } else if v < 55 { base = 16.3 } else { base = 15.6 }
-        }
-        return min(19.5, max(13, base + zoomOffset))
+        return min(19.5, max(13, smoothBase + zoomOffset))
     }
 
     // MARK: - Menu favorit / SPBU (docs 4.4)
@@ -561,6 +562,7 @@ final class TftSession {
         let screens = screensProvider()
         let screen = screens[min(max(0, screenIndexProvider()), screens.count - 1)]
         let navigating = content.nav != nil
+        smoothBase = zoomSmoother.step(to: zoomProvider(location.speedKmh), tau: zoomSmoothProvider())
         let zoom = effectiveZoom(navigating: navigating)
         let hud = DashHUD(size: frameSize, screen: screen, content: content,
                           center: location.predictedCoordinate(extraLatency: 0.3), bearing: location.bearing, zoom: zoom,

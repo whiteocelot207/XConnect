@@ -62,6 +62,10 @@ final class BikeController: NSObject, ObservableObject {
     /// Halaman yang sedang memakai pratinjau ("home", "pengaturan"). Pratinjau mati hanya bila tidak ada pemakai lagi.
     private var previewOwners = Set<String>()
     private var localTimer: Timer?
+    /// kecepatan buatan (km/j) untuk menguji aturan zoom di pengaturan; nil = pakai GPS. Dikosongkan saat halaman pengaturan ditutup.
+    @Published var previewSpeedOverride: Double?
+    private let previewSmoother = ZoomSmoother()
+    private var settingsWatch: AnyCancellable?
     private var localBusy = false
     /// Waktu render pratinjau lokal dimulai dan nomor render terakhir; dipakai pengawas supaya satu render yang
     /// macet tidak membekukan pratinjau selamanya.
@@ -100,6 +104,10 @@ final class BikeController: NSObject, ObservableObject {
         super.init()
 
         UIDevice.current.isBatteryMonitoringEnabled = true
+        // pengaturan berubah (mis. aturan zoom): gambar ulang pratinjau saat itu juga, tidak menunggu siklus 0,5 dtk
+        settingsWatch = settings.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.renderLocalPreview() }
+        }
         EAAccessoryManager.shared().registerForLocalNotifications()
         let nc = NotificationCenter.default
         nc.addObserver(forName: .EAAccessoryDidConnect, object: nil, queue: .main) { [weak self] n in
@@ -727,9 +735,11 @@ final class BikeController: NSObject, ObservableObject {
         let screen = currentScreen
         let content = dashContent()
         let navigating = content.nav != nil
+        let previewZoom = previewSmoother.step(to: settings.dashZoom(speedKmh: previewSpeedOverride ?? location.speedKmh),
+                                               tau: settings.zoomSmooth)
         let hud = DashHUD(size: CGSize(width: 480, height: 234), screen: screen, content: content,
                           center: location.coordinate, bearing: location.bearing,
-                          zoom: navigating ? 17.2 : 16.8,
+                          zoom: previewZoom,
                           route: navigating ? (nav?.upcomingPoints() ?? []) : [],
                           destination: navigating ? nav?.destinationCoordinate : nil)
         DashRenderer.render(hud) { [weak self] img in
@@ -796,6 +806,11 @@ final class BikeController: NSObject, ObservableObject {
         s.maxFpsProvider = { [weak self] in self?.settings.maxFps ?? 10 }
         s.qualityProvider = { [weak self] in self?.settings.dashQuality ?? 0.7 }
         s.autoZoomProvider = { [weak self] in self?.settings.autoZoom ?? true }
+        s.zoomProvider = { [weak self] v in
+            guard let self = self else { return 16.8 }
+            return self.settings.dashZoom(speedKmh: self.previewSpeedOverride ?? v)
+        }
+        s.zoomSmoothProvider = { [weak self] in self?.settings.zoomSmooth ?? 0.8 }
         s.routeProvider = { [weak self] in self?.nav?.upcomingPoints() ?? [] }
         s.destinationProvider = { [weak self] in self?.nav?.destinationCoordinate }
         s.wantsPreview = { [weak self] in

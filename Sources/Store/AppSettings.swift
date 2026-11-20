@@ -21,6 +21,22 @@ final class AppSettings: ObservableObject {
     @Published var showCards: Bool { didSet { put("showCards", showCards) } }
     @Published var routeColor: Int { didSet { put("routeColor", routeColor) } }
     @Published var autoZoom: Bool { didSet { put("autoZoom", autoZoom) } }
+    /// zoom peta di dash bila zoom otomatis mati (skala tile; makin besar makin dekat)
+    @Published var baseZoom: Double { didSet { put("baseZoom", baseZoom) } }
+    /// aturan zoom otomatis menurut kecepatan GPS (berlaku saat navigasi maupun tidak)
+    @Published var zoomRules: [ZoomRule] { didSet { put("zoomRules", ZoomRule.encode(zoomRules)) } }
+    /// zoom untuk kecepatan di atas semua aturan
+    @Published var zoomAbove: Double { didSet { put("zoomAbove", zoomAbove) } }
+    /// lama perpindahan zoom halus (detik); 0 = langsung
+    @Published var zoomSmooth: Double { didSet { put("zoomSmooth", zoomSmooth) } }
+
+    /// Zoom peta dash untuk kecepatan GPS saat ini: aturan pertama (dari kecepatan terendah) yang batasnya di atas
+    /// kecepatan; bila tidak ada, `zoomAbove`. Bila zoom otomatis mati, `baseZoom`. Zoom manual dari stang ditambahkan di TftSession.
+    func dashZoom(speedKmh v: Double) -> Double {
+        guard autoZoom else { return baseZoom }
+        for r in zoomRules.sorted(by: { $0.below < $1.below }) where v < r.below { return r.zoom }
+        return zoomAbove
+    }
     @Published var defaultKmPerL: Double { didSet { put("defaultKmPerL", defaultKmPerL) } }
     /// Format pemilik/nama-repo, mis. "histrox/xconnect"
     @Published var updateRepo: String { didSet { put("updateRepo", updateRepo) } }
@@ -133,7 +149,7 @@ final class AppSettings: ObservableObject {
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
             "theme": 0, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
-            "showCards": true, "routeColor": 0, "autoZoom": true, "defaultKmPerL": 30.0,
+            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0,
             "updateRepo": "whiteocelot207/XConnect", "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
             "routeWidth": 5.0, "routeBorder": 0.0, "markerSize": 0.6, "markerRing": true, "markerY": 0.78,
             "navPanelScale": 0.85, "musicBlurBG": true,
@@ -170,6 +186,10 @@ final class AppSettings: ObservableObject {
         showCards = d.bool(forKey: "showCards")
         routeColor = d.integer(forKey: "routeColor")
         autoZoom = d.bool(forKey: "autoZoom")
+        baseZoom = d.double(forKey: "baseZoom")
+        zoomRules = ZoomRule.decode(d.string(forKey: "zoomRules") ?? "")
+        zoomAbove = d.double(forKey: "zoomAbove")
+        zoomSmooth = d.double(forKey: "zoomSmooth")
         defaultKmPerL = d.double(forKey: "defaultKmPerL")
         updateRepo = d.string(forKey: "updateRepo") ?? ""
         updater = d.integer(forKey: "updater")
@@ -256,6 +276,10 @@ final class AppSettings: ObservableObject {
         showCards = d.bool(forKey: "showCards")
         routeColor = d.integer(forKey: "routeColor")
         autoZoom = d.bool(forKey: "autoZoom")
+        baseZoom = d.double(forKey: "baseZoom")
+        zoomRules = ZoomRule.decode(d.string(forKey: "zoomRules") ?? "")
+        zoomAbove = d.double(forKey: "zoomAbove")
+        zoomSmooth = d.double(forKey: "zoomSmooth")
         defaultKmPerL = d.double(forKey: "defaultKmPerL")
         updateRepo = d.string(forKey: "updateRepo") ?? ""
         updater = d.integer(forKey: "updater")

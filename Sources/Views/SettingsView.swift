@@ -418,6 +418,7 @@ struct DashPreviewLifecycle: ViewModifier {
             }
             .onDisappear {
                 bike.demoNav = false
+                bike.previewSpeedOverride = nil
                 bike.setPreviewVisible(false, owner: "pengaturan")
             }
     }
@@ -465,13 +466,63 @@ struct MapSettings: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             }
+            Section(header: Text("Zoom peta"),
+                    footer: Text("Zoom: makin besar makin dekat. Bila zoom otomatis menyala, zoom mengikuti kecepatan GPS, baik saat navigasi maupun tidak: aturan \"di bawah X km/j\" yang cocok dipakai, dan kecepatan di atas semua aturan memakai zoom \"di atas batas terakhir\". Urutan aturan tidak berpengaruh. Perpindahan zoom dibuat halus selama waktu yang diatur. Tombol atas/bawah di stang tetap menambah/mengurangi zoom di atas hasil ini. Pratinjau di atas ikut berubah saat pengaturan digeser.")) {
+                Toggle("Zoom otomatis menurut kecepatan", isOn: $settings.autoZoom)
+                if !settings.autoZoom {
+                    sliderRow("Zoom peta", value: $settings.baseZoom, range: 13...19.5, step: 0.1, unit: "")
+                }
+                sliderRow("Kehalusan perpindahan zoom", value: $settings.zoomSmooth, range: 0...3, step: 0.1, unit: "dtk")
+            }
+            if settings.autoZoom {
+                Section(header: Text("Aturan zoom otomatis")) {
+                    ForEach($settings.zoomRules) { $rule in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Di bawah \(Int(rule.below)) km/j → zoom \(String(format: "%.1f", rule.zoom))")
+                                    .font(.subheadline).bold()
+                                Spacer()
+                                Button {
+                                    let id = rule.id
+                                    settings.zoomRules.removeAll { $0.id == id }
+                                } label: { Image(systemName: "trash").foregroundColor(.red) }
+                                    .buttonStyle(.borderless)
+                            }
+                            sliderRow("Kecepatan di bawah", value: $rule.below, range: 1...150, step: 1, unit: "km/j")
+                            sliderRow("Zoom", value: $rule.zoom, range: 13...19.5, step: 0.1, unit: "")
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    sliderRow("Di atas batas terakhir: zoom", value: $settings.zoomAbove, range: 13...19.5, step: 0.1, unit: "")
+                    Button {
+                        let last = settings.zoomRules.max(by: { $0.below < $1.below })
+                        let below = min(150, (last?.below ?? 0) + 20)
+                        let zoom = max(13, min(19.5, (last?.zoom ?? 17.5) - 0.5))
+                        settings.zoomRules.append(ZoomRule(below: below, zoom: zoom))
+                    } label: { Label("Tambah aturan", systemImage: "plus.circle.fill") }
+                    .disabled(settings.zoomRules.count >= 10)
+                    Button("Kembalikan aturan bawaan") {
+                        settings.zoomRules = ZoomRule.defaults
+                        settings.zoomAbove = 15.6
+                    }
+                }
+                Section(header: Text("Uji di pratinjau"),
+                        footer: Text("Pakai kecepatan buatan untuk melihat zoom tiap aturan di pratinjau (dan di dash bila tersambung). Hilang otomatis saat halaman ini ditutup.")) {
+                    Toggle("Kecepatan buatan", isOn: Binding(
+                        get: { bike.previewSpeedOverride != nil },
+                        set: { bike.previewSpeedOverride = $0 ? (bike.previewSpeedOverride ?? 0) : nil }))
+                    if let v = bike.previewSpeedOverride {
+                        sliderRow("Kecepatan", value: Binding(get: { v }, set: { bike.previewSpeedOverride = $0 }),
+                                  range: 0...120, step: 1, unit: "km/j")
+                    }
+                }
+            }
             Section(header: Text("Rute")) {
                 Picker("Warna rute", selection: $settings.routeColor) {
                     Text("Merah muda").tag(0)
                     Text("Biru").tag(1)
                     Text("Hijau").tag(2)
                 }
-                Toggle("Zoom otomatis menurut kecepatan", isOn: $settings.autoZoom)
                 sliderRow("Lebar garis rute", value: $settings.routeWidth, range: 2...10, step: 0.5, unit: "px")
                 sliderRow("Tebal tepi putih rute", value: $settings.routeBorder, range: 0...4, step: 0.5, unit: "px")
             }
