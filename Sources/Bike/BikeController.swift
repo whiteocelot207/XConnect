@@ -681,6 +681,7 @@ final class BikeController: NSObject, ObservableObject {
         s.holdSkipEnabled = { [weak self] in self?.settings.holdSkip ?? true }
         s.holdDuration = { [weak self] in Double(self?.settings.holdMs ?? 700) / 1000 }
         s.onMusicSkip = { [weak self] next in DispatchQueue.main.async { self?.model?.music.skip(next: next) } }
+        s.onTogglePlay = { [weak self] in DispatchQueue.main.async { self?.model?.music.wheelTogglePlay() } }
         s.onVolume = { [weak self] up in
             DispatchQueue.main.async {
                 let v = self?.model?.music.adjustVolume(up: up)

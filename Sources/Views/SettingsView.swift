@@ -303,7 +303,7 @@ struct ControlSettings: View {
     var body: some View {
         Form {
             Section(header: Text("Tombol atas/bawah di stang"),
-                    footer: Text("Tombol atas (+) = tampilan berikutnya, tombol bawah (−) = tampilan sebelumnya. Pengaturan ini menentukan mana yang dipakai untuk satu tekan dan mana untuk dua tekan cepat.")) {
+                    footer: Text("Tombol atas (+) = tampilan berikutnya, tombol bawah (−) = tampilan sebelumnya. Pengaturan ini menentukan mana yang dipakai untuk satu tekan dan mana untuk dua tekan cepat. Di layar Musik skema ini tidak dipakai: lihat bagian Gesture tombol (layar Musik) di bawah.")) {
                 Picker("Skema", selection: $settings.buttonScheme) {
                     Text("Tekan 2x: ganti tampilan · 1x: zoom").tag(1)
                     Text("Tekan 1x: ganti tampilan · 2x: zoom").tag(0)
@@ -312,17 +312,14 @@ struct ControlSettings: View {
                 .labelsHidden()
             }
             Section(header: Text("Klik cepat 2x"),
-                    footer: Text("Dua tekan pada tombol yang sama dalam waktu ini dihitung sebagai klik 2x. Tekan 1x tetap langsung dijalankan tanpa menunggu. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
+                    footer: Text("Dua tekan pada tombol yang sama dalam waktu ini dihitung sebagai klik 2x. Tekan 1x tetap langsung dijalankan tanpa menunggu. Jendela yang sama juga dipakai gesture 3x cepat dan atas-bawah di layar Musik. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
                 sliderRow("Jendela klik 2x", value: Binding(
                     get: { Double(settings.doubleClickMs) },
                     set: { settings.doubleClickMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
             }
-            Section(header: Text("Tekan tahan (layar Musik)"),
-                    footer: Text("Di layar Musik: tahan tombol atas = lagu berikutnya, tahan tombol bawah = lagu sebelumnya (sekali per tahan). Tahan dikenali dari tekan berulang arah sama yang berlangsung selama durasi ini (dash mengulang tekan saat tombol ditahan). Tekan 1x tetap volume, 2x cepat tetap ganti tampilan; bila tahan aktif, ganti tampilan menunggu sekitar 0,4 dtk untuk memastikan itu bukan tahan. Bila tahan tidak bereaksi, ketuk Log setelah menahan tombol dan kirim barisnya: tiap tekan dicatat beserta jarak waktunya. Izin Media & Apple Music harus diberikan.")) {
-                Toggle("Tahan = lagu berikutnya/sebelumnya", isOn: $settings.holdSkip)
-                sliderRow("Durasi tekan tahan", value: Binding(
-                    get: { Double(settings.holdMs) },
-                    set: { settings.holdMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
+            Section(header: Text("Gesture tombol (layar Musik)"),
+                    footer: Text("Di layar Musik: 1x = volume. 2x cepat = ganti tampilan (menunggu sekitar 0,4 dtk). 3x cepat arah sama = lagu berikutnya (atas) atau sebelumnya (bawah). Atas lalu bawah cepat, atau bawah lalu atas, = putar/jeda. Jarak antar tekan memakai Jendela klik 2x di atas. Tombol tahan tidak didukung karena dash tidak mengirim apa pun saat tombol ditahan. Izin Media & Apple Music harus diberikan.")) {
+                Toggle("Aktifkan gesture musik di stang", isOn: $settings.holdSkip)
             }
         }
         .navigationTitle("Kontrol pada motor")

@@ -463,4 +463,18 @@ final class MusicService: ObservableObject {
         let p = MPMusicPlayerController.systemMusicPlayer
         if p.playbackState == .playing { p.pause() } else { p.play() }
     }
+
+    /// Putar/jeda dari stang (atas lalu bawah cepat): sama dengan togglePlay, ditambah pesan di dash dan catatan Log.
+    func wheelTogglePlay() {
+        guard authorized else {
+            onLog("Musik: izin Media & Apple Music belum diberikan, tidak bisa putar/jeda")
+            return
+        }
+        let wasPlaying = MPMusicPlayerController.systemMusicPlayer.playbackState == .playing
+        togglePlay()
+        toastText = wasPlaying ? "Jeda  ❚❚" : "Putar  ▶"
+        toastUntil = Date().addingTimeInterval(1.5)
+        onLog("Musik: \(wasPlaying ? "jeda" : "putar") (atas-bawah cepat di stang)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.refresh() }
+    }
 }

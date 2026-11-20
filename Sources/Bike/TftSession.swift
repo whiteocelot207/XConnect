@@ -25,6 +25,8 @@ final class TftSession {
     var holdSkipEnabled: () -> Bool = { true }
     var holdDuration: () -> Double = { 0.7 }
     var onMusicSkip: (Bool) -> Void = { _ in }
+    /// Layar Musik: atas lalu bawah cepat (atau sebaliknya) = putar/jeda
+    var onTogglePlay: () -> Void = {}
 
     var contentProvider: () -> DashContent = { DashContent() }
     var screensProvider: () -> [DashScreen] = { [.mapData] }
@@ -362,9 +364,22 @@ final class TftSession {
     /// Dash mengirim satu paket tiap tekan; saat tombol ditahan paket itu berulang. Rangkaian tekan arah sama (jeda
     /// antar tekan maksimal sama dengan jendela klik 2x) yang berlangsung >= durasi tahan dengan >= 3 tekan dianggap
     /// TAHAN: atas = lagu berikutnya, bawah = lagu sebelumnya (sekali per tahan).
+    /// Bila dash tidak mengulang paket saat ditahan, 3 tekan cepat arah sama melakukan hal yang sama.
+    /// Atas lalu bawah cepat (atau sebaliknya) = putar/jeda.
     /// 1 tekan = volume (langsung), 2 tekan cepat = ganti tampilan (ditunda `holdProbe` supaya tidak salah dikira awal tahan).
     private func handleMusicButton(up: Bool, now: Date, window: Double, gap: String) {
         let dir = up ? "atas" : "bawah"
+        // Silang: tekan pertama (volume) disusul tombol arah BERLAWANAN dalam jendela klik 2x = putar/jeda.
+        if chainCount == 1, chainUp != up, !holdFired, now.timeIntervalSince(chainLast) <= window {
+            pendingScreenStep?.cancel()
+            pendingScreenStep = nil
+            onVolume(!chainUp)                              // batalkan volume dari tekan pertama
+            onButtonEvent("\(dir) setelah \(chainUp ? "atas" : "bawah") cepat\(gap) → putar/jeda")
+            chainCount = 0                                  // tekan berikutnya memulai rangkaian baru
+            holdFired = false
+            onTogglePlay()
+            return
+        }
         if chainCount > 0, chainUp == up, now.timeIntervalSince(chainLast) <= window {
             chainCount += 1
         } else {
@@ -383,11 +398,14 @@ final class TftSession {
             onButtonEvent("\(dir) tahan berlanjut (\(chainCount) tekan, \(spanMs) ms)\(gap)")
             return
         }
-        if chainCount >= 3 && span >= holdDuration() {
+        // Dash ternyata tidak selalu mengulang paket saat tombol ditahan, jadi 3 tekan cepat arah sama
+        // (jarak antar tekan <= jendela klik 2x) juga dianggap perintah ganti lagu, tanpa menunggu durasi tahan.
+        if chainCount >= 3 {
             pendingScreenStep?.cancel()
             pendingScreenStep = nil
             holdFired = true
-            onButtonEvent("\(dir) TAHAN (\(chainCount) tekan, \(spanMs) ms)\(gap) → lagu \(up ? "berikutnya" : "sebelumnya")")
+            let how = span >= holdDuration() ? "TAHAN" : "3x cepat"
+            onButtonEvent("\(dir) \(how) (\(chainCount) tekan, \(spanMs) ms)\(gap) → lagu \(up ? "berikutnya" : "sebelumnya")")
             onMusicSkip(up)
             return
         }
