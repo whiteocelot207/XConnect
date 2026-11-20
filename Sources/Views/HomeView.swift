@@ -12,11 +12,16 @@ struct HomeView: View {
 
     var body: some View {
         NavigationView {
+            VStack(spacing: 0) {
+            // pratinjau tetap di atas; hanya bagian di bawahnya yang tergulir
+            previewCard
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(UIColor.systemBackground))
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     greetingHeader
                     statusCard
-                    previewCard
                     if nav.phase == .navigating { navCard }
                     if let p = trips.parked, !bike.isConnected { parkedCard(p) }
                     tiles
@@ -27,6 +32,7 @@ struct HomeView: View {
                     }
                 }
                 .padding()
+            }
             }
             .navigationBarTitle("", displayMode: .inline)
             .navigationBarHidden(true)
@@ -130,6 +136,7 @@ struct HomeView: View {
                 }
             }
             DashFrameView()
+                .frame(maxWidth: 340)
                 .cornerRadius(10)
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.4), lineWidth: 1))
 

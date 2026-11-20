@@ -596,7 +596,12 @@ final class BikeController: NSObject, ObservableObject {
         c.weatherText = m.weather.text
         c.nav = m.nav.hud
         if c.nav == nil, demoNav {
-            c.nav = NavHUD(icon: 35, text: "Jalan Lingkar Luar Jakarta", dist: "65 m", summary: "1,6 km · 0:37")
+            // contoh kotak estimasi mengikuti pilihan di Pengaturan (semua dimatikan = kotak tidak tampil)
+            var parts = [String]()
+            if settings.etaShowDistance { parts.append(Fmt.distance(1600)) }
+            if settings.etaShowDuration { parts.append(Fmt.duration(37 * 60)) }
+            if settings.etaShowArrival { parts.append(Fmt.clock(Date().addingTimeInterval(37 * 60))) }
+            c.nav = NavHUD(icon: 35, text: "Jalan Lingkar Luar Jakarta", dist: "65 m", summary: parts.joined(separator: " · "))
         }
         if let l = location.lastLocation {
             c.altitudeM = Int(l.altitude.rounded())
@@ -736,7 +741,7 @@ final class BikeController: NSObject, ObservableObject {
         let content = dashContent()
         let navigating = content.nav != nil
         let previewZoom = previewSmoother.step(to: settings.dashZoom(speedKmh: previewSpeedOverride ?? location.speedKmh),
-                                               tau: settings.zoomSmooth)
+                                               tau: settings.autoZoom ? settings.zoomSmooth : 0)
         let hud = DashHUD(size: CGSize(width: 480, height: 234), screen: screen, content: content,
                           center: location.coordinate, bearing: location.bearing,
                           zoom: previewZoom,
@@ -810,7 +815,7 @@ final class BikeController: NSObject, ObservableObject {
             guard let self = self else { return 16.8 }
             return self.settings.dashZoom(speedKmh: self.previewSpeedOverride ?? v)
         }
-        s.zoomSmoothProvider = { [weak self] in self?.settings.zoomSmooth ?? 0.8 }
+        s.zoomSmoothProvider = { [weak self] in (self?.settings.autoZoom ?? true) ? (self?.settings.zoomSmooth ?? 0.8) : 0 }
         s.routeProvider = { [weak self] in self?.nav?.upcomingPoints() ?? [] }
         s.destinationProvider = { [weak self] in self?.nav?.destinationCoordinate }
         s.wantsPreview = { [weak self] in

@@ -425,6 +425,23 @@ struct DashPreviewLifecycle: ViewModifier {
 }
 
 extension View {
+    /// Pratinjau dash tetap di atas layar (tidak ikut tergulir); hanya isi di bawahnya yang tergulir.
+    func dashPinnedPreview(hint: String? = nil) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 4) {
+                DashPreviewBox().frame(maxWidth: 340)
+                if let h = hint {
+                    Text(h).font(.caption2).foregroundColor(.secondary).multilineTextAlignment(.center)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(Color(UIColor.systemGroupedBackground))
+            .overlay(Divider(), alignment: .bottom)
+        }
+    }
+
     func dashPreviewLifecycle(demoNav: Bool = false, focus: DashScreen? = nil) -> some View {
         modifier(DashPreviewLifecycle(demoNav: demoNav, focus: focus))
     }
@@ -452,10 +469,6 @@ struct MapSettings: View {
                     }
                 }
             }
-            Section(header: Text("Pratinjau"),
-                    footer: Text("Contoh panel navigasi tampil selama halaman ini terbuka.")) {
-                DashPreviewBox()
-            }
             Section(header: Text("Siang/malam"),
                     footer: Text("Otomatis: peta berganti ke tema malam pukul 18.00 dan kembali ke tema siang pukul 06.00.")) {
                 Picker("Siang/malam", selection: $settings.nightMode) {
@@ -472,7 +485,9 @@ struct MapSettings: View {
                 if !settings.autoZoom {
                     sliderRow("Zoom peta", value: $settings.baseZoom, range: 13...19.5, step: 0.1, unit: "")
                 }
-                sliderRow("Kehalusan perpindahan zoom", value: $settings.zoomSmooth, range: 0...3, step: 0.1, unit: "dtk")
+                if settings.autoZoom {
+                    sliderRow("Kehalusan perpindahan zoom", value: $settings.zoomSmooth, range: 0...3, step: 0.1, unit: "dtk")
+                }
             }
             if settings.autoZoom {
                 Section(header: Text("Aturan zoom otomatis")) {
@@ -542,9 +557,11 @@ struct MapSettings: View {
                 Toggle("Estimasi jarak (sisa jarak)", isOn: $settings.etaShowDistance)
                 Toggle("Estimasi durasi perjalanan (sisa waktu)", isOn: $settings.etaShowDuration)
                 Toggle("Estimasi waktu sampai (jam tiba)", isOn: $settings.etaShowArrival)
-                sliderRow("Ukuran", value: $settings.etaScale, range: 0.6...1.4, step: 0.05, unit: "x")
-                sliderRow("Geser kiri ↔ kanan", value: $settings.etaDX, range: -54...300, step: 2, unit: "px")
-                sliderRow("Geser atas ↔ bawah", value: $settings.etaDY, range: -140...4, step: 2, unit: "px")
+                if settings.etaShowDistance || settings.etaShowDuration || settings.etaShowArrival {
+                    sliderRow("Ukuran", value: $settings.etaScale, range: 0.6...1.4, step: 0.05, unit: "x")
+                    sliderRow("Geser kiri ↔ kanan", value: $settings.etaDX, range: -54...300, step: 2, unit: "px")
+                    sliderRow("Geser atas ↔ bawah", value: $settings.etaDY, range: -140...4, step: 2, unit: "px")
+                }
             }
             Section(footer: Text("Nama jalan tampil di bilah bawah dash (dari GPS saat tidak navigasi, dari rute saat navigasi).")) {
                 Toggle("Nama jalan di bilah bawah dash", isOn: $settings.showRoadName)
@@ -562,6 +579,7 @@ struct MapSettings: View {
         }
         .navigationTitle("Peta")
         .navigationBarTitleDisplayMode(.inline)
+        .dashPinnedPreview(hint: "Contoh panel navigasi tampil selama halaman ini terbuka.")
         .dashPreviewLifecycle(demoNav: true, focus: .mapData)
     }
 }
@@ -589,12 +607,6 @@ struct CardSettings: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Pratinjau"),
-                    footer: Text(settings.showCards
-                                 ? "Pratinjau layar Peta; perubahan di bawah langsung terlihat."
-                                 : "Kartu Data sedang dimatikan. Nyalakan di Pengaturan > Layar dasbor > Kartu Data.")) {
-                DashPreviewBox()
-            }
             Section(header: Text("Tata letak")) {
                 Picker("Tata letak", selection: $settings.cardLayout) {
                     Text("1 besar + 2 kecil").tag(0)
@@ -624,6 +636,9 @@ struct CardSettings: View {
         }
         .navigationTitle("Kartu Data")
         .navigationBarTitleDisplayMode(.inline)
+        .dashPinnedPreview(hint: settings.showCards
+                           ? "Pratinjau layar Peta; perubahan di bawah langsung terlihat."
+                           : "Kartu Data sedang dimatikan. Nyalakan di Pengaturan > Layar dasbor > Kartu Data.")
         .dashPreviewLifecycle(focus: .mapData)
     }
 }
@@ -674,10 +689,6 @@ struct ScreensSettings: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Pratinjau"),
-                    footer: Text("Ketuk panah untuk berpindah layar. Perubahan di bawah langsung terlihat.")) {
-                DashPreviewBox()
-            }
             Section(header: Text("Layar yang bisa dipilih dengan tombol stang"),
                     footer: Text("Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Layar Foto hanya bisa diaktifkan bila sudah ada foto. Pratinjau pindah ke layar yang Anda aktifkan atau geser.")) {
                 Toggle("Peta", isOn: .constant(true)).disabled(true)
@@ -759,6 +770,7 @@ struct ScreensSettings: View {
         .navigationTitle("Layar dasbor")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { EditButton() } }
+        .dashPinnedPreview(hint: "Ketuk panah untuk berpindah layar. Perubahan di bawah langsung terlihat.")
         .dashPreviewLifecycle()
         .onAppear { syncSlideshowToggle() }
         .onChange(of: slides.files) { _ in syncSlideshowToggle() }
