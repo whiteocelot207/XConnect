@@ -372,11 +372,11 @@ struct DashPreviewLifecycle: ViewModifier {
             .onAppear {
                 bike.demoNav = demoNav
                 if let f = focus { bike.showScreen(f) }
-                bike.setPreviewVisible(true)
+                bike.setPreviewVisible(true, owner: "pengaturan")
             }
             .onDisappear {
                 bike.demoNav = false
-                bike.setPreviewVisible(false)
+                bike.setPreviewVisible(false, owner: "pengaturan")
             }
     }
 }
@@ -564,6 +564,14 @@ struct ScreensSettings: View {
             })
     }
 
+    /// Foto hanya bisa aktif bila ada foto: bila foto habis, saklarnya otomatis mati (dan layar awal kembali ke Peta).
+    private func syncSlideshowToggle() {
+        guard slides.files.isEmpty else { return }
+        let bit = 1 << DashScreen.slideshow.rawValue
+        if settings.screenMask & bit != 0 { settings.screenMask &= ~bit }
+        if settings.startScreen == DashScreen.slideshow.rawValue { settings.startScreen = 0 }
+    }
+
     /// Pilihan layar awal hanya Peta dan layar lain yang aktif.
     private var startBinding: Binding<Int> {
         Binding(
@@ -578,13 +586,14 @@ struct ScreensSettings: View {
                 DashPreviewBox()
             }
             Section(header: Text("Layar yang bisa dipilih dengan tombol stang"),
-                    footer: Text("Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Layar Foto baru muncul bila sudah ada foto. Pratinjau pindah ke layar yang Anda aktifkan atau geser.")) {
+                    footer: Text("Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Layar Foto hanya bisa diaktifkan bila sudah ada foto. Pratinjau pindah ke layar yang Anda aktifkan atau geser.")) {
                 Toggle("Peta", isOn: .constant(true)).disabled(true)
                 ForEach(otherScreens, id: \.rawValue) { s in
                     VStack(alignment: .leading, spacing: 2) {
                         Toggle(s.title, isOn: binding(s))
+                            .disabled(s == .slideshow && slides.files.isEmpty)
                         if s == .slideshow && slides.files.isEmpty {
-                            Text("Belum ada foto: layar Foto belum muncul di dash. Tambahkan foto di bagian Foto di bawah.")
+                            Text("Belum ada foto, jadi belum bisa diaktifkan. Tambahkan foto di bagian Foto di bawah.")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }
@@ -658,6 +667,8 @@ struct ScreensSettings: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { EditButton() } }
         .dashPreviewLifecycle()
+        .onAppear { syncSlideshowToggle() }
+        .onChange(of: slides.files) { _ in syncSlideshowToggle() }
         .sheet(isPresented: $picking) {
             PhotoPicker(limit: 20) { imgs in slides.add(imgs) }
         }

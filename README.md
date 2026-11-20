@@ -243,3 +243,6 @@ tata letak foto/data overlay.
 - Rata-rata BBM di tab Motor (riwayat perjalanan) ditampilkan dalam km/L.
 - Ikon belok kini dipusatkan di kotak hijau; kotak jarak/waktu memakai sudut yang sama kotaknya dengan kotak arah.
 - Pratinjau di Layar dasbor menampilkan posisi urutan ("Foto · 3 dari 4") dan pindah ke layar yang diaktifkan atau digeser.
+- Perbaikan pratinjau yang macet saat pindah dari Pengaturan ke Home: pratinjau kini dipakai bersama (tiap halaman punya
+  "pemilik" sendiri), jadi halaman Pengaturan yang menghilang tidak lagi mematikan pratinjau Home.
+- Layar Foto tidak bisa diaktifkan bila belum ada foto, dan otomatis mati bila semua foto dihapus.

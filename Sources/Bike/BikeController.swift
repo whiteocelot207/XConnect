@@ -56,6 +56,8 @@ final class BikeController: NSObject, ObservableObject {
     }()
     private var ccuStarted = false
     private var previewVisible = false
+    /// Halaman yang sedang memakai pratinjau ("home", "pengaturan"). Pratinjau mati hanya bila tidak ada pemakai lagi.
+    private var previewOwners = Set<String>()
     private var localTimer: Timer?
     private var localBusy = false
     private let geocoder = CLGeocoder()
@@ -579,12 +581,17 @@ final class BikeController: NSObject, ObservableObject {
 
     // MARK: - Preview di Home
 
-    /// Dipanggil Home saat tampil/hilang. Bila motor tidak tersambung, preview digambar lokal.
-    func setPreviewVisible(_ v: Bool) {
-        previewVisible = v
+    /// Dipanggil Home dan halaman Pengaturan saat tampil/hilang. Bila motor tidak tersambung, preview digambar lokal.
+    /// Tiap halaman memakai `owner` sendiri: saat berpindah tab, halaman yang hilang tidak boleh mematikan pratinjau
+    /// halaman yang baru tampil (urutan onDisappear/onAppear tidak dijamin), jadi pratinjau mati hanya bila semua pemakai sudah pergi.
+    func setPreviewVisible(_ v: Bool, owner: String = "home") {
+        if v { previewOwners.insert(owner) } else { previewOwners.remove(owner) }
+        let want = !previewOwners.isEmpty
+        if !v && want { return }              // masih ada halaman lain yang memakai pratinjau
+        previewVisible = want
         localTimer?.invalidate()
         localTimer = nil
-        if v {
+        if want {
             model?.music.start()
             model?.weather.refresh(location.coordinate)
             localTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
