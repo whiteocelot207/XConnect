@@ -537,7 +537,7 @@ final class BikeController: NSObject, ObservableObject {
         c.weatherText = m.weather.text
         c.nav = m.nav.hud
         if c.nav == nil, demoNav {
-            c.nav = NavHUD(icon: 35, text: "Ke Jalan Contoh", dist: "65 m", summary: "1,6 km · 0:37")
+            c.nav = NavHUD(icon: 35, text: "Jalan Lingkar Luar Jakarta", dist: "65 m", summary: "1,6 km · 0:37")
         }
         if let l = location.lastLocation {
             c.altitudeM = Int(l.altitude.rounded())

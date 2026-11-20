@@ -43,6 +43,12 @@ final class TripStore: ObservableObject {
         }
     }
 
+    /// Muat ulang riwayat perjalanan dari UserDefaults (setelah memulihkan cadangan).
+    func reload() {
+        if let data = UserDefaults.standard.data(forKey: "trips.v1"),
+           let t = try? JSONDecoder().decode([Trip].self, from: data) { trips = t } else { trips = [] }
+    }
+
     private func saveTrips() {
         if let data = try? JSONEncoder().encode(trips) { UserDefaults.standard.set(data, forKey: "trips.v1") }
     }

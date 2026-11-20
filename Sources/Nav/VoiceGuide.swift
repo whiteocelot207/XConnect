@@ -38,7 +38,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func test() {
-        speak("Dalam 100 meter, belok kanan ke Jalan Contoh", force: true)
+        speak("Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta", force: true)
     }
 
     /// Hentikan suara sekarang (navigasi dihentikan).

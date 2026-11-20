@@ -18,86 +18,22 @@ struct SettingsBackupDocument: FileDocument {
 }
 
 extension AppSettings {
-    static let backupKeys: [String] = [
-        "autoConnect",
-        "nightMode",
-        "routingBase",
-        "keepScreenOn",
-        "theme",
-        "userName",
-        "screenMask",
-        "buttonScheme",
-        "slideSeconds",
-        "saveBattery",
-        "showCards",
-        "routeColor",
-        "autoZoom",
-        "defaultKmPerL",
-        "updateRepo",
-        "updater",
-        "autoCheckUpdate",
-        "ccuEnabled",
-        "routeWidth",
-        "routeBorder",
-        "markerSize",
-        "markerRing",
-        "markerY",
-        "navPanelScale",
-        "musicBlurBG",
-        "cardLayout",
-        "cardBig",
-        "cardS1",
-        "cardS2",
-        "cardS3",
-        "cardS4",
-        "etaScale",
-        "infoDashL",
-        "infoDashR",
-        "infoMusicL",
-        "infoMusicR",
-        "infoPhotoL",
-        "infoPhotoR",
-        "photoShift",
-        "greetingWord",
-        "cardBgAlpha",
-        "markerX",
-        "navDX",
-        "navDY",
-        "etaDX",
-        "etaDY",
-        "startScreen",
-        "doubleClickMs",
-        "holdSkip",
-        "holdMs",
-        "ccuFuelByte",
-        "ccuFuelWide",
-        "ccuFuelUnit",
-        "ccuFuelDiv",
-        "dashLang",
-        "clock24",
-        "ccuExtraIds",
-        "showRoadName",
-        "cardFontBig",
-        "cardFontSmall",
-        "dashQuality",
-        "keepAliveAudio",
-        "etaShowDistance",
-        "etaShowDuration",
-        "etaShowArrival",
-        "guideVoice",
-        "guideDuck",
-        "guideDuckLevel",
-        "guideVolume",
-        "routePrimary",
-        "routeTopSpeed",
-        "routeHills",
-        "routeLiving",
-        "routeTrails",
-        "routeFerry",
-        "routeAvoidTolls",
-        "routeHighways",
-        "routeShortest"
+    /// Data motor berupa nilai sederhana (nama, tipe, tahun, plat, tangki, ODO, level bensin).
+    static let vehicleValueKeys: [String] = [
+        "veh.name", "veh.model", "veh.year", "veh.plate", "veh.tank",
+        "maint.odo.v3", "fuel.level", "fuel.odo", "fuel.mayBeOff"
     ]
+
+    /// Data berupa JSON biner: tempat tersimpan + favorit + terakhir, perawatan, isi bensin, pemakaian BBM, perjalanan.
+    static let blobKeys: [String] = [
+        "places.v1", "maint.items.v3", "fuel.fills", "fuel.useDays", "trips.v1"
+    ]
+
+    /// Foto motor disimpan sebagai file; ikut dicadangkan (base64).
+    private static let photoName = "motor.jpg"
+
+    /// Semua kunci pengaturan app (dari `defaultValues`, jadi pengaturan baru otomatis ikut) + data motor.
+    static var backupKeys: [String] { defaultValues.keys.sorted() + vehicleValueKeys }
 
     func exportBackup() -> Data {
         let d = UserDefaults.standard
@@ -105,11 +41,20 @@ extension AppSettings {
         for k in AppSettings.backupKeys {
             if let v = d.object(forKey: k) { out[k] = v }
         }
-        let wrapper: [String: Any] = ["app": "XConnect", "format": 1, "settings": out]
+        var blobs: [String: String] = [:]
+        for k in AppSettings.blobKeys {
+            if let data = d.data(forKey: k) { blobs[k] = data.base64EncodedString() }
+        }
+        var files: [String: String] = [:]
+        if let photo = try? Data(contentsOf: VehicleStore.photoURL) {
+            files[AppSettings.photoName] = photo.base64EncodedString()
+        }
+        let wrapper: [String: Any] = ["app": "XConnect", "format": 2, "settings": out, "data": blobs, "files": files]
         return (try? JSONSerialization.data(withJSONObject: wrapper, options: [.prettyPrinted, .sortedKeys])) ?? Data()
     }
 
     /// Mengembalikan jumlah item yang diterapkan, atau nil bila file bukan cadangan XConnect.
+    /// Cadangan format 1 (hanya pengaturan) tetap bisa dipulihkan.
     func importBackup(_ data: Data) -> Int? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               obj["app"] as? String == "XConnect",
@@ -119,7 +64,18 @@ extension AppSettings {
         for k in AppSettings.backupKeys {
             if let v = s[k] { d.set(v, forKey: k); n += 1 }
         }
+        if let blobs = obj["data"] as? [String: String] {
+            for k in AppSettings.blobKeys {
+                if let b64 = blobs[k], let raw = Data(base64Encoded: b64) { d.set(raw, forKey: k); n += 1 }
+            }
+        }
+        if let files = obj["files"] as? [String: String], let b64 = files[AppSettings.photoName],
+           let raw = Data(base64Encoded: b64) {
+            try? raw.write(to: VehicleStore.photoURL)
+            n += 1
+        }
         reloadFromDefaults()
+        AppModel.shared.reloadStores()
         return n
     }
 }

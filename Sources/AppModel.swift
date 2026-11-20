@@ -21,6 +21,15 @@ final class AppModel: ObservableObject {
     let updater = UpdateService()
     private var bag = Set<AnyCancellable>()
 
+    /// Muat ulang semua store dari UserDefaults/file setelah memulihkan cadangan.
+    func reloadStores() {
+        places.reload()
+        vehicle.reload()
+        maint.reload()
+        fuel.reload()
+        trips.reload()
+    }
+
     init() {
         let s = AppSettings()
         let loc = LocationProvider()

@@ -44,6 +44,18 @@ final class MaintenanceStore: ObservableObject {
         }
     }
 
+    /// Muat ulang dari UserDefaults (setelah memulihkan cadangan).
+    func reload() {
+        let d = UserDefaults.standard
+        odometerKm = d.double(forKey: "maint.odo.v3")
+        if let data = d.data(forKey: "maint.items.v3"),
+           let it = try? JSONDecoder().decode([MaintItem].self, from: data) {
+            items = it
+        } else {
+            items = MaintenanceStore.defaults()
+        }
+    }
+
     private func save() {
         if let data = try? JSONEncoder().encode(items) {
             UserDefaults.standard.set(data, forKey: "maint.items.v3")

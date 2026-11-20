@@ -27,7 +27,7 @@ struct MusicInfo {
 
 struct NavHUD {
     var icon: UInt8
-    var text: String        // "Ke Jalan Contoh" / "Ambil jalan keluar ke 3" (arah belok diwakili ikon)
+    var text: String        // "Jalan Lingkar Luar Jakarta" / "Ambil jalan keluar ke 3" (arah belok diwakili ikon)
     var dist: String        // "65 m"
     var summary: String     // "10,5 km · 22:32"
 }
@@ -174,7 +174,7 @@ enum DashComposer {
             // batas kanan area peta (kolom kotak data dimulai di x = 332)
             let rightLimit: CGFloat = withCards ? 326 : hud.size.width - 6
 
-            // panel belokan: ikon arah di kiri; teks = judul ("Ke Jalan Contoh" / "Ambil jalan keluar ke 3")
+            // panel belokan: ikon arah di kiri; teks = judul ("Jalan Lingkar Luar Jakarta" / "Ambil jalan keluar ke 3")
             // lalu jarak. Arah belok tidak ditulis karena sudah diwakili ikon.
             let panelH: CGFloat = 54
             let textW = max(textWidth(n.text, size: 15, bold: true), textWidth(n.dist, size: 17, bold: true))

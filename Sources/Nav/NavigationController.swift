@@ -7,7 +7,7 @@ struct DashNavState {
     var nextRoad: String
     var currentRoad: String
     var etaMinutes: Int
-    /// judul panel: "Ke Jalan Contoh" / "Ambil jalan keluar ke 3"
+    /// judul panel: "Jalan Lingkar Luar Jakarta" / "Ambil jalan keluar ke 3"
     var title: String = ""
 }
 

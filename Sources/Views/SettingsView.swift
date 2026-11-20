@@ -157,6 +157,25 @@ struct VehicleSettings: View {
     @State private var fuelTarget = ""
     @State private var fuelCands: [FuelByteCandidate] = []
     @State private var fuelSearched = false
+    @State private var pickingPhoto = false
+
+    private var isCustomModel: Bool {
+        !VehicleStore.presets.contains { $0.model == vehicle.model }
+    }
+
+    /// Pilihan tipe: XMAX, NMAX, atau Lainnya (isi sendiri).
+    private var modelChoice: Binding<String> {
+        Binding(
+            get: { isCustomModel ? "Lainnya" : vehicle.model },
+            set: { v in
+                if let p = VehicleStore.presets.first(where: { $0.model == v }) {
+                    vehicle.model = p.model
+                    vehicle.tankL = p.tankL
+                } else if !isCustomModel {
+                    vehicle.model = "Motor lain"
+                }
+            })
+    }
 
     private var ccuFuelReading: String {
         guard settings.ccuFuelByte >= 0 else { return "mati" }
@@ -176,9 +195,46 @@ struct VehicleSettings: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Motor")) {
+            Section(header: Text("Foto motor")) {
+                HStack(spacing: 14) {
+                    Group {
+                        if let img = vehicle.photo {
+                            Image(uiImage: img).resizable().scaledToFill()
+                        } else {
+                            Image(systemName: "bicycle").font(.largeTitle).foregroundColor(.blue)
+                        }
+                    }
+                    .frame(width: 72, height: 72)
+                    .background(Color.blue.opacity(0.12))
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.blue, lineWidth: 2))
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(vehicle.photo == nil ? "Pilih foto" : "Ganti foto") { pickingPhoto = true }
+                        if vehicle.photo != nil {
+                            Button("Hapus foto") { vehicle.removePhoto() }.foregroundColor(.red)
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(.vertical, 4)
+            }
+            Section(header: Text("Identitas motor"),
+                    footer: Text("Memilih XMAX atau NMAX mengisi kapasitas tangki otomatis; tetap bisa diubah di bawah.")) {
                 TextField("Nama motor", text: $vehicle.name)
-                TextField("Model", text: $vehicle.model)
+                Picker("Tipe motor", selection: modelChoice) {
+                    ForEach(VehicleStore.presets, id: \.model) { Text($0.model).tag($0.model) }
+                    Text("Lainnya").tag("Lainnya")
+                }
+                if isCustomModel {
+                    TextField("Tipe/model motor", text: $vehicle.model)
+                }
+                TextField("Tahun (mis. 2023)", text: $vehicle.year)
+                    .keyboardType(.numberPad)
+                TextField("Plat nomor", text: $vehicle.plate)
+                    .autocapitalization(.allCharacters)
+                    .disableAutocorrection(true)
+            }
+            Section(header: Text("Tangki dan konsumsi")) {
                 Stepper("Kapasitas tangki \(Fmt.liters(vehicle.tankL))", value: $vehicle.tankL, in: 3...30, step: 0.1)
                 Stepper("Konsumsi bawaan \(Fmt.km(settings.defaultKmPerL)) km/L", value: $settings.defaultKmPerL,
                         in: 10...80, step: 0.5)
@@ -233,6 +289,11 @@ struct VehicleSettings: View {
         }
         .navigationTitle("Motor dan BBM")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $pickingPhoto) {
+            PhotoPicker(limit: 1) { imgs in
+                if let i = imgs.first { vehicle.setPhoto(i) }
+            }
+        }
     }
 }
 
@@ -485,12 +546,26 @@ struct ScreensSettings: View {
         }
     }
 
+    /// Layar selain Peta menurut urutan sekarang (Peta selalu pertama dan tidak ikut diurutkan).
+    private var otherScreens: [DashScreen] {
+        settings.orderedScreens.filter { $0 != .mapData }
+    }
+
     private func binding(_ s: DashScreen) -> Binding<Bool> {
         Binding(
             get: { settings.screenMask & (1 << s.rawValue) != 0 },
             set: { on in
                 if on { settings.screenMask |= (1 << s.rawValue) } else { settings.screenMask &= ~(1 << s.rawValue) }
+                // layar awal yang baru dimatikan kembali ke Peta
+                if !on && settings.startScreen == s.rawValue { settings.startScreen = 0 }
             })
+    }
+
+    /// Pilihan layar awal hanya Peta dan layar lain yang aktif.
+    private var startBinding: Binding<Int> {
+        Binding(
+            get: { settings.enabledScreens.contains { $0.rawValue == settings.startScreen } ? settings.startScreen : 0 },
+            set: { settings.startScreen = $0 })
     }
 
     var body: some View {
@@ -500,21 +575,31 @@ struct ScreensSettings: View {
                 DashPreviewBox()
             }
             Section(header: Text("Layar yang bisa dipilih dengan tombol stang"),
-                    footer: Text("Slideshow foto hanya muncul bila ada foto.")) {
-                ForEach(DashScreen.allCases, id: \.rawValue) { s in
+                    footer: Text("Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Slideshow foto hanya muncul bila ada foto.")) {
+                Toggle("Peta", isOn: .constant(true)).disabled(true)
+                ForEach(otherScreens, id: \.rawValue) { s in
                     Toggle(s.title, isOn: binding(s))
+                }
+                .onMove { from, to in
+                    var list = otherScreens
+                    list.move(fromOffsets: from, toOffset: to)
+                    settings.setScreenOrder(list)
+                }
+            }
+            Section(header: Text("Saat motor dinyalakan"),
+                    footer: Text("Layar yang tampil pertama di dash setelah terhubung, tanpa perlu membuka app. Pilihannya Peta dan layar lain yang aktif.")) {
+                Picker("Layar awal", selection: startBinding) {
+                    ForEach(settings.enabledScreens, id: \.rawValue) { sc in Text(sc.title).tag(sc.rawValue) }
                 }
             }
             Section(header: Text("Kartu Data"),
                     footer: Text("Kartu cuaca, bensin, dan data motor di sisi kanan layar Peta. Isi dan tata letaknya diatur di Pengaturan > Kartu Data.")) {
                 Toggle("Tampilkan Kartu Data", isOn: $settings.showCards)
             }
-            Section(header: Text("Saat motor dinyalakan"),
-                    footer: Text("Layar yang tampil pertama di dash setelah terhubung, tanpa perlu membuka app. Hanya layar yang aktif di atas yang dipakai.")) {
-                Picker("Layar awal", selection: $settings.startScreen) {
-                    Text("Layar pertama yang aktif").tag(-1)
-                    ForEach(DashScreen.allCases, id: \.rawValue) { sc in Text(sc.title).tag(sc.rawValue) }
-                }
+            Section(header: Text("Speedometer"),
+                    footer: Text("Data di pojok kiri/kanan atas layar Speedometer, atau Kosong untuk menyembunyikannya.")) {
+                infoPicker("Pojok kiri", $settings.infoDashL)
+                infoPicker("Pojok kanan", $settings.infoDashR)
             }
             Section(header: Text("Musik"),
                     footer: Text("Hanya lagu dari app Musik (Apple Music) yang bisa dibaca. Spotify dan app lain tidak membagikan info lagunya di iOS.")) {
@@ -524,17 +609,13 @@ struct ScreensSettings: View {
                     Button("Izinkan akses musik") { music.requestAccess() }
                 }
                 Toggle("Latar sampul blur", isOn: $settings.musicBlurBG)
+                infoPicker("Pojok kiri", $settings.infoMusicL)
+                infoPicker("Pojok kanan", $settings.infoMusicR)
             }
-            Section(header: Text("Info di pojok layar"),
-                    footer: Text("Pilih data yang tampil di pojok kiri/kanan atas tiap layar, atau Kosong untuk menyembunyikannya.")) {
-                infoPicker("Speedometer: kiri", $settings.infoDashL)
-                infoPicker("Speedometer: kanan", $settings.infoDashR)
-                infoPicker("Musik: kiri", $settings.infoMusicL)
-                infoPicker("Musik: kanan", $settings.infoMusicR)
-                infoPicker("Foto: kiri", $settings.infoPhotoL)
-                infoPicker("Foto: kanan", $settings.infoPhotoR)
-            }
-            Section(header: Text("Foto slideshow")) {
+            Section(header: Text("Foto"),
+                    footer: Text("Data di pojok kiri/kanan layar Foto, atau Kosong untuk menyembunyikannya.")) {
+                infoPicker("Pojok kiri", $settings.infoPhotoL)
+                infoPicker("Pojok kanan", $settings.infoPhotoR)
                 sliderRow("Geser foto (atas ↔ bawah)", value: $settings.photoShift, range: -40...40, step: 1, unit: "px")
                 Stepper("Ganti foto tiap \(settings.slideSeconds) detik", value: $settings.slideSeconds, in: 2...60)
                 Button("Tambah foto") { picking = true }
@@ -563,6 +644,7 @@ struct ScreensSettings: View {
         }
         .navigationTitle("Layar dasbor")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { EditButton() } }
         .dashPreviewLifecycle()
         .sheet(isPresented: $picking) {
             PhotoPicker(limit: 20) { imgs in slides.add(imgs) }
@@ -591,7 +673,7 @@ struct RouteSettings: View {
                 Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
             }
             Section(header: Text("Suara petunjuk arah"),
-                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
+                    footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta\". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
                 Toggle("Suara pemberitahuan", isOn: $settings.guideVoice)
                 if settings.guideVoice {
                     Toggle("Kecilkan volume musik saat berbunyi", isOn: $settings.guideDuck)
@@ -767,7 +849,7 @@ struct BackupSettings: View {
 
     var body: some View {
         Form {
-            Section(footer: Text("Cadangan berisi semua pengaturan app (layar dash, kotak data, peta, tombol, update). Foto slideshow, favorit, dan riwayat perjalanan tidak ikut.")) {
+            Section(footer: Text("Cadangan berisi semua pengaturan app (tampilan, koneksi, layar dash, Kartu Data, peta, tombol, rute, update), tempat tersimpan (Rumah, Kantor, favorit, terakhir), data motor (nama, tipe, tahun, plat, foto, tangki), perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Foto slideshow dan peta offline tidak ikut karena ukurannya besar.")) {
                 Button("Simpan cadangan ke file") {
                     doc = SettingsBackupDocument(data: settings.exportBackup())
                     exporting = true

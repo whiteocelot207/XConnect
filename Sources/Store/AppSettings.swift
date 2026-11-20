@@ -13,6 +13,8 @@ final class AppSettings: ObservableObject {
     /// bit 0 = Peta, 2 = Speedometer, 3 = Musik, 4 = Foto (bit 1 Peta saja dan bit 5 Tes tombol sudah dihapus)
     @Published var screenMask: Int { didSet { put("screenMask", screenMask) } }
     /// 0 = 1x tekan ganti tampilan, 2x zoom (seperti NConnect); 1 = 1x zoom, 2x ganti tampilan
+    /// urutan layar dash (rawValue dipisah koma). Peta selalu pertama dan selalu aktif.
+    @Published var screenOrder: String { didSet { put("screenOrder", screenOrder) } }
     @Published var buttonScheme: Int { didSet { put("buttonScheme", buttonScheme) } }
     @Published var slideSeconds: Int { didSet { put("slideSeconds", slideSeconds) } }
     @Published var saveBattery: Bool { didSet { put("saveBattery", saveBattery) } }
@@ -66,7 +68,7 @@ final class AppSettings: ObservableObject {
     /// geser pil jarak + ETA, px dari posisi bawaan
     @Published var etaDX: Double { didSet { put("etaDX", etaDX) } }
     @Published var etaDY: Double { didSet { put("etaDY", etaDY) } }
-    /// layar yang tampil pertama saat motor dinyalakan (DashScreen.rawValue), -1 = layar pertama yang aktif
+    /// layar yang tampil pertama saat motor dinyalakan (DashScreen.rawValue); bawaan Peta
     @Published var startScreen: Int { didSet { put("startScreen", startScreen) } }
     /// jendela klik cepat 2x di tombol stang (milidetik)
     @Published var doubleClickMs: Int { didSet { put("doubleClickMs", doubleClickMs) } }
@@ -103,7 +105,7 @@ final class AppSettings: ObservableObject {
     @Published var etaShowDuration: Bool { didSet { put("etaShowDuration", etaShowDuration) } }
     @Published var etaShowArrival: Bool { didSet { put("etaShowArrival", etaShowArrival) } }
 
-    /// suara petunjuk arah ("Dalam 100 meter, belok kanan ke ...")
+    /// suara petunjuk arah ("Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta")
     @Published var guideVoice: Bool { didSet { put("guideVoice", guideVoice) } }
     /// kecilkan volume musik/audio app lain selama suara berbunyi, lalu kembalikan
     @Published var guideDuck: Bool { didSet { put("guideDuck", guideDuck) } }
@@ -123,11 +125,9 @@ final class AppSettings: ObservableObject {
     @Published var routeHighways: Double { didSet { put("routeHighways", routeHighways) } }
     @Published var routeShortest: Bool { didSet { put("routeShortest", routeShortest) } }
 
-    private func put(_ key: String, _ value: Any) { UserDefaults.standard.set(value, forKey: key) }
-
-    init() {
-        let d = UserDefaults.standard
-        d.register(defaults: [
+    /// Semua pengaturan beserta nilai bawaannya. Satu-satunya sumber daftar kunci: cadangan (SettingsBackup)
+    /// memakai kunci dari sini, jadi pengaturan baru otomatis ikut dicadangkan.
+    static let defaultValues: [String: Any] = [
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
             "theme": 0, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
@@ -145,8 +145,15 @@ final class AppSettings: ObservableObject {
             "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.55, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": true, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
-            "routeShortest": false
-        ])
+            "routeShortest": false,
+            "screenOrder": "0,2,3,4"
+    ]
+
+    private func put(_ key: String, _ value: Any) { UserDefaults.standard.set(value, forKey: key) }
+
+    init() {
+        let d = UserDefaults.standard
+        d.register(defaults: AppSettings.defaultValues)
         autoConnect = d.bool(forKey: "autoConnect")
         nightMode = d.integer(forKey: "nightMode")
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
@@ -154,6 +161,7 @@ final class AppSettings: ObservableObject {
         theme = d.integer(forKey: "theme")
         userName = d.string(forKey: "userName") ?? ""
         screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
+        screenOrder = d.string(forKey: "screenOrder") ?? "0,2,3,4"
         buttonScheme = d.integer(forKey: "buttonScheme")
         slideSeconds = max(2, d.integer(forKey: "slideSeconds"))
         saveBattery = d.bool(forKey: "saveBattery")
@@ -238,6 +246,7 @@ final class AppSettings: ObservableObject {
         theme = d.integer(forKey: "theme")
         userName = d.string(forKey: "userName") ?? ""
         screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
+        screenOrder = d.string(forKey: "screenOrder") ?? "0,2,3,4"
         buttonScheme = d.integer(forKey: "buttonScheme")
         slideSeconds = max(2, d.integer(forKey: "slideSeconds"))
         saveBattery = d.bool(forKey: "saveBattery")
@@ -317,15 +326,14 @@ final class AppSettings: ObservableObject {
 
     /// Layar lama yang sudah dihapus: "Peta saja" (bit 1) digabung ke Peta, "Tes tombol" (bit 5) dibuang.
     /// Layar awal yang menunjuk ke layar itu dikembalikan ke bawaan.
+    /// Peta (bit 0) selalu aktif; bit layar lama yang sudah dihapus (1 = Peta saja, 5 = Tes tombol) dibuang.
     private static func migratedMask(_ mask: Int) -> Int {
-        var m = mask
-        if m & (1 << 1) != 0 { m |= 1 }
-        m &= ~((1 << 1) | (1 << 5))
-        return m & 0b11101 == 0 ? 1 : m
+        (mask | 1) & 0b11101
     }
 
+    /// Layar awal: nilai lama -1 ("layar pertama yang aktif") dan layar yang sudah dihapus menjadi Peta.
     private static func migratedStart(_ start: Int) -> Int {
-        start == 1 ? 0 : (start == 5 ? -1 : start)
+        [0, 2, 3, 4].contains(start) ? start : 0
     }
 
     var routeProfile: RouteProfile {
@@ -356,9 +364,25 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// Semua layar menurut urutan pilihan pengguna: Peta selalu pertama, sisanya sesuai `screenOrder`
+    /// (layar yang belum tercatat di urutan ditaruh di akhir).
+    var orderedScreens: [DashScreen] {
+        var out: [DashScreen] = [.mapData]
+        for t in screenOrder.split(separator: ",") {
+            if let v = Int(t), let sc = DashScreen(rawValue: v), !out.contains(sc) { out.append(sc) }
+        }
+        for sc in DashScreen.allCases where !out.contains(sc) { out.append(sc) }
+        return out
+    }
+
+    /// Layar yang aktif menurut urutan. Peta selalu ada.
     var enabledScreens: [DashScreen] {
-        let list = DashScreen.allCases.filter { screenMask & (1 << $0.rawValue) != 0 }
-        return list.isEmpty ? [.mapData] : list
+        orderedScreens.filter { $0 == .mapData || screenMask & (1 << $0.rawValue) != 0 }
+    }
+
+    /// Simpan urutan layar selain Peta (Peta tetap di depan).
+    func setScreenOrder(_ others: [DashScreen]) {
+        screenOrder = ([DashScreen.mapData] + others.filter { $0 != .mapData }).map { String($0.rawValue) }.joined(separator: ",")
     }
 
     var maxFps: Double { saveBattery ? 4 : 10 }

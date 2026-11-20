@@ -42,6 +42,16 @@ final class FuelStore: ObservableObject {
         mayBeOff = d.bool(forKey: "fuel.mayBeOff")
     }
 
+    /// Muat ulang dari UserDefaults (setelah memulihkan cadangan).
+    func reload() {
+        let d = UserDefaults.standard
+        if let data = d.data(forKey: "fuel.fills"), let f = try? JSONDecoder().decode([FuelFill].self, from: data) { fills = f } else { fills = [] }
+        levelL = d.double(forKey: "fuel.level")
+        odoAtLevel = d.double(forKey: "fuel.odo")
+        if let data = d.data(forKey: "fuel.useDays"), let u = try? JSONDecoder().decode([FuelUseDay].self, from: data) { useDays = u } else { useDays = [] }
+        mayBeOff = d.bool(forKey: "fuel.mayBeOff")
+    }
+
     private func saveDays() {
         if let data = try? JSONEncoder().encode(useDays) { UserDefaults.standard.set(data, forKey: "fuel.useDays") }
     }

@@ -39,6 +39,22 @@ final class PlaceStore: ObservableObject {
         }
     }
 
+    /// Muat ulang dari UserDefaults (setelah memulihkan cadangan).
+    func reload() {
+        if let d = UserDefaults.standard.data(forKey: "places.v1"),
+           let s = try? JSONDecoder().decode(Stored.self, from: d) {
+            home = s.home
+            work = s.work
+            favorites = s.favorites
+            recents = s.recents
+        } else {
+            home = nil
+            work = nil
+            favorites = []
+            recents = []
+        }
+    }
+
     private func save() {
         let s = Stored(home: home, work: work, favorites: favorites, recents: recents)
         if let d = try? JSONEncoder().encode(s) {

@@ -1,7 +1,6 @@
 import SwiftUI
 
 enum MotorSheet: Identifiable {
-    case editVehicle
     case odometer
     case addLiters
     case setLevel
@@ -11,7 +10,6 @@ enum MotorSheet: Identifiable {
 
     var id: String {
         switch self {
-        case .editVehicle: return "editVehicle"
         case .odometer: return "odometer"
         case .addLiters: return "addLiters"
         case .setLevel: return "setLevel"
@@ -75,12 +73,18 @@ struct MotorView: View {
                 .background(Color.blue.opacity(0.12))
                 .clipShape(Circle())
                 .overlay(Circle().stroke(Color.blue, lineWidth: 2))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(vehicle.name).font(.title2).bold()
-                    Text(vehicle.model).foregroundColor(.secondary)
+                    let sub = [vehicle.model, vehicle.year].filter { !$0.isEmpty }.joined(separator: " · ")
+                    if !sub.isEmpty { Text(sub).foregroundColor(.secondary) }
+                    if !vehicle.plate.isEmpty {
+                        Text(vehicle.plate)
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Capsule().fill(Color.gray.opacity(0.2)))
+                    }
                 }
                 Spacer()
-                Button { sheet = .editVehicle } label: { Image(systemName: "pencil") }
             }
             .padding()
             .background(cardBG)
@@ -144,21 +148,6 @@ struct MotorView: View {
         let kmpl = kmplInfo.value
         return VStack(alignment: .leading, spacing: 10) {
             Text("Sisa bahan bakar (perkiraan)").font(.headline)
-            HStack {
-                ForEach([("XMAX", 13.0), ("NMAX", 7.1)], id: \.0) { m in
-                    Button {
-                        vehicle.model = m.0
-                        vehicle.tankL = m.1
-                    } label: {
-                        Text("\(m.0) · \(Fmt.liters(m.1))")
-                            .font(.footnote).bold()
-                            .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(vehicle.model == m.0 ? Color.blue : Color.gray.opacity(0.2))
-                            .foregroundColor(vehicle.model == m.0 ? .white : .primary)
-                            .cornerRadius(16)
-                    }
-                }
-            }
             HStack(alignment: .firstTextBaseline) {
                 Text(fuel.levelL > 0 ? "≈ \(rangeKm) km" : "— km").font(.largeTitle).bold()
                 Spacer()
@@ -327,8 +316,6 @@ struct MotorView: View {
     @ViewBuilder
     private func sheetView(_ s: MotorSheet) -> some View {
         switch s {
-        case .editVehicle:
-            VehicleEditSheet()
         case .odometer:
             NumberSheet(title: "ODO (km)", initial: maint.odometerKm) { maint.odometerKm = $0 }
         case .setLevel:
@@ -377,39 +364,6 @@ struct NumberSheet: View {
                 }
             }
             .onAppear { text = initial > 0 ? String(format: "%g", initial) : "" }
-        }
-    }
-}
-
-struct VehicleEditSheet: View {
-    @EnvironmentObject var vehicle: VehicleStore
-    @Environment(\.presentationMode) private var presentation
-    @State private var picking = false
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Identitas")) {
-                    TextField("Nama motor", text: $vehicle.name)
-                    TextField("Model", text: $vehicle.model)
-                    Stepper("Kapasitas tangki \(Fmt.liters(vehicle.tankL))", value: $vehicle.tankL, in: 3...30, step: 0.1)
-                }
-                Section {
-                    Button("Pilih foto motor") { picking = true }
-                }
-            }
-            .navigationTitle("Motor")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Selesai") { presentation.wrappedValue.dismiss() }
-                }
-            }
-            .sheet(isPresented: $picking) {
-                PhotoPicker(limit: 1) { imgs in
-                    if let i = imgs.first { vehicle.setPhoto(i) }
-                }
-            }
         }
     }
 }

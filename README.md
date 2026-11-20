@@ -223,3 +223,16 @@ tata letak foto/data overlay.
 - Layar "Peta saja" dan "Tes tombol" dihapus; "Peta + data" kini bernama "Peta". Kartu cuaca/bensin menjadi "Kartu Data"
   dengan saklar sendiri di Layar dasbor. Pratinjau realtime ada di Layar dasbor, Kartu Data, dan Peta.
 - Pilihan kendaraan di Rute dan pencarian dihapus (selalu skuter). Mode peta otomatis: malam 18.00-06.00.
+
+### Pembaruan berikutnya
+
+- **Layar dasbor**: Peta selalu aktif (tidak bisa dimatikan) dan selalu pertama; layar lain bisa diurutkan (Edit di kanan atas).
+  Layar awal hanya menawarkan Peta dan layar yang aktif. Info pojok kiri/kanan kini ada di bagian masing-masing
+  (Speedometer, Musik, Foto).
+- **Teks belokan** di dash dan app tidak lagi memakai awalan "Ke"; suara tetap "belok kiri ke Jalan ...".
+  Contoh suara: "Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta".
+- **Cadangan (format 2)** kini memuat semua pengaturan (daftar kunci diambil dari `AppSettings.defaultValues`, jadi
+  pengaturan baru otomatis ikut), tempat tersimpan dan favorit, data motor (nama, tipe, tahun, plat, foto, tangki),
+  perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Cadangan format 1 lama tetap bisa dipulihkan.
+- **Motor dan BBM**: foto motor, tipe (XMAX/NMAX/lainnya), tahun, dan plat nomor diatur di Pengaturan; tombol pensil
+  di tab Motor dihapus.

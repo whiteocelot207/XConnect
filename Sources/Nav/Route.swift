@@ -9,13 +9,13 @@ struct Maneuver {
     let beginIdx: Int
     /// nomor jalan keluar di bundaran (0 = tidak ada)
     var exitCount: Int = 0
-    /// kalimat lisan dari Valhalla, mis. "Belok kanan ke Jalan Contoh."
+    /// kalimat lisan dari Valhalla, mis. "Belok kanan ke Jalan Lingkar Luar Jakarta."
     var verbal: String = ""
 }
 
 extension Maneuver {
     /// Baris judul di dash dan ponsel. Arah belok sudah diwakili ikon, jadi yang ditulis hanya
-    /// tujuan belokan: "Ke Jalan Contoh". Di bundaran: "Ambil jalan keluar ke 3".
+    /// nama jalan tujuan belokan saja: "Jalan Lingkar Luar Jakarta" (tanpa awalan "Ke"). Di bundaran: "Ambil jalan keluar ke 3".
     var title: String {
         switch type {
         case 4, 5, 6:
@@ -23,12 +23,12 @@ extension Maneuver {
         case 26:
             return exitCount > 0 ? "Ambil jalan keluar ke \(exitCount)" : "Masuk bundaran"
         default:
-            return street.isEmpty ? DashIcon.shortText(DashIcon.forValhalla(type)) : "Ke " + street
+            return street.isEmpty ? DashIcon.shortText(DashIcon.forValhalla(type)) : street
         }
     }
 
     /// Isi kalimat lengkap tanpa awalan jarak (huruf pertama kecil), dipakai untuk suara dan teks ponsel:
-    /// "belok kanan ke Jalan Contoh", "di bundaran, ambil jalan keluar ke 3".
+    /// "belok kanan ke Jalan Lingkar Luar Jakarta", "di bundaran, ambil jalan keluar ke 3".
     var spokenBody: String {
         if type == 26 {
             return exitCount > 0 ? "di bundaran, ambil jalan keluar ke \(exitCount)" : "masuk bundaran"
@@ -63,12 +63,12 @@ extension Maneuver {
         return street.isEmpty ? verb : verb + " ke " + street
     }
 
-    /// Kalimat lengkap dengan jarak: "Dalam 65 meter, belok kanan ke Jalan Contoh".
+    /// Kalimat lengkap dengan jarak: "Dalam 65 meter, belok kanan ke Jalan Lingkar Luar Jakarta".
     func sentence(distanceM: Double) -> String {
         "Dalam \(Maneuver.spokenDistance(distanceM)), " + spokenBody
     }
 
-    /// Kalimat tanpa jarak: "Belok kanan ke Jalan Contoh".
+    /// Kalimat tanpa jarak: "Belok kanan ke Jalan Lingkar Luar Jakarta".
     var sentenceNow: String {
         spokenBody.prefix(1).uppercased() + spokenBody.dropFirst()
     }
