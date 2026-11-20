@@ -303,7 +303,7 @@ struct MotorView: View {
                 infoTile("Kecepatan tertinggi", "\(Int(maxKmh.rounded())) km/j", "speedometer")
                 infoTile("Kecepatan rata-rata", "\(Int(avg.rounded())) km/j", "chart.line.uptrend.xyaxis")
                 infoTile("Waktu berkendara", "\(Int((sec / 60).rounded())) menit", "clock.fill")
-                infoTile("Rata-rata BBM", Fmt.km(100 / kmpl, decimals: 2) + " L/100km", "fuelpump.fill")
+                infoTile("Rata-rata BBM", Fmt.km(kmpl) + " km/L", "fuelpump.fill")
             }
             Text("Perjalanan dicatat otomatis selama dash tersambung (jarak dari GPS). Perjalanan di bawah 200 m diabaikan.")
                 .font(.footnote)

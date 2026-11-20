@@ -55,6 +55,20 @@ final class PlaceStore: ObservableObject {
         }
     }
 
+    /// Isi cadangan: Rumah, Kantor, dan favorit. Daftar "Terakhir" sengaja dikosongkan.
+    static func backupBlob(_ data: Data) -> Data? {
+        guard var s = try? JSONDecoder().decode(Stored.self, from: data) else { return nil }
+        s.recents = []
+        return try? JSONEncoder().encode(s)
+    }
+
+    /// Memulihkan Rumah, Kantor, dan favorit dari cadangan; daftar "Terakhir" yang sekarang di ponsel dipertahankan.
+    static func restoreBlob(_ backup: Data, keepingRecentsFrom current: Data?) -> Data? {
+        guard var s = try? JSONDecoder().decode(Stored.self, from: backup) else { return nil }
+        s.recents = current.flatMap { try? JSONDecoder().decode(Stored.self, from: $0) }?.recents ?? []
+        return try? JSONEncoder().encode(s)
+    }
+
     private func save() {
         let s = Stored(home: home, work: work, favorites: favorites, recents: recents)
         if let d = try? JSONEncoder().encode(s) {

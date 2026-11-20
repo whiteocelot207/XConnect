@@ -236,3 +236,10 @@ tata letak foto/data overlay.
   perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Cadangan format 1 lama tetap bisa dipulihkan.
 - **Motor dan BBM**: foto motor, tipe (XMAX/NMAX/lainnya), tahun, dan plat nomor diatur di Pengaturan; tombol pensil
   di tab Motor dihapus.
+
+### Pembaruan ketiga
+
+- Daftar tempat "Terakhir" tidak ikut cadangan (saat memulihkan, daftar Terakhir di ponsel dipertahankan).
+- Rata-rata BBM di tab Motor (riwayat perjalanan) ditampilkan dalam km/L.
+- Ikon belok kini dipusatkan di kotak hijau; kotak jarak/waktu memakai sudut yang sama kotaknya dengan kotak arah.
+- Pratinjau di Layar dasbor menampilkan posisi urutan ("Foto · 3 dari 4") dan pindah ke layar yang diaktifkan atau digeser.

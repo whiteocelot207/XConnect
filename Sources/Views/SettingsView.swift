@@ -350,7 +350,8 @@ struct DashPreviewBox: View {
                 Button { bike.stepScreen(forward: false) } label: { Image(systemName: "chevron.left") }
                     .buttonStyle(.bordered)
                 Spacer()
-                Text(bike.currentScreen.title).font(.footnote)
+                Text("\(bike.currentScreen.title) · \(min(bike.screenIndex, bike.screens().count - 1) + 1) dari \(bike.screens().count)")
+                    .font(.footnote)
                 Spacer()
                 Button { bike.stepScreen(forward: true) } label: { Image(systemName: "chevron.right") }
                     .buttonStyle(.bordered)
@@ -538,6 +539,7 @@ struct ScreensSettings: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var slides: SlideshowStore
     @EnvironmentObject var music: MusicService
+    @EnvironmentObject var bike: BikeController
     @State private var picking = false
 
     private func infoPicker(_ title: String, _ sel: Binding<Int>) -> some View {
@@ -556,6 +558,7 @@ struct ScreensSettings: View {
             get: { settings.screenMask & (1 << s.rawValue) != 0 },
             set: { on in
                 if on { settings.screenMask |= (1 << s.rawValue) } else { settings.screenMask &= ~(1 << s.rawValue) }
+                if on { bike.showScreen(s) }
                 // layar awal yang baru dimatikan kembali ke Peta
                 if !on && settings.startScreen == s.rawValue { settings.startScreen = 0 }
             })
@@ -575,15 +578,24 @@ struct ScreensSettings: View {
                 DashPreviewBox()
             }
             Section(header: Text("Layar yang bisa dipilih dengan tombol stang"),
-                    footer: Text("Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Slideshow foto hanya muncul bila ada foto.")) {
+                    footer: Text("Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Layar Foto baru muncul bila sudah ada foto. Pratinjau pindah ke layar yang Anda aktifkan atau geser.")) {
                 Toggle("Peta", isOn: .constant(true)).disabled(true)
                 ForEach(otherScreens, id: \.rawValue) { s in
-                    Toggle(s.title, isOn: binding(s))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Toggle(s.title, isOn: binding(s))
+                        if s == .slideshow && slides.files.isEmpty {
+                            Text("Belum ada foto: layar Foto belum muncul di dash. Tambahkan foto di bagian Foto di bawah.")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
                 }
                 .onMove { from, to in
                     var list = otherScreens
+                    let moved = from.first.map { list[$0] }
                     list.move(fromOffsets: from, toOffset: to)
                     settings.setScreenOrder(list)
+                    if let m = moved { bike.showScreen(m) }      // pratinjau ikut ke layar yang digeser
                 }
             }
             Section(header: Text("Saat motor dinyalakan"),
@@ -849,7 +861,7 @@ struct BackupSettings: View {
 
     var body: some View {
         Form {
-            Section(footer: Text("Cadangan berisi semua pengaturan app (tampilan, koneksi, layar dash, Kartu Data, peta, tombol, rute, update), tempat tersimpan (Rumah, Kantor, favorit, terakhir), data motor (nama, tipe, tahun, plat, foto, tangki), perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Foto slideshow dan peta offline tidak ikut karena ukurannya besar.")) {
+            Section(footer: Text("Cadangan berisi semua pengaturan app (tampilan, koneksi, layar dash, Kartu Data, peta, tombol, rute, update), tempat tersimpan (Rumah, Kantor, favorit; daftar Terakhir tidak ikut), data motor (nama, tipe, tahun, plat, foto, tangki), perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Foto slideshow dan peta offline tidak ikut karena ukurannya besar.")) {
                 Button("Simpan cadangan ke file") {
                     doc = SettingsBackupDocument(data: settings.exportBackup())
                     exporting = true

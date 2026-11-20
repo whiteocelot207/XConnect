@@ -24,7 +24,7 @@ extension AppSettings {
         "maint.odo.v3", "fuel.level", "fuel.odo", "fuel.mayBeOff"
     ]
 
-    /// Data berupa JSON biner: tempat tersimpan + favorit + terakhir, perawatan, isi bensin, pemakaian BBM, perjalanan.
+    /// Data berupa JSON biner: tempat tersimpan (Rumah, Kantor, favorit; "Terakhir" tidak ikut), perawatan, isi bensin, pemakaian BBM, perjalanan.
     static let blobKeys: [String] = [
         "places.v1", "maint.items.v3", "fuel.fills", "fuel.useDays", "trips.v1"
     ]
@@ -43,7 +43,9 @@ extension AppSettings {
         }
         var blobs: [String: String] = [:]
         for k in AppSettings.blobKeys {
-            if let data = d.data(forKey: k) { blobs[k] = data.base64EncodedString() }
+            guard var data = d.data(forKey: k) else { continue }
+            if k == "places.v1" { data = PlaceStore.backupBlob(data) ?? data }   // tempat "Terakhir" tidak ikut
+            blobs[k] = data.base64EncodedString()
         }
         var files: [String: String] = [:]
         if let photo = try? Data(contentsOf: VehicleStore.photoURL) {
@@ -66,7 +68,10 @@ extension AppSettings {
         }
         if let blobs = obj["data"] as? [String: String] {
             for k in AppSettings.blobKeys {
-                if let b64 = blobs[k], let raw = Data(base64Encoded: b64) { d.set(raw, forKey: k); n += 1 }
+                guard let b64 = blobs[k], var raw = Data(base64Encoded: b64) else { continue }
+                if k == "places.v1" { raw = PlaceStore.restoreBlob(raw, keepingRecentsFrom: d.data(forKey: k)) ?? raw }
+                d.set(raw, forKey: k)
+                n += 1
             }
         }
         if let files = obj["files"] as? [String: String], let b64 = files[AppSettings.photoName],

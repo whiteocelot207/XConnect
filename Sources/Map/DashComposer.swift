@@ -199,7 +199,7 @@ enum DashComposer {
             if !n.summary.isEmpty {
             let ke = max(0.6, min(1.4, c.etaScale))
             let pillW = max(70, textWidth(n.summary, size: 13, bold: true) + 20)
-            let pillH: CGFloat = 26
+            let pillH: CGFloat = 28
             let pw = pillW * ke, ph = pillH * ke
             let etaX = max(0, min(max(54 + c.etaDX, 0), rightLimit - pw))
             let etaY = min(max(vis.maxY - ph - 4 + c.etaDY, vis.minY), vis.maxY - ph)
@@ -207,7 +207,7 @@ enum DashComposer {
             cg.translateBy(x: etaX, y: etaY)
             cg.scaleBy(x: ke, y: ke)
             let pill = CGRect(x: 0, y: 0, width: pillW, height: pillH)
-            fillRound(pill, radius: 10, color: green)
+            fillRound(pill, radius: 6, color: green)
             text(n.summary, pill, size: 13, bold: true, align: .center, inset: 4)
             cg.restoreGState()
             }
@@ -691,6 +691,7 @@ enum TurnGlyph {
         case 36, 37:
             // jalur dasar melengkung ke KIRI (36 = putar balik kiri, 37 = putar balik kanan -> dicerminkan)
             if code == 37 { cg.scaleBy(x: -1, y: 1) }
+            cg.translateBy(x: 0, y: -9)      // pusatkan secara vertikal
             let u = UIBezierPath()
             u.move(to: CGPoint(x: 18, y: 44))
             u.addLine(to: CGPoint(x: 18, y: -8))
@@ -717,6 +718,15 @@ enum TurnGlyph {
             let dir = CGPoint(x: CGFloat(sin(rad)), y: CGFloat(-cos(rad)))
             let pivot = CGPoint(x: 0, y: 8)
             let end = CGPoint(x: pivot.x + dir.x * 34, y: pivot.y + dir.y * 34)
+            // pusatkan seluruh bentuk (ekor, tekukan, kepala panah) di tengah kotak ikon
+            let perp = CGPoint(x: -dir.y, y: dir.x)
+            let pts = [CGPoint(x: 0, y: 46), pivot, end,
+                       CGPoint(x: end.x + dir.x * 18, y: end.y + dir.y * 18),
+                       CGPoint(x: end.x + perp.x * 20, y: end.y + perp.y * 20),
+                       CGPoint(x: end.x - perp.x * 20, y: end.y - perp.y * 20)]
+            let minX = pts.map { $0.x }.min() ?? 0, maxX = pts.map { $0.x }.max() ?? 0
+            let minY = pts.map { $0.y }.min() ?? 0, maxY = pts.map { $0.y }.max() ?? 0
+            cg.translateBy(x: -(minX + maxX) / 2, y: -(minY + maxY) / 2)
             let path = UIBezierPath()
             path.move(to: CGPoint(x: 0, y: 46))
             path.addLine(to: pivot)
