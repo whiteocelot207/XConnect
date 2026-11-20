@@ -135,8 +135,8 @@ enum DashRenderer {
 
 enum DashComposer {
     // Dash menutup sekitar 6 px di atas dan 54 px di bawah bingkai (header dan bar nama jalan).
-    private static let visTop: CGFloat = 6
-    private static let visHeight: CGFloat = 174
+    static let visTop: CGFloat = 6
+    static let visHeight: CGFloat = 174
 
     static func image(_ hud: DashHUD) -> UIImage {
         let size = hud.size

@@ -85,6 +85,15 @@ struct HomeView: View {
 
     // MARK: - Preview dasbor
 
+    /// Dash menutup bagian atas dan bar hitam nama jalan di bawah bingkai; preview hanya menampilkan area yang terlihat.
+    private static func visibleArea(_ img: UIImage) -> UIImage {
+        guard let cg = img.cgImage else { return img }
+        let k = CGFloat(cg.width) / 480
+        let r = CGRect(x: 0, y: DashComposer.visTop * k, width: CGFloat(cg.width), height: DashComposer.visHeight * k)
+        guard r.maxY <= CGFloat(cg.height), let out = cg.cropping(to: r) else { return img }
+        return UIImage(cgImage: out, scale: img.scale, orientation: img.imageOrientation)
+    }
+
     private var previewCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -99,12 +108,12 @@ struct HomeView: View {
             ZStack {
                 Rectangle().fill(Color.black)
                 if let img = bike.preview {
-                    Image(uiImage: img).resizable().interpolation(.medium)
+                    Image(uiImage: Self.visibleArea(img)).resizable().interpolation(.medium)
                 } else {
                     ProgressView()
                 }
             }
-            .aspectRatio(480.0 / 234.0, contentMode: .fit)
+            .aspectRatio(480.0 / DashComposer.visHeight, contentMode: .fit)
             .cornerRadius(10)
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.4), lineWidth: 1))
 

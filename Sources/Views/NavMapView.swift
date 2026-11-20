@@ -5,20 +5,15 @@ import CoreLocation
 struct NavMapView: UIViewRepresentable {
     let nav: NavigationController
     let onLongPress: (CLLocationCoordinate2D) -> Void
-    @EnvironmentObject private var settings: AppSettings
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var dark: Bool { MapStyle.isDark(theme: settings.theme, system: colorScheme) }
 
     func makeCoordinator() -> Coordinator { Coordinator(onLongPress: onLongPress) }
 
     func makeUIView(context: Context) -> MLNMapView {
-        let v = MLNMapView(frame: .zero, styleURL: MapStyle.url(dark: dark))
+        let v = MLNMapView(frame: .zero, styleURL: MapStyle.light)
         v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         v.delegate = context.coordinator
         v.showsUserLocation = true
         MapStyle.hideBranding(v)
-        context.coordinator.dark = dark
         v.setCenter(CLLocationCoordinate2D(latitude: -6.2, longitude: 106.82), zoomLevel: 11, animated: false)
         let lp = UILongPressGestureRecognizer(target: context.coordinator,
                                               action: #selector(Coordinator.handleLongPress(_:)))
@@ -28,17 +23,12 @@ struct NavMapView: UIViewRepresentable {
     }
 
     func updateUIView(_ v: MLNMapView, context: Context) {
-        if context.coordinator.dark != dark {
-            context.coordinator.dark = dark
-            v.styleURL = MapStyle.url(dark: dark)
-        }
         context.coordinator.update(v, nav: nav)
     }
 
     final class Coordinator: NSObject, MLNMapViewDelegate {
         let onLongPress: (CLLocationCoordinate2D) -> Void
         weak var mapView: MLNMapView?
-        var dark = false
         private var centered = false
         private var lineVersion = -1
         private var line: MLNPolyline?

@@ -10,6 +10,7 @@ struct NavigateView: View {
     @State private var renameTarget: Place?
     @State private var renameText = ""
     @State private var showMap = false
+    @State private var showRoute = false
 
     var body: some View {
         listScreen
@@ -20,6 +21,28 @@ struct NavigateView: View {
     private var listScreen: some View {
         NavigationView {
             List {
+                if nav.phase == .navigating {
+                    Section { activeBox }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pencarian lebih cepat dengan Google Maps").font(.headline)
+                        Text("Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        VStack(spacing: 8) {
+                            Button {
+                                if let u = URL(string: "https://www.google.com/maps") { UIApplication.shared.open(u) }
+                            } label: { leftLabel("Buka Google Maps", icon: "map") }
+                                .buttonStyle(.bordered)
+                            Button { pasteLink() } label: { leftLabel("Tempel tautan", icon: "doc.on.clipboard") }
+                                .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 Section {
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
@@ -49,28 +72,6 @@ struct NavigateView: View {
                     Section(header: Text("Hasil")) {
                         ForEach(nav.searchResults) { p in placeRow(p, icon: "mappin.circle.fill") }
                     }
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Pencarian lebih cepat dengan Google Maps").font(.headline)
-                        Text("Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                        VStack(spacing: 8) {
-                            Button {
-                                if let u = URL(string: "https://www.google.com/maps") { UIApplication.shared.open(u) }
-                            } label: { leftLabel("Buka Google Maps", icon: "map") }
-                                .buttonStyle(.bordered)
-                            Button { pasteLink() } label: { leftLabel("Tempel tautan", icon: "doc.on.clipboard") }
-                                .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                if nav.destination != nil || nav.phase != .idle {
-                    Section { routeBox }
                 }
 
                 Section(header: Text("Tempat tersimpan")) {
@@ -110,6 +111,35 @@ struct NavigateView: View {
         .sheet(item: $renameTarget) { p in
             RenameSheet(title: "Ganti nama favorit", initial: renameText) { places.renameFavorite(p, to: $0) }
         }
+        .sheet(isPresented: $showRoute, onDismiss: {
+            if nav.phase != .navigating { nav.stop() }
+        }) { routeSheet }
+        .onChange(of: nav.destination?.id) { id in
+            if id != nil && nav.phase != .navigating { showRoute = true }
+            else if id == nil { showRoute = false }
+        }
+        .onChange(of: nav.phase) { ph in
+            if ph == .previewing { if nav.destination != nil { showRoute = true } }
+            else { showRoute = false }
+        }
+    }
+
+    // MARK: - Form pilih rute (pop up)
+
+    private var routeSheet: some View {
+        NavigationView {
+            List {
+                Section { routeBox }
+            }
+            .navigationTitle("Pilih rute")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Tutup") { showRoute = false }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
         .sheet(isPresented: $showMap) {
             ZStack(alignment: .topTrailing) {
                 NavMapView(nav: nav, onLongPress: { c in nav.pin(c) })
@@ -182,6 +212,66 @@ struct NavigateView: View {
 
     // MARK: - Kotak rute (muncul di atas daftar saat ada tujuan)
 
+    // MARK: - Kotak Navigasi aktif (paling atas)
+
+    private var activeBox: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Circle().fill(Color.green).frame(width: 8, height: 8)
+                Text("Navigasi aktif").font(.caption.weight(.semibold)).foregroundColor(.green)
+            }
+            if let d = nav.destination {
+                Text(d.name).font(.headline)
+                if !d.subtitle.isEmpty { Text(d.subtitle).font(.footnote).foregroundColor(.secondary).lineLimit(2) }
+            }
+                HStack(spacing: 12) {
+                    Image(systemName: nav.nextSymbol).font(.system(size: 30))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(nav.nextTitle).font(.headline)
+                        Text(Fmt.distance(nav.distToTurnM)).font(.title2).bold()
+                        if !nav.nextInstruction.isEmpty {
+                            Text(nav.nextInstruction).font(.footnote).foregroundColor(.secondary)
+                        }
+                    }
+                }
+                if let eta = nav.etaDate {
+                    Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+                if nav.simulating {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Mode simulasi: posisi buatan di sepanjang rute", systemImage: "play.circle.fill")
+                            .font(.footnote)
+                            .foregroundColor(.orange)
+                        Picker("Kecepatan simulasi", selection: $nav.simSpeedKmh) {
+                            Text("20 km/j").tag(20.0)
+                            Text("40 km/j").tag(40.0)
+                            Text("80 km/j").tag(80.0)
+                            Text("150 km/j").tag(150.0)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button { nav.stop() } label: {
+                        centerLabel("Hentikan navigasi", icon: "xmark.octagon.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    voiceButton
+                }
+                if nav.simulating {
+                    Button { nav.stopSimulation() } label: {
+                        centerLabel("Hentikan simulasi", icon: "stop.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
+                }
+        }
+        .padding(.vertical, 4)
+    }
+
     private func leftLabel(_ title: String, icon: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon).frame(width: 22)
@@ -225,37 +315,7 @@ struct NavigateView: View {
                 }
             }
 
-            if nav.phase == .navigating {
-                HStack(spacing: 12) {
-                    Image(systemName: nav.nextSymbol).font(.system(size: 30))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(nav.nextTitle).font(.headline)
-                        Text(Fmt.distance(nav.distToTurnM)).font(.title2).bold()
-                        if !nav.nextInstruction.isEmpty {
-                            Text(nav.nextInstruction).font(.footnote).foregroundColor(.secondary)
-                        }
-                    }
-                }
-                if let eta = nav.etaDate {
-                    Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-                if nav.simulating {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label("Mode simulasi: posisi buatan di sepanjang rute", systemImage: "play.circle.fill")
-                            .font(.footnote)
-                            .foregroundColor(.orange)
-                        Picker("Kecepatan simulasi", selection: $nav.simSpeedKmh) {
-                            Text("20 km/j").tag(20.0)
-                            Text("40 km/j").tag(40.0)
-                            Text("80 km/j").tag(80.0)
-                            Text("150 km/j").tag(150.0)
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                }
-            } else if nav.busy && nav.routes.isEmpty {
+            if nav.busy && nav.routes.isEmpty {
                 HStack { ProgressView(); Text("Menghitung rute…") }
             } else if !nav.routes.isEmpty {
                 // preview kecil semua rute; ketuk garis rute lain untuk memilih, ketuk di tempat lain untuk peta penuh
@@ -310,40 +370,22 @@ struct NavigateView: View {
                 }
             }
 
-            if nav.phase == .navigating {
-                HStack(spacing: 8) {
-                    Button { nav.stop() } label: {
-                        centerLabel("Hentikan navigasi", icon: "xmark.octagon.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    voiceButton
+            HStack(spacing: 8) {
+                Button { nav.startSimulation() } label: {
+                    centerLabel("Simulasi", icon: "play.circle")
                 }
-                if nav.simulating {
-                    Button { nav.stopSimulation() } label: {
-                        centerLabel("Hentikan simulasi", icon: "stop.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.orange)
-                }
-            } else {
-                HStack(spacing: 8) {
-                    Button { nav.startSimulation() } label: {
-                        centerLabel("Simulasi", icon: "play.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(nav.route == nil)
-                    Button { nav.stop() } label: { centerLabel("Batal", icon: nil) }
-                        .buttonStyle(.bordered)
-                    voiceButton
-                }
-                Button { nav.startNavigation() } label: {
-                    centerLabel("Mulai Navigasi", icon: "play.fill")
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .disabled(nav.route == nil)
+                Button { nav.stop() } label: { centerLabel("Batal", icon: nil) }
+                    .buttonStyle(.bordered)
+                voiceButton
             }
+            Button { nav.startNavigation() } label: {
+                centerLabel("Mulai Navigasi", icon: "play.fill")
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(nav.route == nil)
             if nav.phase != .navigating, let d = nav.destination {
                 Menu("Simpan sebagai") {
                     Button("Rumah") { places.home = d }
