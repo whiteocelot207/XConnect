@@ -113,7 +113,11 @@ final class MusicService: ObservableObject {
             // menghentikan pemutar musik); tanpa audio yang diputar, sesi ini tidak mengganggu app lain
             // jangan menyetel ulang kategori bila sudah sama: setCategory berulang (tiap app aktif) bisa memicu
             // perubahan rute audio Bluetooth yang sempat mengganggu sambungan dash
-            if s.category != .playback || !s.categoryOptions.contains(.mixWithOthers) {
+            // PERIKSA PERSIS (kategori + mode + opsi). Sebelumnya hanya `contains(.mixWithOthers)`: opsi suara petunjuk
+            // (0x13 = duckOthers + interruptSpoken + mixWithOthers) juga memuat mixWithOthers, jadi sesi dianggap
+            // "sudah benar" dan tetap membawa duckOthers + mode voicePrompt. Akibatnya audio senyap berjalan dengan
+            // duckOthers aktif terus dan musik tidak pernah kembali ke volume semula.
+            if s.category != .playback || s.mode != .default || s.categoryOptions != [.mixWithOthers] {
                 try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             }
             try s.setActive(true)
@@ -229,6 +233,10 @@ final class MusicService: ObservableObject {
         let s = AVAudioSession.sharedInstance()
         do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
         catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
+        // Kembalikan kategori ke konfigurasi dasar (tanpa duckOthers) selagi sesi nonaktif, supaya sesi berikutnya
+        // (audio senyap / pemberitahuan berikutnya) tidak mewarisi duckOthers + voicePrompt dari suara sebelumnya.
+        do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
+        catch { onLog("Suara: kategori dasar gagal dipulihkan: \(error.localizedDescription)") }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
         autoResumeUntil = Date().addingTimeInterval(4.0)
         autoResumeCount = 0          // jatah baru untuk interupsi yang muncul setelah suara selesai
