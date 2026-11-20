@@ -386,16 +386,8 @@ struct DashPreviewBox: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            ZStack {
-                Rectangle().fill(Color.black)
-                if let img = bike.preview {
-                    Image(uiImage: HomeView.visibleArea(img)).resizable().interpolation(.medium)
-                } else {
-                    ProgressView()
-                }
-            }
-            .aspectRatio(480.0 / DashComposer.visHeight, contentMode: .fit)
-            .cornerRadius(8)
+            DashFrameView()
+                .cornerRadius(8)
             HStack {
                 Button { bike.stepScreen(forward: false) } label: { Image(systemName: "chevron.left") }
                     .buttonStyle(.bordered)

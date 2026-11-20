@@ -628,6 +628,59 @@ final class BikeController: NSObject, ObservableObject {
         return best == 0 ? "" : "\(best)G"
     }
 
+    // MARK: - Bar atas dan bawah dash (untuk pratinjau)
+
+    /// Data yang sama dengan yang ditampilkan bar atas (jam, sinyal, headset, baterai HP, volume) dan bar bawah (nama jalan) di dash.
+    struct BarStatus {
+        var clock = ""
+        var signal = 0
+        var network = ""
+        var battery = -1
+        var charging = false
+        var headset = false
+        var gps = false
+        var volume = 0
+        var thermal = 0
+        var road = ""
+        var navigating = false
+        var navSymbol = ""
+        var connected = false
+        var inCall = false
+        var tempC: Int?
+    }
+
+    func barStatus() -> BarStatus {
+        var b = BarStatus()
+        b.clock = Fmt.clock(Date())
+        let dev = UIDevice.current
+        let bl = dev.batteryLevel
+        b.battery = bl >= 0 ? Int((bl * 100).rounded()) : -1
+        b.charging = dev.batteryState == .charging || dev.batteryState == .full
+        switch ProcessInfo.processInfo.thermalState {
+        case .serious: b.thermal = 1
+        case .critical: b.thermal = 2
+        default: b.thermal = 0
+        }
+        sysLock.lock()
+        b.signal = cachedSignal
+        b.network = cachedNetwork
+        b.headset = cachedHeadset
+        b.volume = Int((cachedVolume * 100).rounded())
+        sysLock.unlock()
+        b.gps = location.hasFix
+        b.connected = isConnected
+        b.inCall = callObserver.calls.contains { !$0.hasEnded }
+        b.tempC = model?.weather.tempC
+        if let n = nav, n.phase == .navigating {
+            b.navigating = true
+            b.navSymbol = n.nextSymbol
+            b.road = n.currentRoad
+        } else {
+            b.road = currentStreet
+        }
+        return b
+    }
+
     // MARK: - Preview di Home
 
     /// Dipanggil Home dan halaman Pengaturan saat tampil/hilang. Bila motor tidak tersambung, preview digambar lokal.

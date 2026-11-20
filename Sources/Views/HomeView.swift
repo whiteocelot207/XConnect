@@ -129,16 +129,8 @@ struct HomeView: View {
                     Text(String(format: "%.1f fps", bike.fps)).font(.caption).foregroundColor(.secondary)
                 }
             }
-            ZStack {
-                Rectangle().fill(Color.black)
-                if let img = bike.preview {
-                    Image(uiImage: Self.visibleArea(img)).resizable().interpolation(.medium)
-                } else {
-                    ProgressView()
-                }
-            }
-            .aspectRatio(480.0 / DashComposer.visHeight, contentMode: .fit)
-            .cornerRadius(10)
+            DashFrameView()
+                .cornerRadius(10)
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.4), lineWidth: 1))
 
             HStack {
