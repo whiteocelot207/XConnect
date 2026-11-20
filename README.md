@@ -29,7 +29,7 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
   (dihitung dari pemakaian terukur dash), lalu nilai bawaan 30 km/L. Riwayat pengisian lama dihapus dari perhitungan karena melingkar
   (liter "Baru diisi" dihitung dari estimasi sendiri, bukan dari pompa).
 - Peringatan oranye di layar Motor bila motor menempuh lebih dari satu tangki tanpa app terhubung; hilang saat "Baru diisi" atau atur manual.
-- **Pengaturan > Motor dan koneksi > Cari byte dari angka di dash**: ketik rata-rata BBM yang tampil di dash, app mencari byte paket id 1
+- **Pengaturan > Motor dan BBM > Cari byte dari angka di dash**: ketik rata-rata BBM yang tampil di dash, app mencari byte paket id 1
   yang cocok, ketuk kandidat untuk memakainya. Letak byte masih belum diketahui; BELUM DIUJI di motor.
 
 ## Yang baru di 0.8.2
@@ -45,7 +45,7 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
   tercatat di Log ("Volume sistem berubah dari luar"). Langkah stang dibulatkan ke 16 langkah volume iOS.
 - **Info pojok layar Musik** kini memuat nama data: "Kecepatan 40 km/h", "Jam 12:30" (nama abu-abu kecil, nilai tebal); mengecil
   otomatis bila tidak muat.
-- **Sisa bensin memakai konsumsi dari CCU** (Pengaturan > Motor dan koneksi > Konsumsi BBM dari CCU): pilih byte paket data CCU (id 1)
+- **Sisa bensin memakai konsumsi dari CCU** (Pengaturan > Motor dan BBM > Konsumsi BBM dari CCU): pilih byte paket data CCU (id 1)
   yang berisi rata-rata konsumsi, lebar (1/2 byte), satuan (km/L, L/100 km, L/km), dan pembagi; "Terbaca sekarang" menampilkan
   hasilnya untuk dicocokkan dengan angka di dash. Urutan sumber: CCU, riwayat pengisian, nilai bawaan. Sisa bensin juga kini berkurang
   bertahap (tiap ODO bertambah, memakai konsumsi saat itu), bukan dihitung ulang dari seluruh jarak sejak isi dengan konsumsi terbaru.
@@ -74,7 +74,7 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
   saat zoom berubah, jadi klik volume di layar Musik, ganti tampilan, dan layar Tes tombol membuat tombol berhenti. Kini label dikirim
   ulang setelah tiap tekan bila belum terkirim.
 - Status ponsel (cmd 316): bit 0 flag selalu 1 (seperti capture app resmi). Status panggilan dikirim terpisah (cmd 308: 1 = ada, 2 = selesai).
-- **Bahasa dash (eksperimen)**: Pengaturan > Kontrol pada motor. Mengirim cmd 12 dan menjawab permintaan bahasa CCU (cmd 11). Dugaan: jam
+- **Bahasa dash (eksperimen)**: Pengaturan > Eksperimen dan log. Mengirim cmd 12 dan menjawab permintaan bahasa CCU (cmd 11). Dugaan: jam
   12/24 jam di bar atas dash mengikuti bahasa. Bawaan tidak dikirim.
 - **Klik 2x di layar Musik**: pembatalan volume klik pertama dihitung dari volume sistem yang belum terbarui, sehingga tiap klik 2x
   menggeser volume satu langkah. Kini memakai target volume terakhir (selama 1,5 dtk) sebagai dasar.
@@ -110,12 +110,12 @@ lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BL
   juga di layar Speedometer.
 - **Lebar kotak hijau menyesuaikan isi teks** (panel belokan dan kotak jarak + ETA), tidak lagi tetap.
   Sudut kotak jarak + ETA kini sama seperti panel belokan (tidak terlalu bulat).
-- **Ukuran huruf kotak data**: Pengaturan > Kotak data > Ukuran huruf (kotak besar dan kecil, 0.5x - 1.5x). Isi kotak
+- **Ukuran huruf kotak data**: Pengaturan > Kartu Data > Ukuran huruf (kotak besar dan kecil, 0.5x - 1.5x). Isi kotak
   otomatis dikecilkan bila tidak muat, jadi tidak ada lagi teks terpotong atau keluar kotak. Susunan kotak cuaca
   menyesuaikan tinggi kotak.
 - **Data HP di latar belakang**: mode latar belakang `audio` + audio senyap (kategori playback, mixWithOthers) selama
   dash tersambung, supaya volume HP dan data HP lain tetap berubah saat app tidak dibuka atau layar terkunci.
-  Bisa dimatikan di Pengaturan > Motor dan koneksi > "Jaga data HP tetap hidup di latar belakang".
+  Bisa dimatikan di Pengaturan > Koneksi > "Jaga data HP tetap hidup di latar belakang".
 - **Kurangi delay**:
   - frame yang menunggu ACK dash lebih dari 0,15 dtk dibuang dan digambar ulang dengan data terbaru (dulu frame lama
     tetap dikirim, jadi peta/angka tertinggal sepanjang waktu tunggu ACK);
@@ -174,7 +174,7 @@ jendela, penundaannya ada di sisi dash atau Bluetooth (bukan di app).
 - **Tautan Google Maps**: seluruh rantai pengalihan tautan pendek diperiksa (bukan hanya alamat akhir).
 - **Update**: workflow menerbitkan `source.json`; tombol "Tambah sumber ke ..." menambahkannya
   sekali, lalu update dipasang dari SideStore, AltStore, atau LiveContainer dengan bundle ID yang benar.
-- **Update lewat LiveContainer**: pilih "LiveContainer" di Pengaturan > Update aplikasi. Tombol Pasang memakai
+- **Update lewat LiveContainer**: pilih "LiveContainer" di Pengaturan > Tentang. Tombol Pasang memakai
   `livecontainer://install?url=<IPA>` dan tombol Tambah sumber memakai `livecontainer://source?url=<source.json>`
   (tab Sources, LiveContainer 3.7+). Bila bundle ID sudah ada, pilih Ganti agar data app tetap. Bila XConnect
   berjalan di dalam LiveContainer, pakai mode multitasking atau LiveContainer kedua.
@@ -182,7 +182,7 @@ jendela, penundaannya ada di sisi dash atau Bluetooth (bukan di app).
 
 ## Yang baru di 0.4
 - **Ganti nama** jadi XConnect.
-- **Update dari dalam app**: Pengaturan > Update aplikasi. Isi `pemilik/nama-repo`. Setiap build GitHub Actions
+- **Update dari dalam app**: Pengaturan > Tentang. Isi `pemilik/nama-repo`. Setiap build GitHub Actions
   menerbitkan Release (`build-<nomor>`, berisi XConnect.ipa). App membandingkan nomor build lalu membuka
   SideStore/AltStore/LiveContainer dengan URL IPA terbaru (satu ketukan konfirmasi). Repo harus **public** agar app bisa membacanya.
 - **Link CCU (BLE)**: ID+passkey dari iAP `com.yconnect.data` → scan `YCCU_<id>` → auth → langganan data.
@@ -192,7 +192,7 @@ jendela, penundaannya ada di sisi dash atau Bluetooth (bukan di app).
   watchdog bila render macet.
 - **Tombol stang tanpa delay**: klik pertama langsung jalan, klik 2x membatalkan lalu menjalankan aksi 2x.
   Di layar Musik: 1x = volume, 2x = ganti tampilan.
-- **Kotak data fleksibel**: Pengaturan > Kotak data. Tata letak 1 besar + 2/4 kecil atau 4 kecil, tiap kotak
+- **Kotak data fleksibel**: Pengaturan > Kartu Data. Tata letak 1 besar + 2/4 kecil atau 4 kecil, tiap kotak
   bisa diisi data CCU/HP/cuaca. Warna baru (gradasi + nilai berwarna).
 - **Peta**: lebar garis rute + tepi putih, ukuran titik motor, lingkaran, posisi titik, ukuran panel belokan/ETA.
   Titik motor digeser ke tengah pada layar Peta + data.
@@ -213,3 +213,13 @@ tata letak foto/data overlay.
 2. Settings > Actions > General > Workflow permissions: **Read and write**.
 3. Tab **Actions > iOS IPA > Run workflow**. Hasilnya ada di **Releases** (dan artifact).
 4. Pasang pertama kali dengan Sideloadly; update berikutnya dari app (SideStore/AltStore/LiveContainer).
+
+
+## Perubahan tata letak Pengaturan
+
+- Pengaturan dikelompokkan: Umum (Tampilan, Koneksi, Motor dan BBM), Dasbor di motor (Layar dasbor, Kartu Data, Peta,
+  Kontrol pada motor), Navigasi (Rute dan pencarian), Lainnya (Cadangkan, Eksperimen, Tentang).
+- Update aplikasi dipindah ke Tentang. Bahasa dash (eksperimen) dipindah ke Eksperimen dan log.
+- Layar "Peta saja" dan "Tes tombol" dihapus; "Peta + data" kini bernama "Peta". Kartu cuaca/bensin menjadi "Kartu Data"
+  dengan saklar sendiri di Layar dasbor. Pratinjau realtime ada di Layar dasbor, Kartu Data, dan Peta.
+- Pilihan kendaraan di Rute dan pencarian dihapus (selalu skuter). Mode peta otomatis: malam 18.00-06.00.

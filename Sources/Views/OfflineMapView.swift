@@ -38,7 +38,7 @@ struct OfflineMapView: View {
                 .onChange(of: radius) { _ in updateEstimate() }
 
                 if center != nil {
-                    Text("Tentang \(estimate) MB. Lebih baik menggunakan Wi-Fi, dengan aplikasi tetap terbuka hingga selesai.")
+                    Text("Sekitar \(estimate) MB. Lebih baik menggunakan Wi-Fi, dengan aplikasi tetap terbuka hingga selesai.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }

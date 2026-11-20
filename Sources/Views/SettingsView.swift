@@ -5,46 +5,57 @@ struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var bike: BikeController
     @EnvironmentObject var vehicle: VehicleStore
+    @ObservedObject private var offline = OfflineMapStore.shared
 
     var body: some View {
         NavigationView {
             List {
-                row("Tampilan", subtitle: ["Ikuti ponsel", "Gelap", "Terang"][min(2, settings.theme)], icon: "paintpalette") {
-                    AppearanceSettings()
+                Section(header: Text("Umum")) {
+                    row("Tampilan", subtitle: ["Ikuti ponsel", "Gelap", "Terang"][min(2, settings.theme)] + " · sapaan · format jam",
+                        icon: "paintpalette") {
+                        AppearanceSettings()
+                    }
+                    row("Koneksi", subtitle: "Sambung otomatis \(settings.autoConnect ? "nyala" : "mati") · hemat baterai · CCU",
+                        icon: "antenna.radiowaves.left.and.right") {
+                        ConnectionSettings()
+                    }
+                    row("Motor dan BBM", subtitle: "\(vehicle.model) · tangki · konsumsi bensin", icon: "bicycle") {
+                        VehicleSettings()
+                    }
                 }
-                row("Motor dan koneksi", subtitle: "\(vehicle.model) · sambung otomatis \(settings.autoConnect ? "nyala" : "mati")",
-                    icon: "bicycle") {
-                    ConnectionSettings()
+                Section(header: Text("Dasbor di motor")) {
+                    row("Layar dasbor", subtitle: "\(bike.screens().count) layar aktif · layar awal · musik · foto",
+                        icon: "rectangle.on.rectangle") {
+                        ScreensSettings()
+                    }
+                    row("Kartu Data", subtitle: "Isi kartu, tata letak, ukuran huruf", icon: "square.grid.2x2") {
+                        CardSettings()
+                    }
+                    row("Peta", subtitle: offline.areas.isEmpty
+                        ? "Peta offline · siang/malam · rute · titik motor"
+                        : "\(offline.areas.count) area offline · siang/malam · rute · titik motor", icon: "map") {
+                        MapSettings()
+                    }
+                    row("Kontrol pada motor", subtitle: "Tombol atas/bawah di stang", icon: "hand.tap") {
+                        ControlSettings()
+                    }
                 }
-                row("Kontrol pada motor", subtitle: settings.buttonScheme == 1
-                    ? "Tekan 2x tombol atas/bawah: ganti tampilan"
-                    : "Tombol atas/bawah: ganti tampilan, 2x untuk zoom", icon: "hand.tap") {
-                    ControlSettings()
+                Section(header: Text("Navigasi")) {
+                    row("Rute dan pencarian", subtitle: "Profil rute, suara petunjuk, server routing",
+                        icon: "arrow.triangle.turn.up.right.diamond") {
+                        RouteSettings()
+                    }
                 }
-                row("Peta di dasbor", subtitle: "Peta offline, siang/malam, zoom otomatis, warna rute", icon: "map") {
-                    MapSettings()
-                }
-                row("Layar dasbor", subtitle: "\(bike.screens().count) layar aktif · kartu info · foto · musik",
-                    icon: "rectangle.on.rectangle") {
-                    ScreensSettings()
-                }
-                row("Kotak data", subtitle: "Isi kotak di dash: CCU, HP, tata letak", icon: "square.grid.2x2") {
-                    CardSettings()
-                }
-                row("Rute dan pencarian", subtitle: "Jenis kendaraan, server routing", icon: "arrow.triangle.turn.up.right.diamond") {
-                    RouteSettings()
-                }
-                row("Eksperimen dan log", subtitle: "Probe link CCU, log sambungan", icon: "ladybug") {
-                    DebugSettings()
-                }
-                row("Cadangkan dan pulihkan", subtitle: "Simpan/pulihkan semua pengaturan ke file", icon: "externaldrive") {
-                    BackupSettings()
-                }
-                row("Update aplikasi", subtitle: "Cek versi terbaru di GitHub", icon: "arrow.down.circle") {
-                    UpdateSettings()
-                }
-                row("Tentang", subtitle: "XConnect \(UpdateService.currentVersion)", icon: "info.circle") {
-                    AboutSettings()
+                Section(header: Text("Lainnya")) {
+                    row("Cadangkan dan pulihkan", subtitle: "Simpan/pulihkan semua pengaturan ke file", icon: "externaldrive") {
+                        BackupSettings()
+                    }
+                    row("Eksperimen dan log", subtitle: "Bahasa dash, probe link CCU, log sambungan", icon: "ladybug") {
+                        DebugSettings()
+                    }
+                    row("Tentang", subtitle: "XConnect \(UpdateService.currentVersion) · update aplikasi", icon: "info.circle") {
+                        AboutSettings()
+                    }
                 }
             }
             .navigationTitle("Pengaturan")
@@ -73,12 +84,15 @@ struct AppearanceSettings: View {
 
     var body: some View {
         Form {
-            Picker("Tema aplikasi", selection: $settings.theme) {
-                Text("Ikuti ponsel").tag(0)
-                Text("Gelap").tag(1)
-                Text("Terang").tag(2)
+            Section(header: Text("Tema aplikasi")) {
+                Picker("Tema aplikasi", selection: $settings.theme) {
+                    Text("Ikuti ponsel").tag(0)
+                    Text("Gelap").tag(1)
+                    Text("Terang").tag(2)
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
-            .pickerStyle(.inline)
             Section(header: Text("Sapaan di dash")) {
                 TextField("Sapaan (mis. Halo)", text: $settings.greetingWord)
                 TextField("Nama panggilan (tampil di dash)", text: $settings.userName)
@@ -90,6 +104,7 @@ struct AppearanceSettings: View {
                     Text("12 jam (1:45 PM)").tag(false)
                 }
                 .pickerStyle(.inline)
+                .labelsHidden()
             }
         }
         .navigationTitle("Tampilan")
@@ -100,6 +115,43 @@ struct AppearanceSettings: View {
 struct ConnectionSettings: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var bike: BikeController
+    @EnvironmentObject var live: VehicleLive
+
+    var body: some View {
+        Form {
+            Section(footer: Text("Aplikasi tetap hidup di latar belakang (lokasi 'Selalu') supaya bisa menyambung saat motor dinyalakan, bahkan saat ponsel terkunci. Jangan tutup paksa aplikasi dari daftar app.")) {
+                Toggle("Sambung otomatis", isOn: $settings.autoConnect)
+                Button("Pasangkan dash (Bluetooth)") { bike.showPairingPicker() }
+            }
+            Section(footer: Text("Hemat baterai menurunkan frame rate dash (maks 4 fps).")) {
+                Toggle("Hemat baterai", isOn: $settings.saveBattery)
+                Toggle("Jaga layar tetap menyala saat terhubung", isOn: $settings.keepScreenOn)
+            }
+            Section(header: Text("Kecepatan data di dash"),
+                    footer: Text("Frame lebih ringan sampai lebih cepat ke dash, jadi peta dan angka tidak terasa tertinggal, tetapi gambarnya sedikit lebih kasar. \"Jaga data HP\" memutar audio senyap (tidak mengganggu musik) supaya volume dan data HP lain tetap berubah saat app di latar belakang atau layar terkunci.")) {
+                sliderRow("Kualitas gambar dash", value: $settings.dashQuality, range: 0.4...0.95, step: 0.05, unit: "")
+                Toggle("Jaga data HP tetap hidup di latar belakang", isOn: $settings.keepAliveAudio)
+            }
+            Section(header: Text("Link CCU"), footer: Text("Data motor dibaca lewat Bluetooth ke CCU. Status: \(live.state)")) {
+                Toggle("Baca data CCU", isOn: $settings.ccuEnabled)
+                if let v = live.batteryV { Text("Aki: " + String(format: "%.1f V", v)) }
+                if let o = live.odoKm { Text("ODO: " + String(format: "%.1f km", o)) }
+                if let t = live.coolantC { Text("Suhu mesin: \(t) °C") }
+                if let t = live.airC { Text("Suhu udara: \(t) °C") }
+                if let r = live.rpm { Text("RPM: \(r)") }
+                if let v = live.speedKmh { Text("Kecepatan CCU: \(v) km/j") }
+                if let d = live.dtcCount { Text("Kode gangguan: \(d)") }
+                if let k = live.ignitionOn { Text("Kunci kontak: " + (k ? "ON" : "OFF")) }
+                NavigationLink("Data mentah CCU (semua byte)") { CcuRawView() }
+            }
+        }
+        .navigationTitle("Koneksi")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct VehicleSettings: View {
+    @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var vehicle: VehicleStore
     @EnvironmentObject var live: VehicleLive
     @State private var fuelTarget = ""
@@ -124,19 +176,6 @@ struct ConnectionSettings: View {
 
     var body: some View {
         Form {
-            Section(footer: Text("Aplikasi tetap hidup di latar belakang (lokasi 'Selalu') supaya bisa menyambung saat motor dinyalakan, bahkan saat ponsel terkunci. Jangan tutup paksa aplikasi dari daftar app.")) {
-                Toggle("Sambung otomatis", isOn: $settings.autoConnect)
-                Button("Pasangkan dash (Bluetooth)") { bike.showPairingPicker() }
-            }
-            Section(footer: Text("Hemat baterai menurunkan frame rate dash (maks 4 fps).")) {
-                Toggle("Hemat baterai", isOn: $settings.saveBattery)
-                Toggle("Jaga layar tetap menyala saat terhubung", isOn: $settings.keepScreenOn)
-            }
-            Section(header: Text("Kecepatan data di dash"),
-                    footer: Text("Frame lebih ringan sampai lebih cepat ke dash, jadi peta dan angka tidak terasa tertinggal, tetapi gambarnya sedikit lebih kasar. \"Jaga data HP\" memutar audio senyap (tidak mengganggu musik) supaya volume dan data HP lain tetap berubah saat app di latar belakang atau layar terkunci.")) {
-                sliderRow("Kualitas gambar dash", value: $settings.dashQuality, range: 0.4...0.95, step: 0.05, unit: "")
-                Toggle("Jaga data HP tetap hidup di latar belakang", isOn: $settings.keepAliveAudio)
-            }
             Section(header: Text("Motor")) {
                 TextField("Nama motor", text: $vehicle.name)
                 TextField("Model", text: $vehicle.model)
@@ -145,7 +184,7 @@ struct ConnectionSettings: View {
                         in: 10...80, step: 0.5)
             }
             Section(header: Text("Konsumsi BBM dari CCU"),
-                    footer: Text("Sisa bensin dihitung dari konsumsi rata-rata yang dilaporkan CCU motor (lebih akurat daripada nilai bawaan), dan berkurang bertahap menurut konsumsi saat itu. Pilih byte di paket data CCU (id 1) yang berisi rata-rata konsumsi: lihat Pengaturan > Kotak data > Data mentah CCU, bandingkan dengan angka rata-rata BBM di dash. Atur lebar, satuan, dan pembagi sampai \"Terbaca sekarang\" sama dengan dash. Bila nilai tidak valid, dipakai konsumsi Anda sendiri 30 hari terakhir (dari rata-rata dash), lalu nilai bawaan.")) {
+                    footer: Text("Sisa bensin dihitung dari konsumsi rata-rata yang dilaporkan CCU motor (lebih akurat daripada nilai bawaan), dan berkurang bertahap menurut konsumsi saat itu. Pilih byte di paket data CCU (id 1) yang berisi rata-rata konsumsi: lihat Data mentah CCU di bawah, bandingkan dengan angka rata-rata BBM di dash. Atur lebar, satuan, dan pembagi sampai \"Terbaca sekarang\" sama dengan dash. Bila nilai tidak valid, dipakai konsumsi Anda sendiri 30 hari terakhir (dari rata-rata dash), lalu nilai bawaan.")) {
                 Stepper(settings.ccuFuelByte < 0 ? "Byte konsumsi: mati" : "Byte konsumsi: \(settings.ccuFuelByte)",
                         value: $settings.ccuFuelByte, in: -1...47)
                 if settings.ccuFuelByte >= 0 {
@@ -166,9 +205,10 @@ struct ConnectionSettings: View {
                     }
                     Text("Terbaca sekarang: \(ccuFuelReading)").font(.footnote).foregroundColor(.secondary)
                 }
+                NavigationLink("Data mentah CCU (semua byte)") { CcuRawView() }
             }
             Section(header: Text("Cari byte dari angka di dash"),
-                    footer: Text("Saat motor menyala dan terhubung, ketik rata-rata BBM yang tampil di dash (km/L), lalu Cari. Bila ada beberapa kandidat, ulangi saat angka di dash sudah berubah: byte yang benar ikut berubah. Bila tidak ada yang cocok, rata-rata BBM mungkin ada di paket data lain (lihat Data mentah CCU).")) {
+                    footer: Text("Saat motor menyala dan terhubung, ketik rata-rata BBM yang tampil di dash (km/L), lalu Cari. Bila ada beberapa kandidat, ulangi saat angka di dash sudah berubah: byte yang benar ikut berubah. Bila tidak ada yang cocok, rata-rata BBM mungkin ada di paket data lain (lihat Data mentah CCU di Pengaturan > Koneksi).")) {
                 TextField("Rata-rata BBM di dash (km/L)", text: $fuelTarget)
                     .keyboardType(.decimalPad)
                 Button("Cari byte") {
@@ -191,7 +231,7 @@ struct ConnectionSettings: View {
                 }
             }
         }
-        .navigationTitle("Motor dan koneksi")
+        .navigationTitle("Motor dan BBM")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -208,6 +248,7 @@ struct ControlSettings: View {
                     Text("Tekan 1x: ganti tampilan · 2x: zoom").tag(0)
                 }
                 .pickerStyle(.inline)
+                .labelsHidden()
             }
             Section(header: Text("Klik cepat 2x"),
                     footer: Text("Dua tekan pada tombol yang sama dalam waktu ini dihitung sebagai klik 2x. Tekan 1x tetap langsung dijalankan tanpa menunggu. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
@@ -221,14 +262,6 @@ struct ControlSettings: View {
                 sliderRow("Durasi tekan tahan", value: Binding(
                     get: { Double(settings.holdMs) },
                     set: { settings.holdMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
-            }
-            Section(header: Text("Bahasa dash (eksperimen)"),
-                    footer: Text("Dash menanyakan bahasa ke app lewat CCU. Bawaan: tidak dikirim. Dugaan (belum terbukti): format jam di bar atas dash mengikuti bahasa ini, bukan pengaturan jam 24 jam app. Kode yang dikenal: 0 = Inggris, 15 = Vietnam. Coba satu kode, matikan lalu nyalakan kontak, dan lihat jam dan teks bawaan dash. Kode yang ditolak CCU tercatat di Log sebagai CCU: error. Kembalikan ke -1 bila tampilan dash menjadi aneh.")) {
-                Stepper(settings.dashLang < 0 ? "Kode bahasa: tidak dikirim" : "Kode bahasa: \(settings.dashLang)",
-                        value: $settings.dashLang, in: -1...63)
-            }
-            Section(footer: Text("Layar Tes tombol (Pengaturan > Layar dasbor) menampilkan tiap tekan tombol di dash dan mencatatnya di Log.")) {
-                EmptyView()
             }
         }
         .navigationTitle("Kontrol pada motor")
@@ -245,12 +278,12 @@ struct DashPreviewBox: View {
             ZStack {
                 Rectangle().fill(Color.black)
                 if let img = bike.preview {
-                    Image(uiImage: img).resizable().interpolation(.medium)
+                    Image(uiImage: HomeView.visibleArea(img)).resizable().interpolation(.medium)
                 } else {
                     ProgressView()
                 }
             }
-            .aspectRatio(480.0 / 234.0, contentMode: .fit)
+            .aspectRatio(480.0 / DashComposer.visHeight, contentMode: .fit)
             .cornerRadius(8)
             HStack {
                 Button { bike.stepScreen(forward: false) } label: { Image(systemName: "chevron.left") }
@@ -262,6 +295,33 @@ struct DashPreviewBox: View {
                     .buttonStyle(.bordered)
             }
         }
+    }
+}
+
+/// Menyalakan pratinjau dash selama halaman pengaturan terbuka (gambar ikut berubah saat pengaturan digeser).
+/// `demoNav`: tampilkan contoh panel navigasi. `focus`: pindah ke layar ini bila aktif.
+struct DashPreviewLifecycle: ViewModifier {
+    @EnvironmentObject var bike: BikeController
+    var demoNav = false
+    var focus: DashScreen? = nil
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                bike.demoNav = demoNav
+                if let f = focus { bike.showScreen(f) }
+                bike.setPreviewVisible(true)
+            }
+            .onDisappear {
+                bike.demoNav = false
+                bike.setPreviewVisible(false)
+            }
+    }
+}
+
+extension View {
+    func dashPreviewLifecycle(demoNav: Bool = false, focus: DashScreen? = nil) -> some View {
+        modifier(DashPreviewLifecycle(demoNav: demoNav, focus: focus))
     }
 }
 
@@ -288,16 +348,18 @@ struct MapSettings: View {
                 }
             }
             Section(header: Text("Pratinjau"),
-                    footer: Text("Pilih layar Peta + data atau Peta saja. Contoh panel navigasi tampil selama halaman ini terbuka.")) {
+                    footer: Text("Contoh panel navigasi tampil selama halaman ini terbuka.")) {
                 DashPreviewBox()
             }
-            Section(header: Text("Tema peta")) {
+            Section(header: Text("Siang/malam"),
+                    footer: Text("Otomatis: peta berganti ke tema malam pukul 18.00 dan kembali ke tema siang pukul 06.00.")) {
                 Picker("Siang/malam", selection: $settings.nightMode) {
-                    Text("Otomatis (malam 18.00-05.00)").tag(0)
+                    Text("Otomatis (malam 18.00-06.00)").tag(0)
                     Text("Selalu siang").tag(1)
                     Text("Selalu malam").tag(2)
                 }
                 .pickerStyle(.inline)
+                .labelsHidden()
             }
             Section(header: Text("Rute")) {
                 Picker("Warna rute", selection: $settings.routeColor) {
@@ -343,16 +405,9 @@ struct MapSettings: View {
                 }
             }
         }
-        .navigationTitle("Peta di dasbor")
+        .navigationTitle("Peta")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            bike.demoNav = true
-            bike.setPreviewVisible(true)
-        }
-        .onDisappear {
-            bike.demoNav = false
-            bike.setPreviewVisible(false)
-        }
+        .dashPreviewLifecycle(demoNav: true, focus: .mapData)
     }
 }
 
@@ -370,7 +425,6 @@ func sliderRow(_ title: String, value: Binding<Double>, range: ClosedRange<Doubl
 
 struct CardSettings: View {
     @EnvironmentObject var settings: AppSettings
-    @EnvironmentObject var live: VehicleLive
 
     private func fieldPicker(_ title: String, _ sel: Binding<Int>) -> some View {
         Picker(title, selection: sel) {
@@ -380,26 +434,22 @@ struct CardSettings: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Tata letak (layar Peta + data)")) {
+            Section(header: Text("Pratinjau"),
+                    footer: Text(settings.showCards
+                                 ? "Pratinjau layar Peta; perubahan di bawah langsung terlihat."
+                                 : "Kartu Data sedang dimatikan. Nyalakan di Pengaturan > Layar dasbor > Kartu Data.")) {
+                DashPreviewBox()
+            }
+            Section(header: Text("Tata letak")) {
                 Picker("Tata letak", selection: $settings.cardLayout) {
                     Text("1 besar + 2 kecil").tag(0)
                     Text("1 besar + 4 kecil").tag(1)
                     Text("4 kecil").tag(2)
                 }
-                Toggle("Tampilkan kotak data", isOn: $settings.showCards)
                 sliderRow("Kegelapan latar kolom (0 = transparan)", value: $settings.cardBgAlpha, range: 0...1, step: 0.05, unit: "")
             }
-            Section(header: Text("Ukuran huruf"),
-                    footer: Text("1 = ukuran bawaan. Huruf otomatis dikecilkan bila isi kotak terlalu panjang, jadi tidak pernah keluar dari kotak.")) {
-                sliderRow("Kotak besar", value: $settings.cardFontBig, range: 0.5...1.5, step: 0.05, unit: "x")
-                sliderRow("Kotak kecil", value: $settings.cardFontSmall, range: 0.5...1.5, step: 0.05, unit: "x")
-                Button("Atur ulang ukuran huruf") {
-                    settings.cardFontBig = 1
-                    settings.cardFontSmall = 1
-                }
-            }
-            Section(header: Text("Isi kotak")) {
-                if settings.cardLayout != 2 { fieldPicker("Kotak besar", $settings.cardBig) }
+            Section(header: Text("Isi kartu")) {
+                if settings.cardLayout != 2 { fieldPicker("Kartu besar", $settings.cardBig) }
                 fieldPicker("Kecil 1", $settings.cardS1)
                 fieldPicker("Kecil 2", $settings.cardS2)
                 if settings.cardLayout != 0 {
@@ -407,68 +457,19 @@ struct CardSettings: View {
                     fieldPicker("Kecil 4", $settings.cardS4)
                 }
             }
-            Section(header: Text("Musik")) {
-                Toggle("Latar sampul blur", isOn: $settings.musicBlurBG)
-            }
-            Section(header: Text("Link CCU"), footer: Text("Data motor dibaca lewat Bluetooth ke CCU. Status: \(live.state)")) {
-                Toggle("Baca data CCU", isOn: $settings.ccuEnabled)
-                if let v = live.batteryV { Text("Aki: " + String(format: "%.1f V", v)) }
-                if let o = live.odoKm { Text("ODO: " + String(format: "%.1f km", o)) }
-                if let t = live.coolantC { Text("Suhu mesin: \(t) °C") }
-                if let t = live.airC { Text("Suhu udara: \(t) °C") }
-                if let r = live.rpm { Text("RPM: \(r)") }
-                if let v = live.speedKmh { Text("Kecepatan CCU: \(v) km/j") }
-                if let d = live.dtcCount { Text("Kode gangguan: \(d)") }
-                if let k = live.ignitionOn { Text("Kunci kontak: " + (k ? "ON" : "OFF")) }
-                NavigationLink("Data mentah CCU (semua byte)") { CcuRawView() }
-            }
-        }
-        .navigationTitle("Kotak data")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct UpdateSettings: View {
-    @EnvironmentObject var settings: AppSettings
-    @EnvironmentObject var updater: UpdateService
-
-    var body: some View {
-        Form {
-            Section(header: Text("Versi"),
-                    footer: Text("Update diambil dari GitHub Releases (workflow Actions menerbitkannya otomatis setiap build). iOS tidak mengizinkan app memasang IPA sendiri, jadi tombol Pasang membuka SideStore, AltStore, atau LiveContainer dengan IPA terbaru: tinggal satu ketukan konfirmasi di sana. Di LiveContainer, bila bundle ID sudah ada pilih Ganti agar data app tetap. Bila XConnect sendiri dijalankan di dalam LiveContainer, jalankan dalam mode multitasking atau di LiveContainer kedua supaya LiveContainer utama bebas memproses pemasangan.")) {
-                HStack { Text("Terpasang"); Spacer(); Text("\(UpdateService.currentVersion)").foregroundColor(.secondary) }
-                if let l = updater.latest {
-                    HStack { Text("Terbaru"); Spacer(); Text(l.name).foregroundColor(.secondary) }
-                }
-                if !updater.message.isEmpty { Text(updater.message).font(.footnote).foregroundColor(.secondary) }
-            }
-            Section(header: Text("Sumber update")) {
-                TextField("pemilik/nama-repo", text: $settings.updateRepo)
-                    .autocapitalization(.none).disableAutocorrection(true)
-                Toggle("Cek otomatis saat app dibuka", isOn: $settings.autoCheckUpdate)
-                Button(updater.checking ? "Memeriksa…" : "Cek update sekarang") {
-                    updater.check(repo: settings.updateRepo)
-                }.disabled(updater.checking)
-            }
-            if updater.updateAvailable {
-                Section(header: Text("Update tersedia")) {
-                    if let n = updater.latest?.notes, !n.isEmpty { Text(n).font(.footnote) }
-                    Picker("Pasang lewat", selection: $settings.updater) {
-                        Text("SideStore").tag(0)
-                        Text("AltStore").tag(1)
-                        Text("LiveContainer").tag(2)
-                    }
-                    .pickerStyle(.segmented)
-                    Button("Pasang update") { updater.install(using: settings.updater) }
-                    Button("Tambah sumber ke \(UpdateService.storeName(settings.updater)) (cara yang disarankan)") {
-                        updater.addSource(repo: settings.updateRepo, using: settings.updater)
-                    }
-                    Button("Buka halaman unduhan") { updater.openDownloadPage() }
+            Section(header: Text("Ukuran huruf"),
+                    footer: Text("1 = ukuran bawaan. Huruf otomatis dikecilkan bila isi kartu terlalu panjang, jadi tidak pernah keluar dari kartu.")) {
+                sliderRow("Kartu besar", value: $settings.cardFontBig, range: 0.5...1.5, step: 0.05, unit: "x")
+                sliderRow("Kartu kecil", value: $settings.cardFontSmall, range: 0.5...1.5, step: 0.05, unit: "x")
+                Button("Atur ulang ukuran huruf") {
+                    settings.cardFontBig = 1
+                    settings.cardFontSmall = 1
                 }
             }
         }
-        .navigationTitle("Update aplikasi")
+        .navigationTitle("Kartu Data")
         .navigationBarTitleDisplayMode(.inline)
+        .dashPreviewLifecycle(focus: .mapData)
     }
 }
 
@@ -494,12 +495,19 @@ struct ScreensSettings: View {
 
     var body: some View {
         Form {
+            Section(header: Text("Pratinjau"),
+                    footer: Text("Ketuk panah untuk berpindah layar. Perubahan di bawah langsung terlihat.")) {
+                DashPreviewBox()
+            }
             Section(header: Text("Layar yang bisa dipilih dengan tombol stang"),
                     footer: Text("Slideshow foto hanya muncul bila ada foto.")) {
                 ForEach(DashScreen.allCases, id: \.rawValue) { s in
                     Toggle(s.title, isOn: binding(s))
                 }
-                Toggle("Kartu cuaca/bensin di layar Peta + data", isOn: $settings.showCards)
+            }
+            Section(header: Text("Kartu Data"),
+                    footer: Text("Kartu cuaca, bensin, dan data motor di sisi kanan layar Peta. Isi dan tata letaknya diatur di Pengaturan > Kartu Data.")) {
+                Toggle("Tampilkan Kartu Data", isOn: $settings.showCards)
             }
             Section(header: Text("Saat motor dinyalakan"),
                     footer: Text("Layar yang tampil pertama di dash setelah terhubung, tanpa perlu membuka app. Hanya layar yang aktif di atas yang dipakai.")) {
@@ -515,6 +523,7 @@ struct ScreensSettings: View {
                 } else {
                     Button("Izinkan akses musik") { music.requestAccess() }
                 }
+                Toggle("Latar sampul blur", isOn: $settings.musicBlurBG)
             }
             Section(header: Text("Info di pojok layar"),
                     footer: Text("Pilih data yang tampil di pojok kiri/kanan atas tiap layar, atau Kosong untuk menyembunyikannya.")) {
@@ -554,6 +563,7 @@ struct ScreensSettings: View {
         }
         .navigationTitle("Layar dasbor")
         .navigationBarTitleDisplayMode(.inline)
+        .dashPreviewLifecycle()
         .sheet(isPresented: $picking) {
             PhotoPicker(limit: 20) { imgs in slides.add(imgs) }
         }
@@ -566,30 +576,15 @@ struct RouteSettings: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Kendaraan")) {
-                Picker("Jenis rute", selection: $settings.costing) {
-                    Text("Skuter (NMAX/XMAX)").tag("motor_scooter")
-                    Text("Motor").tag("motorcycle")
-                    Text("Mobil").tag("auto")
-                }
-            }
             Section(header: Text("Profil rute"),
                     footer: Text("Dibaca setiap kali rute dihitung atau dihitung ulang. Bawaan Valhalla untuk skuter menghindari jalan utama dan membatasi 45 km/j sehingga rute memutar dan waktunya lama. Batas kecepatan memengaruhi estimasi waktu, bukan kecepatan Anda berkendara.")) {
-                if settings.costing != "auto" {
-                    sliderRow("Jalan utama", value: $settings.routePrimary, range: 0...1, step: 0.1, unit: "")
-                    Text("0 = hindari jalan utama, 1 = utamakan jalan utama").font(.caption).foregroundColor(.secondary)
-                }
+                sliderRow("Jalan utama", value: $settings.routePrimary, range: 0...1, step: 0.1, unit: "")
+                Text("0 = hindari jalan utama, 1 = utamakan jalan utama").font(.caption).foregroundColor(.secondary)
                 Stepper("Batas kecepatan maksimal \(settings.routeTopSpeed) km/j", value: $settings.routeTopSpeed, in: 20...120, step: 5)
-                if settings.costing != "auto" {
-                    sliderRow("Tanjakan", value: $settings.routeHills, range: 0...1, step: 0.1, unit: "")
-                    Text("0 = hindari tanjakan, 1 = tidak masalah").font(.caption).foregroundColor(.secondary)
-                    sliderRow("Gang dan jalan permukiman", value: $settings.routeLiving, range: 0...1, step: 0.1, unit: "")
-                    sliderRow("Jalan setapak / tak beraspal", value: $settings.routeTrails, range: 0...1, step: 0.1, unit: "")
-                }
-                if settings.costing != "motor_scooter" {
-                    Toggle("Hindari jalan tol", isOn: $settings.routeAvoidTolls)
-                    sliderRow("Jalan bebas hambatan", value: $settings.routeHighways, range: 0...1, step: 0.1, unit: "")
-                }
+                sliderRow("Tanjakan", value: $settings.routeHills, range: 0...1, step: 0.1, unit: "")
+                Text("0 = hindari tanjakan, 1 = tidak masalah").font(.caption).foregroundColor(.secondary)
+                sliderRow("Gang dan jalan permukiman", value: $settings.routeLiving, range: 0...1, step: 0.1, unit: "")
+                sliderRow("Jalan setapak / tak beraspal", value: $settings.routeTrails, range: 0...1, step: 0.1, unit: "")
                 sliderRow("Feri", value: $settings.routeFerry, range: 0...1, step: 0.1, unit: "")
                 Toggle("Rute terpendek (jarak), bukan tercepat", isOn: $settings.routeShortest)
                 Button("Pakai bawaan XConnect (jalan utama, 80 km/j)") { settings.applyRouteProfile(.appDefault) }
@@ -666,6 +661,7 @@ struct CcuRawView: View {
 
 struct DebugSettings: View {
     @EnvironmentObject var bike: BikeController
+    @EnvironmentObject var settings: AppSettings
 
     var body: some View {
         Form {
@@ -674,6 +670,11 @@ struct DebugSettings: View {
                 Button("Jalankan probe CCU") { bike.runCcuProbe() }
                 Button("Hentikan probe CCU") { bike.stopCcuProbe() }
                 Text(bike.vehicleLive.state).font(.footnote).foregroundColor(.secondary)
+            }
+            Section(header: Text("Bahasa dash (eksperimen)"),
+                    footer: Text("Dash menanyakan bahasa ke app lewat CCU. Bawaan: tidak dikirim. Dugaan (belum terbukti): format jam di bar atas dash mengikuti bahasa ini, bukan pengaturan jam 24 jam app. Kode yang dikenal: 0 = Inggris, 15 = Vietnam. Coba satu kode, matikan lalu nyalakan kontak, dan lihat jam dan teks bawaan dash. Kode yang ditolak CCU tercatat di Log sebagai CCU: error. Kembalikan ke -1 bila tampilan dash menjadi aneh.")) {
+                Stepper(settings.dashLang < 0 ? "Kode bahasa: tidak dikirim" : "Kode bahasa: \(settings.dashLang)",
+                        value: $settings.dashLang, in: -1...63)
             }
             Section(header: Text("Log")) {
                 Button("Salin log") { UIPasteboard.general.string = bike.logLines.joined(separator: "\n") }
@@ -686,10 +687,55 @@ struct DebugSettings: View {
 }
 
 struct AboutSettings: View {
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var updater: UpdateService
+
     var body: some View {
         Form {
             Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla.")) {
-                Text("XConnect \(UpdateService.currentVersion)")
+                HStack(spacing: 14) {
+                    Image("AppLogo")
+                        .resizable()
+                        .frame(width: 48, height: 48)
+                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("XConnect").font(.headline)
+                        Text("Versi \(UpdateService.currentVersion)").font(.footnote).foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            Section(header: Text("Versi dan update"),
+                    footer: Text("Update diambil dari GitHub Releases (workflow Actions menerbitkannya otomatis setiap build). iOS tidak mengizinkan app memasang IPA sendiri, jadi tombol Pasang membuka SideStore, AltStore, atau LiveContainer dengan IPA terbaru: tinggal satu ketukan konfirmasi di sana. Di LiveContainer, bila bundle ID sudah ada pilih Ganti agar data app tetap. Bila XConnect sendiri dijalankan di dalam LiveContainer, jalankan dalam mode multitasking atau di LiveContainer kedua supaya LiveContainer utama bebas memproses pemasangan.")) {
+                HStack { Text("Terpasang"); Spacer(); Text("\(UpdateService.currentVersion)").foregroundColor(.secondary) }
+                if let l = updater.latest {
+                    HStack { Text("Terbaru"); Spacer(); Text(l.name).foregroundColor(.secondary) }
+                }
+                if !updater.message.isEmpty { Text(updater.message).font(.footnote).foregroundColor(.secondary) }
+            }
+            Section(header: Text("Sumber update")) {
+                TextField("pemilik/nama-repo", text: $settings.updateRepo)
+                    .autocapitalization(.none).disableAutocorrection(true)
+                Toggle("Cek otomatis saat app dibuka", isOn: $settings.autoCheckUpdate)
+                Button(updater.checking ? "Memeriksa…" : "Cek update sekarang") {
+                    updater.check(repo: settings.updateRepo)
+                }.disabled(updater.checking)
+            }
+            if updater.updateAvailable {
+                Section(header: Text("Update tersedia")) {
+                    if let n = updater.latest?.notes, !n.isEmpty { Text(n).font(.footnote) }
+                    Picker("Pasang lewat", selection: $settings.updater) {
+                        Text("SideStore").tag(0)
+                        Text("AltStore").tag(1)
+                        Text("LiveContainer").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    Button("Pasang update") { updater.install(using: settings.updater) }
+                    Button("Tambah sumber ke \(UpdateService.storeName(settings.updater)) (cara yang disarankan)") {
+                        updater.addSource(repo: settings.updateRepo, using: settings.updater)
+                    }
+                    Button("Buka halaman unduhan") { updater.openDownloadPage() }
+                }
             }
         }
         .navigationTitle("Tentang")

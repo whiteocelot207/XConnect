@@ -28,8 +28,6 @@ final class BikeController: NSObject, ObservableObject {
     @Published var currentStreet = ""
     /// true selama halaman pengaturan posisi terbuka: tampilkan contoh panel navigasi
     var demoNav = false
-    /// peristiwa tombol terakhir (untuk layar Tes tombol di dash)
-    private(set) var buttonLog: [String] = []
 
     weak var model: AppModel?
 
@@ -300,13 +298,9 @@ final class BikeController: NSObject, ObservableObject {
 
     private func setStatus(_ s: String) { status = s }
 
-    /// Catat peristiwa tombol: masuk log dan tampil di layar Tes tombol.
+    /// Catat peristiwa tombol ke Log.
     func buttonEvent(_ s: String) {
         log("Tombol: " + s)
-        DispatchQueue.main.async {
-            self.buttonLog.append("\(self.fmt.string(from: Date())) \(s)")
-            if self.buttonLog.count > 12 { self.buttonLog.removeFirst(self.buttonLog.count - 12) }
-        }
     }
 
     private func updateIdleTimer() {
@@ -468,6 +462,12 @@ final class BikeController: NSObject, ObservableObject {
         log("Layar awal: \(currentScreen.title)")
     }
 
+    /// Pindah ke layar tertentu bila aktif (dipakai halaman pengaturan supaya pratinjau menampilkan layar yang relevan).
+    func showScreen(_ screen: DashScreen) {
+        guard let i = screens().firstIndex(of: screen), i != min(screenIndex, screens().count - 1) else { return }
+        screenIndex = i
+    }
+
     func stepScreen(forward: Bool) {
         let n = max(1, screens().count)
         screenIndex = (min(screenIndex, n - 1) + (forward ? 1 : n - 1)) % n
@@ -519,7 +519,6 @@ final class BikeController: NSObject, ObservableObject {
         c.ccuSpeedKmh = live.speedKmh
         c.ccuRaw = live.rawRecord
         c.dateText = Fmt.shortDate(Date())
-        c.buttonLog = buttonLog
         sysLock.lock()
         let vol = cachedVolume
         c.audioOut = cachedRoute
@@ -648,7 +647,6 @@ final class BikeController: NSObject, ObservableObject {
         s.onGoWork = { [weak self] in DispatchQueue.main.async { self?.nav?.goWork() } }
         s.onStepScreen = { [weak self] fwd in DispatchQueue.main.async { self?.stepScreen(forward: fwd) } }
         s.isMusicScreen = { [weak self] in self?.currentScreen == .music }
-        s.isTestScreen = { [weak self] in self?.currentScreen == .buttonTest }
         s.onButtonEvent = { [weak self] in self?.buttonEvent($0) }
         s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 800) / 1000 }
         s.holdSkipEnabled = { [weak self] in self?.settings.holdSkip ?? true }

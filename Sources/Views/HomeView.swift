@@ -112,7 +112,7 @@ struct HomeView: View {
     // MARK: - Preview dasbor
 
     /// Dash menutup bagian atas dan bar hitam nama jalan di bawah bingkai; preview hanya menampilkan area yang terlihat.
-    private static func visibleArea(_ img: UIImage) -> UIImage {
+    static func visibleArea(_ img: UIImage) -> UIImage {
         guard let cg = img.cgImage else { return img }
         let k = CGFloat(cg.width) / 480
         let r = CGRect(x: 0, y: DashComposer.visTop * k, width: CGFloat(cg.width), height: DashComposer.visHeight * k)

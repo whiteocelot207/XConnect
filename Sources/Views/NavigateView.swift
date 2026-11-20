@@ -233,7 +233,7 @@ struct NavigateView: View {
                     }
                 }
                 if let eta = nav.etaDate {
-                    Text("Sisa \(Fmt.distance(nav.remainingM)) • tiba \(Fmt.clock(eta))")
+                    Text("Sisa \(Fmt.distance(nav.remainingM)) • \(Fmt.duration(nav.remainingS)) • tiba \(Fmt.clock(eta))")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }

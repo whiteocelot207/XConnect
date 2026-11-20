@@ -3,16 +3,15 @@ import CoreImage
 import CoreLocation
 
 enum DashScreen: Int, CaseIterable {
-    case mapData = 0, mapOnly = 1, dashboard = 2, music = 3, slideshow = 4, buttonTest = 5
+    /// rawValue 1 (Peta saja) dan 5 (Tes tombol) sudah dihapus; nilai lain tetap supaya pengaturan lama tetap cocok.
+    case mapData = 0, dashboard = 2, music = 3, slideshow = 4
 
     var title: String {
         switch self {
-        case .mapData: return "Peta + data"
-        case .mapOnly: return "Peta saja"
+        case .mapData: return "Peta"
         case .dashboard: return "Speedometer"
         case .music: return "Musik"
         case .slideshow: return "Foto"
-        case .buttonTest: return "Tes tombol"
         }
     }
 }
@@ -89,8 +88,6 @@ struct DashContent {
     var dateText = ""
     var headingText = ""
     var altitudeM: Int?
-    /// baris terakhir peristiwa tombol (untuk layar Tes tombol)
-    var buttonLog: [String] = []
 }
 
 struct DashHUD {
@@ -148,20 +145,18 @@ enum DashComposer {
             let vis = CGRect(x: 0, y: visTop, width: size.width, height: visHeight)
             switch hud.screen {
             case .dashboard: drawDashboard(cg, hud, vis)
-            case .mapOnly: drawMapScreen(cg, hud, vis, cards: false)
-            case .mapData: drawMapScreen(cg, hud, vis, cards: true)
+            case .mapData: drawMapScreen(cg, hud, vis)
             case .music: drawMusic(cg, hud, vis)
             case .slideshow: drawSlideshow(cg, hud, vis)
-            case .buttonTest: drawButtonTest(cg, hud, vis)
             }
         }
     }
 
     // MARK: - Layar peta
 
-    private static func drawMapScreen(_ cg: CGContext, _ hud: DashHUD, _ vis: CGRect, cards: Bool) {
+    private static func drawMapScreen(_ cg: CGContext, _ hud: DashHUD, _ vis: CGRect) {
         let c = hud.content
-        let withCards = cards && c.showCards
+        let withCards = c.showCards
         let full = CGRect(origin: .zero, size: hud.size)
         // area peta bebas = kiri panel kartu; titik motor di tengahnya (bukan terlalu kiri)
         let anchor = CGPoint(x: (withCards ? 192 : hud.size.width / 2) + c.markerX,
@@ -607,28 +602,6 @@ enum DashComposer {
             let spd = CGRect(x: hud.size.width - w - 8, y: vis.maxY - 28, width: w, height: 24)
             fillRound(spd, radius: 12, color: UIColor(white: 0, alpha: 0.5))
             text(right, spd, size: 13, bold: true, align: .center)
-        }
-    }
-
-    // MARK: - Layar tes tombol
-
-    private static func drawButtonTest(_ cg: CGContext, _ hud: DashHUD, _ vis: CGRect) {
-        let c = hud.content
-        UIColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 1).setFill()
-        cg.fill(CGRect(origin: .zero, size: hud.size))
-        text("Tes tombol stang", CGRect(x: 10, y: vis.minY + 3, width: 300, height: 22), size: 17, bold: true)
-        text(c.clock, CGRect(x: 330, y: vis.minY + 5, width: 140, height: 18), size: 14, bold: true, align: .right)
-        let lines = Array(c.buttonLog.suffix(8))
-        if lines.isEmpty {
-            text("Tekan tombol atas/bawah di stang", CGRect(x: 10, y: vis.minY + 50, width: 460, height: 20), size: 15,
-                 color: UIColor(white: 0.8, alpha: 1))
-            text("Tiap tekan tampil di sini dan masuk ke Log", CGRect(x: 10, y: vis.minY + 74, width: 460, height: 18),
-                 size: 12, color: UIColor(white: 0.6, alpha: 1))
-            return
-        }
-        for (i, l) in lines.reversed().enumerated() {
-            text(l, CGRect(x: 10, y: vis.minY + 28 + CGFloat(i) * 17, width: 460, height: 16), size: i == 0 ? 13 : 11,
-                 bold: i == 0, color: i == 0 ? .white : UIColor(white: 0.65, alpha: 1))
         }
     }
 

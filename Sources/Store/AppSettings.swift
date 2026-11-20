@@ -3,15 +3,14 @@ import UIKit
 
 final class AppSettings: ObservableObject {
     @Published var autoConnect: Bool { didSet { put("autoConnect", autoConnect) } }
-    /// 0 = otomatis (18.00-05.00 malam), 1 = siang, 2 = malam
+    /// 0 = otomatis (malam 18.00-06.00), 1 = siang, 2 = malam
     @Published var nightMode: Int { didSet { put("nightMode", nightMode) } }
-    @Published var costing: String { didSet { put("costing", costing) } }
     @Published var routingBase: String { didSet { put("routingBase", routingBase) } }
     @Published var keepScreenOn: Bool { didSet { put("keepScreenOn", keepScreenOn) } }
     /// 0 = ikuti ponsel, 1 = gelap, 2 = terang
     @Published var theme: Int { didSet { put("theme", theme) } }
     @Published var userName: String { didSet { put("userName", userName) } }
-    /// bit 0 = Peta + data, 1 = Peta saja, 2 = Speedometer, 3 = Musik, 4 = Foto
+    /// bit 0 = Peta, 2 = Speedometer, 3 = Musik, 4 = Foto (bit 1 Peta saja dan bit 5 Tes tombol sudah dihapus)
     @Published var screenMask: Int { didSet { put("screenMask", screenMask) } }
     /// 0 = 1x tekan ganti tampilan, 2x zoom (seperti NConnect); 1 = 1x zoom, 2x ganti tampilan
     @Published var buttonScheme: Int { didSet { put("buttonScheme", buttonScheme) } }
@@ -57,7 +56,7 @@ final class AppSettings: ObservableObject {
     @Published var photoShift: Double { didSet { put("photoShift", photoShift) } }
     /// kata sapaan di kotak cuaca dash (mis. "Halo")
     @Published var greetingWord: String { didSet { put("greetingWord", greetingWord) } }
-    /// 0 = transparan, 1 = hitam pekat (latar kolom kotak data di layar Peta + data)
+    /// 0 = transparan, 1 = hitam pekat (latar kolom Kartu Data di layar Peta)
     @Published var cardBgAlpha: Double { didSet { put("cardBgAlpha", cardBgAlpha) } }
     /// geser titik motor ke kiri (negatif) / kanan (positif), px
     @Published var markerX: Double { didSet { put("markerX", markerX) } }
@@ -129,7 +128,7 @@ final class AppSettings: ObservableObject {
     init() {
         let d = UserDefaults.standard
         d.register(defaults: [
-            "autoConnect": true, "nightMode": 2, "costing": "motor_scooter",
+            "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
             "theme": 0, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
             "showCards": true, "routeColor": 0, "autoZoom": true, "defaultKmPerL": 30.0,
@@ -150,12 +149,11 @@ final class AppSettings: ObservableObject {
         ])
         autoConnect = d.bool(forKey: "autoConnect")
         nightMode = d.integer(forKey: "nightMode")
-        costing = d.string(forKey: "costing") ?? "motor_scooter"
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
         keepScreenOn = d.bool(forKey: "keepScreenOn")
         theme = d.integer(forKey: "theme")
         userName = d.string(forKey: "userName") ?? ""
-        screenMask = d.integer(forKey: "screenMask")
+        screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
         buttonScheme = d.integer(forKey: "buttonScheme")
         slideSeconds = max(2, d.integer(forKey: "slideSeconds"))
         saveBattery = d.bool(forKey: "saveBattery")
@@ -195,7 +193,7 @@ final class AppSettings: ObservableObject {
         navDY = d.double(forKey: "navDY")
         etaDX = d.double(forKey: "etaDX")
         etaDY = d.double(forKey: "etaDY")
-        startScreen = d.integer(forKey: "startScreen")
+        startScreen = Self.migratedStart(d.integer(forKey: "startScreen"))
         doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
         holdSkip = d.bool(forKey: "holdSkip")
         holdMs = min(max(300, d.integer(forKey: "holdMs")), 2000)
@@ -235,12 +233,11 @@ final class AppSettings: ObservableObject {
         let d = UserDefaults.standard
         autoConnect = d.bool(forKey: "autoConnect")
         nightMode = d.integer(forKey: "nightMode")
-        costing = d.string(forKey: "costing") ?? "motor_scooter"
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
         keepScreenOn = d.bool(forKey: "keepScreenOn")
         theme = d.integer(forKey: "theme")
         userName = d.string(forKey: "userName") ?? ""
-        screenMask = d.integer(forKey: "screenMask")
+        screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
         buttonScheme = d.integer(forKey: "buttonScheme")
         slideSeconds = max(2, d.integer(forKey: "slideSeconds"))
         saveBattery = d.bool(forKey: "saveBattery")
@@ -280,7 +277,7 @@ final class AppSettings: ObservableObject {
         navDY = d.double(forKey: "navDY")
         etaDX = d.double(forKey: "etaDX")
         etaDY = d.double(forKey: "etaDY")
-        startScreen = d.integer(forKey: "startScreen")
+        startScreen = Self.migratedStart(d.integer(forKey: "startScreen"))
         doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
         holdSkip = d.bool(forKey: "holdSkip")
         holdMs = min(max(300, d.integer(forKey: "holdMs")), 2000)
@@ -315,6 +312,22 @@ final class AppSettings: ObservableObject {
         routeShortest = d.bool(forKey: "routeShortest")
     }
 
+    /// Jenis rute selalu skuter (NMAX/XMAX); pilihan kendaraan sudah dihapus dari Pengaturan.
+    var costing: String { "motor_scooter" }
+
+    /// Layar lama yang sudah dihapus: "Peta saja" (bit 1) digabung ke Peta, "Tes tombol" (bit 5) dibuang.
+    /// Layar awal yang menunjuk ke layar itu dikembalikan ke bawaan.
+    private static func migratedMask(_ mask: Int) -> Int {
+        var m = mask
+        if m & (1 << 1) != 0 { m |= 1 }
+        m &= ~((1 << 1) | (1 << 5))
+        return m & 0b11101 == 0 ? 1 : m
+    }
+
+    private static func migratedStart(_ start: Int) -> Int {
+        start == 1 ? 0 : (start == 5 ? -1 : start)
+    }
+
     var routeProfile: RouteProfile {
         RouteProfile(primary: routePrimary, topSpeed: routeTopSpeed, hills: routeHills, living: routeLiving,
                      trails: routeTrails, ferry: routeFerry, avoidTolls: routeAvoidTolls,
@@ -339,7 +352,7 @@ final class AppSettings: ObservableObject {
         case 2: return true
         default:
             let h = Calendar.current.component(.hour, from: now)
-            return h >= 18 || h < 5
+            return h >= 18 || h < 6
         }
     }
 

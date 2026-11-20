@@ -21,7 +21,6 @@ extension AppSettings {
     static let backupKeys: [String] = [
         "autoConnect",
         "nightMode",
-        "costing",
         "routingBase",
         "keepScreenOn",
         "theme",

@@ -167,7 +167,7 @@ struct MotorView: View {
                     .foregroundColor(.secondary)
             }
             ProgressView(value: fuel.levelL > 0 ? frac : 0).tint(frac < 0.2 ? .red : .green)
-            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L (\(kmplInfo.source)).\(kmplInfo.measured || kmplInfo.source != "nilai bawaan" ? " Sisa bensin berkurang menurut konsumsi saat itu tiap motor berjalan." : " Isi byte rata-rata BBM dari dash di Pengaturan > Motor dan koneksi supaya konsumsi mengikuti cara berkendara Anda.")")
+            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L (\(kmplInfo.source)).\(kmplInfo.measured || kmplInfo.source != "nilai bawaan" ? " Sisa bensin berkurang menurut konsumsi saat itu tiap motor berjalan." : " Isi byte rata-rata BBM dari dash di Pengaturan > Motor dan BBM supaya konsumsi mengikuti cara berkendara Anda.")")
                 .font(.footnote)
                 .foregroundColor(.secondary)
             if fuel.mayBeOff {

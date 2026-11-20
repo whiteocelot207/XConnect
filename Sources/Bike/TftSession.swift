@@ -18,9 +18,8 @@ final class TftSession {
     var onStopRoute: () -> Void = {}
     var onGoHome: () -> Void = {}
     var onGoWork: () -> Void = {}
-    /// catatan peristiwa tombol (masuk Log dan layar Tes tombol)
+    /// catatan peristiwa tombol (masuk Log)
     var onButtonEvent: (String) -> Void = { _ in }
-    var isTestScreen: () -> Bool = { false }
     var doubleClickWindow: () -> Double = { 0.8 }
     /// Layar Musik: tahan tombol atas/bawah = lagu berikutnya/sebelumnya (lama tahan dari Pengaturan)
     var holdSkipEnabled: () -> Bool = { true }
@@ -303,14 +302,14 @@ final class TftSession {
     /// Tanpa jeda: klik pertama langsung dieksekusi. Bila klik kedua (arah sama) datang dalam jendela waktu
     /// (Pengaturan > Kontrol pada motor), aksi klik pertama dibatalkan lalu aksi "2x" dijalankan.
     /// Skema 0: 1x ganti tampilan, 2x zoom. Skema 1: 1x zoom, 2x ganti tampilan.
-    /// Di layar Musik: 1x = volume, 2x = ganti tampilan. Di layar Tes tombol: 1x hanya dicatat, 2x ganti tampilan.
+    /// Di layar Musik: 1x = volume, 2x = ganti tampilan.
     /// Tombol "+" (atas) = tampilan berikutnya/zoom in/volume naik, "-" (bawah) kebalikannya.
     private func buttonPressed(up: Bool) {
         let before = labelSends
         handleButton(up: up)
         // docs/protocol/link-a-dash.md: tepat setelah tiap tekan 51/52, kirim cmd 14 (flag 1, `07 1A ...`); tanpa itu
         // hanya tekanan pertama dalam sesi yang sampai ke app. Label zoom sudah merupakan cmd 14, tetapi hanya
-        // terkirim bila zoom berubah: klik volume di layar Musik, ganti tampilan, atau layar Tes tombol tidak mengirim
+        // terkirim bila zoom berubah: klik volume di layar Musik atau ganti tampilan tidak mengirim
         // apa pun sehingga tombol stang berhenti merespons ("hang"). Kini label dikirim ulang bila belum ada.
         if authenticated && labelSends == before {
             lastZoomLabel = ""
@@ -321,13 +320,12 @@ final class TftSession {
     private func handleButton(up: Bool) {
         let scheme = buttonSchemeProvider()
         let music = isMusicScreen()
-        let test = isTestScreen()
         let window = doubleClickWindow()
         let now = Date()
         var gap = ""
         if let last = lastBtn { gap = " (+\(Int(now.timeIntervalSince(last) * 1000)) ms)" }
         let dir = up ? "atas" : "bawah"
-        if music && !test && holdSkipEnabled() {
+        if music && holdSkipEnabled() {
             lastBtn = now
             lastBtnUp = up
             handleMusicButton(up: up, now: now, window: window, gap: gap)
@@ -336,9 +334,7 @@ final class TftSession {
         if let last = lastBtn, lastBtnUp == up, now.timeIntervalSince(last) < window {
             lastBtn = nil
             onButtonEvent("\(dir) 2x cepat\(gap)")
-            if test {
-                onStepScreen(up)
-            } else if music {
+            if music {
                 onVolume(!up)                    // batalkan volume dari klik pertama
                 onStepScreen(up)
             } else if scheme == 0 {
@@ -352,9 +348,7 @@ final class TftSession {
             lastBtn = now
             lastBtnUp = up
             onButtonEvent("\(dir) 1x\(gap)")
-            if test {
-                // hanya dicatat
-            } else if music {
+            if music {
                 onVolume(up)
             } else if scheme == 0 {
                 onStepScreen(up)
