@@ -195,22 +195,15 @@ final class NavigationController: ObservableObject {
         let base = settings.routingBase
         let costing = settings.costing
         let profile = settings.routeProfile
-        let provider = settings.routeProvider
         busy = true
         message = initial ? "Menghitung rute…" : "Menghitung ulang rute…"
         if !initial && phase == .navigating { voice?.speak("Menghitung ulang rute") }
         let alts = (initial && phase != .navigating) ? 2 : 0
         Task { [weak self] in
             do {
-                let rs: [Route]
-                if provider == 1 {
-                    rs = try await MapKitRouter.routes(costing: costing, from: from, to: dest.coordinate,
-                                                       alternatives: alts, profile: profile)
-                } else {
-                    rs = try await ValhallaClient.routes(base: base, costing: costing, from: from,
+                let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from,
                                                          to: dest.coordinate, heading: heading, alternatives: alts,
                                                          profile: profile)
-                }
                 DispatchQueue.main.async {
                     self?.routes = rs
                     self?.routeIndex = 0

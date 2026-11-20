@@ -233,21 +233,53 @@ struct NavigateView: View {
             } else if nav.busy && nav.routes.isEmpty {
                 HStack { ProgressView(); Text("Menghitung rute…") }
             } else if !nav.routes.isEmpty {
+                // preview kecil semua rute; ketuk garis rute lain untuk memilih, ketuk di tempat lain untuk peta penuh
+                ZStack(alignment: .bottomTrailing) {
+                    RoutePreviewMap(routes: nav.routes, selected: nav.routeIndex, destination: nav.destination,
+                                    onSelect: { nav.selectRoute($0) }, onOpen: { showMap = true })
+                    Label("Ketuk untuk memperbesar", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.black.opacity(0.55)))
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .allowsHitTesting(false)
+                }
+                .frame(height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
                 ForEach(nav.routes.indices, id: \.self) { i in
                     let r = nav.routes[i]
+                    let picked = i == nav.routeIndex
                     Button { nav.selectRoute(i) } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: i == nav.routeIndex ? "largecircle.fill.circle" : "circle")
-                                .foregroundColor(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(routeTitle(i)).foregroundColor(.primary)
-                                Text("\(Fmt.distance(r.totalM)) • \(Fmt.duration(r.totalS))" + (r.via.isEmpty ? "" : " • via \(r.via)"))
-                                    .font(.footnote)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 8) {
+                                Text(Fmt.duration(r.totalS)).font(.title3.weight(.bold)).foregroundColor(.primary)
+                                Text(Fmt.distance(r.totalM)).font(.subheadline).foregroundColor(.secondary)
+                                if i > 0, let first = nav.routes.first, r.totalS > first.totalS + 30 {
+                                    Text("+" + Fmt.duration(r.totalS - first.totalS)).font(.footnote).foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                if i == 0 {
+                                    Text("Tercepat")
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(Capsule().fill(Color.blue.opacity(0.18)))
+                                        .foregroundColor(.blue)
+                                } else {
+                                    Text("Alternatif \(i)").font(.caption).foregroundColor(.secondary)
+                                }
                             }
-                            Spacer()
+                            if !r.via.isEmpty {
+                                Text("lewat \(r.via)").font(.footnote).foregroundColor(.secondary).lineLimit(2)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(picked ? Color.blue.opacity(0.10) : Color.gray.opacity(0.10)))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(picked ? Color.blue : Color.clear, lineWidth: 2))
                     }
                     .buttonStyle(.borderless)
                 }

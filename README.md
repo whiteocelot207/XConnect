@@ -4,14 +4,25 @@ App iPhone untuk menampilkan peta Indonesia, data motor, musik, dan foto di dash
 lewat ExternalAccessory (iAP) `com.garmin.navilite.data`, plus data CCU lewat BLE.
 (Dulu bernama NmaxConnect. Bundle ID sekarang `id.xconnect.app` (app baru, terpisah dari yang lama; pindahkan pengaturan lewat Cadangkan dan pulihkan).)
 
-## Sumber routing (baru)
-- **Pengaturan > Rute dan pencarian > Sumber routing**: pilih **Valhalla (publik)** atau **Apple Maps (MapKit)**. Valhalla tetap bawaan.
-  Apple Maps: tanpa server, jam tiba memperhitungkan lalu lintas, tetapi dihitung untuk mobil (tanpa profil skuter/motor, tanpa heading
-  saat hitung ulang); hanya pilihan tol dan jalan bebas hambatan yang berlaku (iOS 16 ke atas). Ikon belokan dihitung dari sudut
-  geometri rute, bundaran/putar balik/tiba dari teks petunjuk Apple; nama jalan diambil dari teks itu (bahasa mengikuti ponsel).
-  Untuk skuter/motor, tol dan jalan bebas hambatan selalu dihindari, dan estimasi waktu dibatasi batas kecepatan maksimal
-  (Pengaturan > Rute dan pencarian). Suara petunjuk tetap bahasa Indonesia dan angka Romawi dibaca angka untuk kedua sumber.
-  BELUM DIUJI di motor: bila ikon atau nama jalan salah, kirim teks petunjuk dari Log.
+## Routing, pratinjau rute, dan tautan Google Maps
+- **Routing hanya Valhalla.** Pilihan Apple Maps (MapKit) sudah dihapus (`MapKitRouter.swift` dan pemilih sumber di Pengaturan).
+  Batas kecepatan maksimal, jalan utama, tanjakan, dan lainnya diatur di Pengaturan > Rute dan pencarian. Suara petunjuk tetap
+  bahasa Indonesia dan angka Romawi dibaca sebagai angka.
+- **Pratinjau peta di pemilihan rute**: setelah memilih tempat atau menempel tautan, kotak rute menampilkan peta kecil berisi semua
+  rute (terpilih biru, alternatif abu-abu) dan tujuan (`Views/RoutePreviewMap.swift`). Ketuk garis rute lain untuk memilihnya,
+  ketuk di tempat lain untuk membuka peta penuh. BELUM DIUJI di perangkat.
+- **Tautan Google Maps lebih cepat** (`Nav/MapsLink.swift`): tahap cepat mengikuti pengalihan tautan pendek satu per satu dengan
+  membaca header Location saja (tanpa mengunduh halaman Google) dan berhenti begitu koordinat terlihat. Bila tautan hanya berisi
+  nama tempat, nama itu langsung dicari lewat Apple + OpenStreetMap yang berjalan bersamaan dan diterima bila namanya cocok hampir
+  seluruhnya (skor >= 0,75). Cara lama (mengunduh halaman, WKWebView tersembunyi, ID tempat, pencarian longgar) hanya dipakai
+  bila cara cepat tidak meyakinkan. Subtitle tujuan menampilkan sumbernya; "(dari nama)" berarti titik dicari dari nama,
+  jadi periksa lokasinya bila ada banyak cabang dengan nama sama.
+- **Tautan Google Maps dibuka seperti peramban PC** (cadangan): bila alamat akhir tidak memuat koordinat, app membuka tautan di
+  WKWebView tersembunyi, menunggu JavaScript Google mengubah alamat menjadi /maps/place/…/@lat,lon/…!3d…!4d…, lalu membaca
+  koordinatnya (maks. 14 dtk).
+- **Rute skuter**: opsi Valhalla `motor_scooter` kini use_primary 1.0, use_hills 0, top_speed 80 (bawaan 0,5 / 0,5 / 45 km/j
+  membuat rute memutar lewat jalan kecil dan estimasi waktu terlalu lama). Ada tombol bawaan XConnect (80 km/j) dan bawaan
+  Valhalla (45 km/j); profil ikut tersimpan di Cadangkan dan pulihkan.
 
 ## Bensin ala NConnect (baru)
 - Konsumsi untuk sisa bensin: **rata-rata konsumsi di dash (CCU)** bila terbaca, lalu **konsumsi Anda sendiri 30 hari terakhir**
@@ -128,12 +139,6 @@ jendela, penundaannya ada di sisi dash atau Bluetooth (bukan di app).
   dan ikut tersimpan di Cadangkan dan pulihkan. Ada tombol bawaan XConnect (80 km/j) dan bawaan Valhalla (45 km/j).
 - **Rute skuter**: opsi Valhalla `motor_scooter` kini use_primary 1.0, use_hills 0, top_speed 80 (bawaan 0,5 / 0,5 / 45 km/j
   membuat rute memutar lewat jalan kecil dan estimasi waktu terlalu lama).
-- **Tautan Google Maps dibuka seperti peramban PC**: bila alamat akhir tidak memuat koordinat, app membuka tautan di WKWebView
-  tersembunyi (identitas peramban PC), menunggu JavaScript Google mengubah alamat menjadi /maps/place/…/@lat,lon/…!3d…!4d…,
-  lalu membaca koordinatnya (maks. 14 dtk). Pencarian nama (Apple Maps/OSM) hanya cadangan bila langkah ini gagal.
-- **Tautan Google Maps berisi teks saja** (`google.com/maps?q=NAMA,+ALAMAT&ftid=…`, tanpa koordinat): teks `q=` dari alamat akhir
-  dicari lewat Apple Maps + OpenStreetMap, dipilih yang namanya paling cocok (bukan hasil pertama), cadangan geocoder alamat.
-  Subtitle tujuan menampilkan sumber dan jarak dari posisi Anda untuk diperiksa.
 - **Volume HP di dash**: sesi audio kini diaktifkan (ambient + mixWithOthers, tidak mengganggu musik) karena iOS hanya
   memperbarui `outputVolume` saat sesi aktif. Arah kompas kosong sampai ada arah gerak; jaringan memakai SIM data.
 - **Tautan Google Maps** (`maps.app.goo.gl/...`): dicoba dengan identitas peramban desktop lebih dulu, lalu iPhone; juga

@@ -7,8 +7,6 @@ final class AppSettings: ObservableObject {
     @Published var nightMode: Int { didSet { put("nightMode", nightMode) } }
     @Published var costing: String { didSet { put("costing", costing) } }
     @Published var routingBase: String { didSet { put("routingBase", routingBase) } }
-    /// sumber routing: 0 = Valhalla (server publik/pribadi), 1 = Apple Maps (MapKit)
-    @Published var routeProvider: Int { didSet { put("routeProvider", routeProvider) } }
     @Published var keepScreenOn: Bool { didSet { put("keepScreenOn", keepScreenOn) } }
     /// 0 = ikuti ponsel, 1 = gelap, 2 = terang
     @Published var theme: Int { didSet { put("theme", theme) } }
@@ -148,13 +146,12 @@ final class AppSettings: ObservableObject {
             "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.7, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": false, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
-            "routeShortest": false, "routeProvider": 0
+            "routeShortest": false
         ])
         autoConnect = d.bool(forKey: "autoConnect")
         nightMode = d.integer(forKey: "nightMode")
         costing = d.string(forKey: "costing") ?? "motor_scooter"
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
-        routeProvider = min(max(0, d.integer(forKey: "routeProvider")), 1)
         keepScreenOn = d.bool(forKey: "keepScreenOn")
         theme = d.integer(forKey: "theme")
         userName = d.string(forKey: "userName") ?? ""
@@ -240,7 +237,6 @@ final class AppSettings: ObservableObject {
         nightMode = d.integer(forKey: "nightMode")
         costing = d.string(forKey: "costing") ?? "motor_scooter"
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
-        routeProvider = min(max(0, d.integer(forKey: "routeProvider")), 1)
         keepScreenOn = d.bool(forKey: "keepScreenOn")
         theme = d.integer(forKey: "theme")
         userName = d.string(forKey: "userName") ?? ""

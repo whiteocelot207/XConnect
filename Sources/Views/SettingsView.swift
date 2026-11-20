@@ -550,17 +550,6 @@ struct RouteSettings: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Sumber routing"),
-                    footer: Text(settings.routeProvider == 1
-                        ? "Apple Maps (MapKit): tanpa server, jam tiba memperhitungkan lalu lintas. Untuk skuter/motor, tol dan jalan bebas hambatan selalu dihindari (iOS 16 ke atas) dan estimasi waktu dibatasi batas kecepatan maksimal. Apple Maps tetap rute mobil, jadi jalan utama, tanjakan, dan gang tidak bisa diatur dan rute masih bisa lewat jalan yang kurang cocok untuk motor."
-                        : "Valhalla: berbasis OpenStreetMap, bisa diatur untuk skuter/motor lewat profil rute di bawah.")) {
-                Picker("Sumber", selection: $settings.routeProvider) {
-                    Text("Valhalla (publik)").tag(0)
-                    Text("Apple Maps").tag(1)
-                }
-                .pickerStyle(.segmented)
-            }
-            if settings.routeProvider == 0 {
             Section(header: Text("Kendaraan")) {
                 Picker("Jenis rute", selection: $settings.costing) {
                     Text("Skuter (NMAX/XMAX)").tag("motor_scooter")
@@ -590,25 +579,6 @@ struct RouteSettings: View {
                 Button("Pakai bawaan XConnect (jalan utama, 80 km/j)") { settings.applyRouteProfile(.appDefault) }
                 Button("Pakai bawaan Valhalla (45 km/j)") { settings.applyRouteProfile(.valhallaScooter) }
             }
-            }
-            if settings.routeProvider == 1 {
-            Section(header: Text("Kendaraan dan batas kecepatan (Apple Maps)"),
-                    footer: Text("Batas kecepatan maksimal dipakai membatasi estimasi waktu dan jam tiba: bila Apple Maps menghitung rata-rata lebih cepat dari batas ini, waktunya dilebarkan. Bawaan 80 km/j untuk NMAX/XMAX; ini bukan kecepatan Anda berkendara.")) {
-                Picker("Jenis rute", selection: $settings.costing) {
-                    Text("Skuter (NMAX/XMAX)").tag("motor_scooter")
-                    Text("Motor").tag("motorcycle")
-                    Text("Mobil").tag("auto")
-                }
-                Stepper("Batas kecepatan maksimal \(settings.routeTopSpeed) km/j", value: $settings.routeTopSpeed, in: 20...120, step: 5)
-                if settings.costing == "auto" {
-                    Toggle("Hindari jalan tol", isOn: $settings.routeAvoidTolls)
-                    sliderRow("Jalan bebas hambatan", value: $settings.routeHighways, range: 0...1, step: 0.1, unit: "")
-                    Text("0 sampai 0,2 = hindari jalan bebas hambatan").font(.caption).foregroundColor(.secondary)
-                } else {
-                    Text("Tol dan jalan bebas hambatan otomatis dihindari untuk skuter/motor.").font(.footnote).foregroundColor(.secondary)
-                }
-            }
-            }
             Section(header: Text("Suara petunjuk arah"),
                     footer: Text("Contoh: \"Dalam 100 meter, belok kanan ke Jalan Contoh\". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).")) {
                 Toggle("Suara pemberitahuan", isOn: $settings.guideVoice)
@@ -618,14 +588,12 @@ struct RouteSettings: View {
                     Button("Coba suara") { nav.voice?.test() }
                 }
             }
-            if settings.routeProvider == 0 {
             Section(header: Text("Server routing"),
                     footer: Text("Server demo Valhalla (FOSSGIS) gratis tetapi hanya untuk pemakaian wajar. Untuk pemakaian rutin, jalankan server Valhalla sendiri dan isi alamatnya di sini.")) {
                 TextField("https://…", text: $settings.routingBase)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                     .keyboardType(.URL)
-            }
             }
         }
         .navigationTitle("Rute dan pencarian")
@@ -704,7 +672,7 @@ struct DebugSettings: View {
 struct AboutSettings: View {
     var body: some View {
         Form {
-            Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla atau Apple Maps.")) {
+            Section(footer: Text("Peta © OpenStreetMap contributors, OpenFreeMap (OpenMapTiles). Pencarian: Photon. SPBU: Overpass API. Cuaca: Open-Meteo. Routing: Valhalla.")) {
                 Text("XConnect \(UpdateService.currentVersion)")
             }
         }

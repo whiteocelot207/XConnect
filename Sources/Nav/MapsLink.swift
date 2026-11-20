@@ -38,45 +38,41 @@ enum MapsLink {
         }
         guard let url = firstURL(in: raw) else { throw LinkError.noURL }
 
-        // Tautan pendek: coba dua jenis browser. Peramban desktop dicoba lebih dulu, lalu peramban iPhone.
-        var chainURLs = [String]()      // alamat dari rantai pengalihan (tepercaya)
-        var bodyLinks = [String]()      // alamat yang tersembunyi di isi halaman (kurang tepercaya)
-        var bodies = [String]()
-        var chainCount = 0
-        var lastHost = url.host ?? "?"
         let host = (url.host ?? "").lowercased()
         let isShort = host.contains("goo.gl") || host.contains("app.goo")
-        let agents = isShort ? [desktopUA, mobileUA] : [desktopUA]
-        var failure = ""
-        for ua in agents {
-            var chain: [URL] = [url]
-            var body = ""
-            if isShort || host.contains("google.") {
-                do {
-                    let r = try await follow(url, ua: ua)
-                    chain = r.chain
-                    body = r.body
-                } catch {
-                    failure = error.localizedDescription
-                    chainURLs.append(url.absoluteString.removingPercentEncoding ?? url.absoluteString)
-                    continue
-                }
-            }
-            // halaman persetujuan Google membungkus tautan asli di parameter "continue"
-            chain = chain.map { unwrapConsent($0) }
-            chainURLs += chain.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
-            bodyLinks += linksInBody(body)
-            bodies.append(body)
-            chainCount += chain.count
-            if let l = chain.last { lastHost = "\(l.host ?? "?")\(l.path.prefix(40))" }
-            if chainURLs.contains(where: { pinCoordinate(from: $0) != nil || placeCenter(from: $0) != nil || queryText($0) != nil }) { break }
+        let isGoogle = isShort || host.contains("google.")
+
+        func decoded(_ u: URL) -> String {
+            let w = unwrapConsent(u).absoluteString
+            return w.removingPercentEncoding ?? w
         }
-        debug = "\(lastHost) · \(chainCount) alamat" + (failure.isEmpty ? "" : " · \(failure)")
+        func hasLocation(_ urls: [String]) -> Bool {
+            urls.contains { pinCoordinate(from: $0) != nil || placeCenter(from: $0) != nil }
+        }
+
+        var chainURLs = [decoded(url)]      // alamat dari rantai pengalihan (tepercaya)
+        var bodyLinks = [String]()          // alamat yang tersembunyi di isi halaman (kurang tepercaya)
+        var bodies = [String]()
+        var hops = 1
+        var failure = ""
+        func updateDebug(_ extra: String = "") {
+            let last = chainURLs.last.flatMap { URL(string: $0) }
+            let lastHost = last.map { "\($0.host ?? "?")\($0.path.prefix(40))" } ?? (url.host ?? "?")
+            debug = "\(lastHost) · \(hops) alamat" + (failure.isEmpty ? "" : " · \(failure)") + extra
+        }
+
+        // TAHAP CEPAT (seperti NConnect): ikuti pengalihan tautan pendek satu per satu dengan membaca header
+        // Location saja, tanpa mengunduh halaman, dan berhenti begitu koordinat terlihat. Biasanya < 1 dtk.
+        if isGoogle, !hasLocation(chainURLs) {
+            let q = await quickChain(url)
+            chainURLs += q.urls.map { decoded($0) }
+            hops += q.urls.count
+            failure = q.failure
+        }
+        updateDebug()
 
         var name = chainURLs.compactMap { placeName(from: $0) }.first
             ?? chainURLs.reversed().compactMap { queryText($0) }.first      // alamat akhir (q=…) paling dipercaya
-            ?? bodyLinks.compactMap { placeName(from: $0) }.first
-            ?? bodies.compactMap { ogTitle($0) }.first
 
         func made(_ method: String, _ c: CLLocationCoordinate2D, _ title: String? = nil) -> Place {
             Place(name: title ?? name ?? "Lokasi dari Google Maps",
@@ -88,19 +84,56 @@ enum MapsLink {
         if let c = chainURLs.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps", c) }
         // 2) Pusat peta pada tautan /maps/place/…/@lat,lon (umumnya tepat di tempatnya).
         if let c = chainURLs.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps", c) }
-        // 2b) Buka seperti peramban PC (WKWebView tersembunyi) dan tangkap perubahan alamat yang dibuat
-        //     JavaScript Google: ?q=…&ftid=… berubah menjadi /maps/place/NAMA/@lat,lon/data=…!3d…!4d….
-        if isShort || host.contains("google.") {
+
+        // 3) Tautan hanya memuat nama tempat: cari namanya langsung (Apple + OpenStreetMap berjalan bersamaan)
+        //    dan terima bila namanya cocok hampir seluruhnya. Ini yang membuat tautan "Bagikan" dari app Google Maps cepat.
+        if isGoogle, let n = name, let hit = await geocodeText(n, near: near, fast: true) {
+            return Place(name: hit.name,
+                         subtitle: "\(hit.source) (dari nama) · garis lurus \(Fmt.distance(Geo.distance(near, hit.coord)))",
+                         lat: hit.coord.latitude, lon: hit.coord.longitude)
+        }
+
+        // ---- CARA LAMBAT: hanya dipakai bila cara cepat tidak menghasilkan titik yang meyakinkan ----
+
+        // 4) Unduh halaman (peramban PC, lalu peramban iPhone untuk tautan pendek) dan baca alamat/isinya.
+        if isGoogle {
+            let agents = isShort ? [desktopUA, mobileUA] : [desktopUA]
+            for ua in agents {
+                do {
+                    let r = try await follow(url, ua: ua)
+                    let ch = r.chain.map { decoded($0) }       // halaman persetujuan Google membungkus tautan asli
+                    chainURLs += ch
+                    hops += ch.count
+                    bodyLinks += linksInBody(r.body)
+                    bodies.append(r.body)
+                    if hasLocation(ch) { break }
+                } catch {
+                    failure = error.localizedDescription
+                }
+            }
+            updateDebug()
+            if name == nil {
+                name = chainURLs.compactMap { placeName(from: $0) }.first
+                    ?? chainURLs.reversed().compactMap { queryText($0) }.first
+            }
+            if let c = chainURLs.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps", c) }
+            if let c = chainURLs.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps", c) }
+        }
+        name = name ?? bodyLinks.compactMap { placeName(from: $0) }.first ?? bodies.compactMap { ogTitle($0) }.first
+
+        // 5) Buka seperti peramban PC (WKWebView tersembunyi) dan tangkap perubahan alamat yang dibuat
+        //    JavaScript Google: ?q=…&ftid=… berubah menjadi /maps/place/NAMA/@lat,lon/data=…!3d…!4d….
+        if isGoogle {
             let web = await MapsWebResolver.run(url, ua: desktopUA)
             let wurls = web.urls.map { unwrapConsent(URL(string: $0) ?? url).absoluteString.removingPercentEncoding ?? $0 }
             chainURLs += web.urls + wurls
             bodies.append(web.html)
-            debug += " · web \(web.urls.count) alamat"
+            updateDebug(" · web \(web.urls.count) alamat")
             if let n = web.urls.compactMap({ placeName(from: $0) }).first { name = n }
             if let c = web.urls.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps (peramban)", c) }
             if let c = web.urls.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps (peramban)", c) }
         }
-        // 3) ID tempat (ftid / cid) dibuka lewat maps.google.com/?cid=
+        // 6) ID tempat (ftid / cid) dibuka lewat maps.google.com/?cid=
         if let cid = cidDecimal(in: chainURLs + bodyLinks + bodies),
            let u = URL(string: "https://maps.google.com/?cid=\(cid)"),
            let r = try? await follow(u, ua: desktopUA) {
@@ -109,19 +142,65 @@ enum MapsLink {
                 return made("Google Maps (ID tempat)", c)
             }
         }
-        // 4) Alamat akhir hanya berisi teks (q=nama, alamat). Ubah teks itu menjadi titik lewat
-        //    Apple Maps + OpenStreetMap, lalu pilih yang namanya paling cocok (bukan sekadar hasil pertama).
-        if let n = name {
-            if let hit = await geocodeText(n, near: near) {
-                return Place(name: hit.name, subtitle: "\(hit.source) · garis lurus \(Fmt.distance(Geo.distance(near, hit.coord)))",
-                             lat: hit.coord.latitude, lon: hit.coord.longitude)
-            }
+        // 7) Pencarian nama dengan syarat lebih longgar (skor ≥ 0,5) dan cadangan geocoder alamat.
+        if let n = name, let hit = await geocodeText(n, near: near, fast: false) {
+            return Place(name: hit.name, subtitle: "\(hit.source) · garis lurus \(Fmt.distance(Geo.distance(near, hit.coord)))",
+                         lat: hit.coord.latitude, lon: hit.coord.longitude)
         }
-        // 5) Terakhir: tebakan dari isi halaman (hanya pusat tampilan peta, bisa jauh). Diberi tanda.
+        // 8) Terakhir: tebakan dari isi halaman (hanya pusat tampilan peta, bisa jauh). Diberi tanda.
         let weak = bodyLinks.compactMap { pinCoordinate(from: $0) ?? placeCenter(from: $0) }.first
             ?? bodies.compactMap { coordinates(fromBody: $0) }.first
         if let c = weak { return made("Perkiraan, periksa lokasinya", c) }
         throw LinkError.noPlace
+    }
+
+    // MARK: - Pengalihan cepat (tanpa mengunduh halaman)
+
+    /// Delegate yang MENOLAK mengikuti pengalihan: tanggapan 30x dikembalikan apa adanya sehingga header
+    /// Location bisa dibaca langsung. Tanpa ini URLSession mengikuti semua pengalihan lalu mengunduh halaman Google
+    /// yang besar, dan itulah bagian yang lambat.
+    private final class NoRedirect: NSObject, URLSessionTaskDelegate {
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(nil)
+        }
+    }
+
+    /// Mengikuti rantai pengalihan satu per satu (maks. 6 langkah, tiap langkah maks. 6 dtk) dan berhenti begitu
+    /// alamat yang sampai sudah memuat koordinat. Isi halaman tidak pernah diunduh.
+    private static func quickChain(_ start: URL) async -> (urls: [URL], failure: String) {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 6
+        cfg.timeoutIntervalForResource = 10
+        let session = URLSession(configuration: cfg, delegate: NoRedirect(), delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
+        var urls = [URL]()
+        var current = start
+        var failure = ""
+        for _ in 0..<6 {
+            var req = URLRequest(url: current, timeoutInterval: 6)
+            req.setValue(desktopUA, forHTTPHeaderField: "User-Agent")
+            req.setValue("id-ID,id;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+            req.setValue("CONSENT=YES+cb.20210720-07-p0.id+FX+410", forHTTPHeaderField: "Cookie")
+            do {
+                // bytes(for:) kembali begitu header diterima; isi halaman dibatalkan, tidak diunduh
+                let (bytes, resp) = try await session.bytes(for: req)
+                bytes.task.cancel()
+                guard let http = resp as? HTTPURLResponse, (300...399).contains(http.statusCode),
+                      let loc = http.value(forHTTPHeaderField: "Location"),
+                      let next = URL(string: loc, relativeTo: current)?.absoluteURL else { break }
+                let n = unwrapConsent(next)
+                urls.append(n)
+                let s = n.absoluteString.removingPercentEncoding ?? n.absoluteString
+                if pinCoordinate(from: s) != nil || placeCenter(from: s) != nil { break }
+                current = n
+            } catch {
+                failure = error.localizedDescription
+                break
+            }
+        }
+        return (urls, failure)
     }
 
     // MARK: - Teks → titik
@@ -143,7 +222,10 @@ enum MapsLink {
         return Double(t.intersection(tokens(candidate)).count) / Double(t.count)
     }
 
-    private static func geocodeText(_ text: String, near: CLLocationCoordinate2D) async -> Hit? {
+    /// `fast` = jalur cepat: hanya diterima bila nama cocok hampir seluruhnya (skor ≥ 0,75), maks. 5 dtk.
+    /// Semua pencarian (tiap variasi kata kunci × Apple/OpenStreetMap) berjalan BERSAMAAN dan berhenti begitu ada
+    /// yang cukup yakin. Bukan fast: syarat dilonggarkan (≥ 0,5), ditambah cadangan geocoder alamat.
+    private static func geocodeText(_ text: String, near: CLLocationCoordinate2D, fast: Bool) async -> Hit? {
         let segs = text.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard let head = segs.first else { return nil }
         let city = segs.count >= 3 ? segs[segs.count - 2] : (segs.count == 2 ? segs[1] : "")
@@ -154,20 +236,43 @@ enum MapsLink {
         if segs.count > 1, segs[1] != head { add(city.isEmpty ? segs[1] : "\(segs[1]) \(city)") }
         if segs.count > 3 { add(text) }
 
+        let budget: UInt64 = fast ? 5_000_000_000 : 12_000_000_000
         var all = [Hit]()
-        for q in queries {
-            var found = [Hit]()
-            for (title, c, src) in await appleSearch(q, near: near) {
-                found.append(Hit(name: title.0, coord: c, source: src, score: max(similarity(head, title.0), similarity(head, title.1))))
+        var early: Hit?
+        await withTaskGroup(of: (Bool, [Hit]).self, returning: Void.self) { group in
+            group.addTask {
+                try? await Task.sleep(nanoseconds: budget)
+                return (true, [])
             }
-            for p in (try? await PlaceSearch.search(q, near: near)) ?? [] {
-                let sc = max(similarity(head, p.name), similarity(head, p.name + " " + p.subtitle))
-                found.append(Hit(name: p.name, coord: p.coordinate, source: "OpenStreetMap", score: sc))
+            for q in queries {
+                group.addTask {
+                    async let apple = appleSearch(q, near: near)
+                    async let osm = osmSearch(q, near: near)
+                    let (a, o) = await (apple, osm)
+                    var found = [Hit]()
+                    for (title, c, src) in a {
+                        found.append(Hit(name: title.0, coord: c, source: src, score: max(similarity(head, title.0), similarity(head, title.1))))
+                    }
+                    for p in o {
+                        let sc = max(similarity(head, p.name), similarity(head, p.name + " " + p.subtitle))
+                        found.append(Hit(name: p.name, coord: p.coordinate, source: "OpenStreetMap", score: sc))
+                    }
+                    return (false, found)
+                }
             }
-            all += found
-            // cukup yakin: nama cocok hampir seluruhnya
-            if let best = pick(found, near: near), best.score >= 0.75 { return best }
+            for await (isTimer, found) in group {
+                if isTimer { group.cancelAll(); break }
+                all += found
+                // cukup yakin: nama cocok hampir seluruhnya
+                if let best = pick(found, near: near), best.score >= 0.75 {
+                    early = best
+                    group.cancelAll()
+                    break
+                }
+            }
         }
+        if let e = early { return e }
+        if fast { return nil }
         if let best = pick(all, near: near), best.score >= 0.5 { return best }
 
         // alamat jalan lengkap → geocoder Apple (setidaknya dekat, bukan puluhan km)
@@ -176,6 +281,10 @@ enum MapsLink {
             return Hit(name: head, coord: loc.coordinate, source: "Alamat (Apple)", score: 0.4)
         }
         return nil
+    }
+
+    private static func osmSearch(_ q: String, near: CLLocationCoordinate2D) async -> [Place] {
+        (try? await PlaceSearch.search(q, near: near)) ?? []
     }
 
     /// Skor tertinggi dulu; bila selisih kecil, pilih yang terdekat dari posisi Anda.
