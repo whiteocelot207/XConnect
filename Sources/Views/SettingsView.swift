@@ -347,26 +347,31 @@ struct ControlSettings: View {
     var body: some View {
         Form {
             Section(header: Text("Tombol atas/bawah di stang"),
-                    footer: Text("Tombol atas (+) dan bawah (−) di stang motor. Tekan 1x langsung dijalankan tanpa menunggu. Tekan 2x cepat pada tombol yang sama = ganti tampilan: atas ke tampilan berikutnya, bawah ke tampilan sebelumnya. Layar Musik punya aturan sendiri (lihat bagian paling bawah).")) {
+                    footer: Text("Tombol atas (+) dan bawah (−) di stang motor. Tekan 1x langsung dijalankan tanpa menunggu. Tekan 3x cepat pada tombol yang sama = ganti tampilan: atas ke tampilan berikutnya, bawah ke tampilan sebelumnya (zoom dari dua klik pertama otomatis dikembalikan). Layar Musik punya aturan sendiri (lihat bagian paling bawah).")) {
                 HStack {
                     Text("Tekan 1x")
                     Spacer()
                     Text("Zoom peta").foregroundColor(.secondary)
                 }
                 HStack {
-                    Text("Tekan 2x cepat")
+                    Text("Tekan 2x")
+                    Spacer()
+                    Text("Zoom lagi").foregroundColor(.secondary)
+                }
+                HStack {
+                    Text("Tekan 3x cepat")
                     Spacer()
                     Text("Ganti tampilan").foregroundColor(.secondary)
                 }
             }
             Section(header: Text("Durasi klik cepat"),
-                    footer: Text("Jarak waktu terlama antar dua tekan agar dihitung \"cepat\". Berlaku untuk semua gesture cepat: 2x cepat (ganti tampilan) di semua layar, serta 3x cepat dan atas-bawah di layar Musik. Naikkan bila sulit menekan secepat itu, turunkan bila dua tekan biasa terbaca sebagai gesture cepat. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
+                    footer: Text("Jarak waktu terlama antar dua tekan agar dihitung satu rangkaian klik cepat (2x/3x). Naikkan bila sulit menekan secepat itu, turunkan bila beberapa tekan biasa terbaca sebagai klik cepat. Di layar Musik, lagu baru berganti setelah jeda sebesar angka ini, karena klik ke-3 berarti ganti tampilan. Tiap tekan dicatat di Log beserta selisih waktunya.")) {
                 sliderRow("Durasi klik cepat", value: Binding(
                     get: { Double(settings.doubleClickMs) },
-                    set: { settings.doubleClickMs = Int($0) }), range: 300...2000, step: 50, unit: "ms")
+                    set: { settings.doubleClickMs = Int($0) }), range: 250...1500, step: 50, unit: "ms")
             }
             Section(header: Text("Gesture tombol (layar Musik)"),
-                    footer: Text("Khusus layar Musik: 1x = volume (atas naik, bawah turun). 2x cepat = ganti tampilan, dijalankan setelah jeda sekitar 0,4 dtk untuk memastikan itu bukan gesture lain. 3x cepat arah sama = lagu berikutnya (atas) atau sebelumnya (bawah). Atas lalu bawah cepat, atau bawah lalu atas, = putar/jeda. Jarak antar tekan mengikuti Durasi klik cepat. Tombol tahan tidak didukung karena dash tidak mengirim apa pun saat tombol ditahan. Izin Media & Apple Music harus diberikan.")) {
+                    footer: Text("Khusus layar Musik: 1x = volume (atas naik, bawah turun). 2x cepat = lagu berikutnya (atas) atau sebelumnya (bawah). 3x cepat = ganti tampilan. Atas lalu bawah cepat, atau bawah lalu atas, = putar/jeda. Bila dimatikan, layar Musik hanya punya volume (1x, 2x) dan ganti tampilan (3x). Tombol tahan tidak didukung karena dash tidak mengirim apa pun saat tombol ditahan. Izin Media & Apple Music harus diberikan.")) {
                 Toggle("Aktifkan gesture musik di stang", isOn: $settings.holdSkip)
             }
         }
@@ -746,6 +751,9 @@ struct RouteSettings: View {
                 if settings.guideVoice {
                     Toggle("Kecilkan volume musik saat berbunyi", isOn: $settings.guideDuck)
                     sliderRow("Volume suara", value: $settings.guideVolume, range: 0.2...1, step: 0.1, unit: "")
+                    sliderRow("Penguat suara", value: $settings.guideBoostDb, range: 0...18, step: 3, unit: "dB")
+                    Text("Penguat menambah keras suara petunjuk melebihi volume penuh (+6 dB kira-kira dua kali lebih keras, +12 dB empat kali). Mulai dari +6 dB lalu naikkan bila masih kurang. Bila terdengar pecah, turunkan. Pakai Coba suara untuk menguji.")
+                        .font(.caption).foregroundColor(.secondary)
                     Button("Coba suara") { nav.voice?.test() }
                 }
             }

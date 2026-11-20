@@ -70,9 +70,9 @@ final class AppSettings: ObservableObject {
     @Published var etaDY: Double { didSet { put("etaDY", etaDY) } }
     /// layar yang tampil pertama saat motor dinyalakan (DashScreen.rawValue); bawaan Peta
     @Published var startScreen: Int { didSet { put("startScreen", startScreen) } }
-    /// jendela klik cepat 2x di tombol stang (milidetik)
+    /// jendela klik cepat di tombol stang: jarak terlama antar tekan dalam satu rangkaian 2x/3x (milidetik)
     @Published var doubleClickMs: Int { didSet { put("doubleClickMs", doubleClickMs) } }
-    /// layar Musik: tahan tombol atas/bawah = lagu berikutnya/sebelumnya
+    /// layar Musik: gesture stang aktif (2x = ganti lagu, atas-bawah cepat = putar/jeda)
     @Published var holdSkip: Bool { didSet { put("holdSkip", holdSkip) } }
     /// lama tombol ditahan (milidetik) sebelum dianggap tekan tahan
     @Published var holdMs: Int { didSet { put("holdMs", holdMs) } }
@@ -113,6 +113,8 @@ final class AppSettings: ObservableObject {
     @Published var guideDuckLevel: Double { didSet { put("guideDuckLevel", guideDuckLevel) } }
     /// volume suara petunjuk arah (0.2 - 1.0, relatif terhadap volume ponsel)
     @Published var guideVolume: Double { didSet { put("guideVolume", guideVolume) } }
+    /// penguat suara petunjuk di atas volume penuh (dB, 0 = mati, maks. 18). Dipakai bila suara masih terlalu pelan di jalan.
+    @Published var guideBoostDb: Double { didSet { put("guideBoostDb", guideBoostDb) } }
 
     /// Profil rute (dikirim ke Valhalla): lihat RouteProfile
     @Published var routePrimary: Double { didSet { put("routePrimary", routePrimary) } }
@@ -140,9 +142,9 @@ final class AppSettings: ObservableObject {
             "infoPhotoL": 12, "infoPhotoR": 12, "photoShift": 0.0,
             "greetingWord": "Halo", "cardBgAlpha": 0.78, "markerX": -6.0,
             "navDX": -4.0, "navDY": -4.0, "etaDX": -50.0, "etaDY": 4.0,
-            "startScreen": 0, "doubleClickMs": 300, "holdSkip": true, "holdMs": 1000, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
+            "startScreen": 0, "doubleClickMs": 450, "holdSkip": true, "holdMs": 1000, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
-            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.55, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": true, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0,
+            "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.55, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": true, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0, "guideBoostDb": 0.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
             "routeTrails": 0.0, "routeFerry": 0.5, "routeAvoidTolls": true, "routeHighways": 1.0,
             "routeShortest": false,
@@ -202,7 +204,7 @@ final class AppSettings: ObservableObject {
         etaDX = d.double(forKey: "etaDX")
         etaDY = d.double(forKey: "etaDY")
         startScreen = Self.migratedStart(d.integer(forKey: "startScreen"))
-        doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        doubleClickMs = min(max(250, d.integer(forKey: "doubleClickMs")), 1500)
         holdSkip = d.bool(forKey: "holdSkip")
         holdMs = min(max(300, d.integer(forKey: "holdMs")), 2000)
         ccuFuelByte = min(max(-1, d.integer(forKey: "ccuFuelByte")), 47)
@@ -225,6 +227,7 @@ final class AppSettings: ObservableObject {
         guideDuck = d.bool(forKey: "guideDuck")
         guideDuckLevel = min(max(0.2, d.double(forKey: "guideDuckLevel")), 0.9)
         guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
+        guideBoostDb = min(max(0, d.double(forKey: "guideBoostDb")), 18)
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
         routeHills = d.double(forKey: "routeHills")
@@ -287,7 +290,7 @@ final class AppSettings: ObservableObject {
         etaDX = d.double(forKey: "etaDX")
         etaDY = d.double(forKey: "etaDY")
         startScreen = Self.migratedStart(d.integer(forKey: "startScreen"))
-        doubleClickMs = max(300, d.integer(forKey: "doubleClickMs"))
+        doubleClickMs = min(max(250, d.integer(forKey: "doubleClickMs")), 1500)
         holdSkip = d.bool(forKey: "holdSkip")
         holdMs = min(max(300, d.integer(forKey: "holdMs")), 2000)
         ccuFuelByte = min(max(-1, d.integer(forKey: "ccuFuelByte")), 47)
@@ -310,6 +313,7 @@ final class AppSettings: ObservableObject {
         guideDuck = d.bool(forKey: "guideDuck")
         guideDuckLevel = min(max(0.2, d.double(forKey: "guideDuckLevel")), 0.9)
         guideVolume = min(max(0.2, d.double(forKey: "guideVolume")), 1.0)
+        guideBoostDb = min(max(0, d.double(forKey: "guideBoostDb")), 18)
         routePrimary = d.double(forKey: "routePrimary")
         routeTopSpeed = min(max(20, d.integer(forKey: "routeTopSpeed")), 120)
         routeHills = d.double(forKey: "routeHills")

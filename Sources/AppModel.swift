@@ -31,6 +31,8 @@ final class AppModel: ObservableObject {
     }
 
     init() {
+        // pulihkan data yang hilang dari UserDefaults (mis. app diluncurkan sebelum ponsel dibuka kuncinya) SEBELUM dibaca
+        Vault.restore()
         let s = AppSettings()
         let loc = LocationProvider()
         let pl = PlaceStore()
@@ -58,6 +60,10 @@ final class AppModel: ObservableObject {
         nav = n
         bike = b
         b.model = self
+        if Vault.restoredCount > 0 {
+            b.log("Data dipulihkan dari cadangan otomatis (\(Vault.restoredCount) item): UserDefaults sempat tidak terbaca (ponsel terkunci sejak restart?)")
+        }
+        Vault.start()
         // konsumsi BBM dari CCU (bila diaktifkan di Pengaturan): dipakai FuelStore menghitung sisa bensin
         fuel.ccuKmPerL = { [weak s, weak b] in
             guard let s = s, let b = b, s.ccuFuelByte >= 0 else { return nil }
@@ -81,7 +87,10 @@ final class AppModel: ObservableObject {
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        _ = AppModel.shared
+        let model = AppModel.shared
+        let state = application.applicationState == .background ? "latar belakang" : "depan"
+        let reason = (launchOptions ?? [:]).keys.map { $0.rawValue.replacingOccurrences(of: "UIApplicationLaunchOptions", with: "") }
+        model.bike.log("Peluncuran app (\(state)\(reason.isEmpty ? "" : ", pemicu: " + reason.joined(separator: ", ")))")
         return true
     }
 }

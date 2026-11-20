@@ -311,6 +311,8 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
+        // dicatat untuk WakeMonitor: sambungan BLE tertunda ke CCU ini yang membangunkan app saat motor dinyalakan
+        UserDefaults.standard.set(p.identifier.uuidString, forKey: WakeMonitor.peripheralKey)
         onLog("BLE: tersambung, mencari service")
         p.discoverServices([CcuLink.service])
     }

@@ -169,6 +169,10 @@ final class MusicService: ObservableObject {
             onLog("Suara: sebelum sesi: musik=\(MusicService.stateName(p.playbackState)) audioLain=\(s.isOtherAudioPlaying) opsi=\(s.categoryOptions.rawValue) mode=\(s.mode.rawValue) senyap=\(keepAlivePlayer?.isPlaying == true ? "jalan" : "mati")")
         }
         autoResumeUntil = .distantFuture
+        // ucapan baru datang saat sesi sedang dilepas: batalkan pelepasan itu, sesi dipakai lagi
+        releaseWork?.cancel()
+        releaseWork = nil
+        releasing = false
         // ucapan beruntun: sesi sudah dalam konfigurasi yang sama, jangan diubah lagi
         if guidanceActive, guidanceDuck == duck { return }
         let opts: AVAudioSession.CategoryOptions = duck
@@ -225,14 +229,49 @@ final class MusicService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + resumeDelay, execute: w)
     }
 
+    /// true selama sesi suara petunjuk masih dipegang (dipakai pengawas di VoiceGuide)
+    var isGuidanceActive: Bool { guidanceActive }
+
+    private var releasing = false
+    private var releaseWork: DispatchWorkItem?
+
     /// Dipanggil setelah suara selesai, sama dengan NConnect (Voice.didFinish, cabang audio senyap mati):
     /// lepas sesi dengan `notifyOthersOnDeactivation` supaya iOS melepas ducking dan musik kembali ke volume semula.
     /// Audio senyap (bila diperlukan) dihidupkan lagi setelah jeda singkat, supaya tidak menimpa proses un-duck.
+    ///
+    /// Penyebab musik tetap pelan (ducking tidak lepas): `setActive(false)` sering GAGAL tepat setelah suara selesai
+    /// ("sesi masih punya I/O yang berjalan"), karena iOS belum selesai menutup keluaran suara. Dulu kegagalan itu hanya
+    /// dicatat lalu diabaikan: sesi tetap aktif (lalu audio senyap menyalakannya lagi) sehingga iOS tidak pernah memberi
+    /// tahu app musik untuk mengembalikan volume. Sekarang pelepasan DIULANG tiap 0,25 dtk (maks. 12x) sampai berhasil.
     func endGuidanceAudio() {
-        guard guidanceActive else { return }
+        guard guidanceActive, !releasing else { return }
+        releasing = true
+        releaseAttempt(0)
+    }
+
+    private func releaseAttempt(_ n: Int) {
         let s = AVAudioSession.sharedInstance()
-        do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
-        catch { onLog("Suara: sesi gagal dilepas: \(error.localizedDescription)") }
+        do {
+            try s.setActive(false, options: .notifyOthersOnDeactivation)
+            if n > 0 { onLog("Suara: sesi berhasil dilepas pada percobaan ke-\(n + 1)") }
+        } catch {
+            if n < 12 {
+                if n == 0 { onLog("Suara: sesi belum bisa dilepas (\(error.localizedDescription)), dicoba lagi") }
+                let w = DispatchWorkItem { [weak self] in
+                    self?.releaseWork = nil
+                    self?.releaseAttempt(n + 1)
+                }
+                releaseWork = w
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: w)
+                return
+            }
+            onLog("Suara: sesi gagal dilepas setelah \(n + 1) percobaan: \(error.localizedDescription)")
+        }
+        finishRelease()
+    }
+
+    private func finishRelease() {
+        let s = AVAudioSession.sharedInstance()
         // Kembalikan kategori ke konfigurasi dasar (tanpa duckOthers) selagi sesi nonaktif, supaya sesi berikutnya
         // (audio senyap / pemberitahuan berikutnya) tidak mewarisi duckOthers + voicePrompt dari suara sebelumnya.
         do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
@@ -241,6 +280,8 @@ final class MusicService: ObservableObject {
         autoResumeUntil = Date().addingTimeInterval(4.0)
         autoResumeCount = 0          // jatah baru untuk interupsi yang muncul setelah suara selesai
         guidanceActive = false
+        releasing = false
+        releaseWork = nil
         restartWork?.cancel()
         let w = DispatchWorkItem { [weak self] in
             self?.restartWork = nil

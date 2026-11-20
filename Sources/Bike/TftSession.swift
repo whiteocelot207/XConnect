@@ -20,17 +20,16 @@ final class TftSession {
     var onGoWork: () -> Void = {}
     /// catatan peristiwa tombol (masuk Log)
     var onButtonEvent: (String) -> Void = { _ in }
-    var doubleClickWindow: () -> Double = { 0.8 }
-    /// Layar Musik: tahan tombol atas/bawah = lagu berikutnya/sebelumnya (lama tahan dari Pengaturan)
+    /// jarak waktu terlama antar dua tekan agar dihitung satu rangkaian klik cepat (detik)
+    var doubleClickWindow: () -> Double = { 0.45 }
+    /// Layar Musik: gesture musik aktif (2x = lagu berikutnya/sebelumnya, atas-bawah cepat = putar/jeda)
     var holdSkipEnabled: () -> Bool = { true }
-    var holdDuration: () -> Double = { 0.7 }
     var onMusicSkip: (Bool) -> Void = { _ in }
     /// Layar Musik: atas lalu bawah cepat (atau sebaliknya) = putar/jeda
     var onTogglePlay: () -> Void = {}
 
     var contentProvider: () -> DashContent = { DashContent() }
     var screensProvider: () -> [DashScreen] = { [.mapData] }
-    var buttonSchemeProvider: () -> Int = { 1 }
     var screenIndexProvider: () -> Int = { 0 }
     var onStepScreen: (Bool) -> Void = { _ in }
     /// true bila layar dash saat ini = Musik (tombol atas/bawah dipakai untuk volume)
@@ -77,17 +76,13 @@ final class TftSession {
     private var zoomOffset = 0.0
     private var lastBtn: Date?
     private var labelSends = 0
-    private var lastBtnUp = true
-    private var pendingSingle: DispatchWorkItem?
-    // rangkaian tekan di layar Musik (untuk mengenali tekan tahan)
+    // rangkaian klik cepat arah sama (jarak antar tekan <= jendela klik)
     private var chainUp = true
-    private var chainStart = Date.distantPast
     private var chainLast = Date.distantPast
     private var chainCount = 0
-    private var holdFired = false
-    private var pendingScreenStep: DispatchWorkItem?
-    /// klik 2x di layar Musik: ganti tampilan ditunda sebentar untuk memastikan itu bukan awal tekan tahan
-    private let holdProbe: TimeInterval = 0.4
+    private var chainZoomBase = 0.0
+    /// lagu berikutnya/sebelumnya dari klik 2x di layar Musik: ditunda selama jendela klik, karena klik ke-3 berarti ganti tampilan
+    private var pendingSkip: DispatchWorkItem?
     private var lastNight = false
     private var lastZoomLabel = ""
     private var navActive = false
@@ -169,10 +164,16 @@ final class TftSession {
 
     private func sendRoadIfNeeded() {
         guard authenticated else { return }
-        let road = latestRoad.isEmpty ? idleRoad : latestRoad
+        // Saat navigasi hanya nama jalan dari rute. Bila segmen rute ini tidak punya nama jalan, bar dikosongkan;
+        // jangan jatuh ke nama jalan hasil geocoding terakhir (itu nama jalan lain yang sudah terlewati).
+        let road = navActive ? latestRoad : idleRoad
         guard road != lastRoad else { return }
         lastRoad = road
-        send(.pointer(NaviService.roadName, Array(Geo.ascii(road, maxLen: 64).utf8)))
+        // Nama kosong dikirim sebagai satu spasi: paket dengan isi kosong bisa dianggap "tidak ada pembaruan" oleh dash,
+        // sehingga nama jalan lama tetap tampil.
+        let text = Geo.ascii(road, maxLen: 64)
+        let bytes = text.isEmpty ? [UInt8(0x20)] : Array(text.utf8)
+        send(.pointer(NaviService.roadName, bytes))
     }
 
     // MARK: - Terima
@@ -301,18 +302,18 @@ final class TftSession {
 
     // MARK: - Tombol atas/bawah di dash
 
-    /// Tanpa jeda: klik pertama langsung dieksekusi. Bila klik kedua (arah sama) datang dalam jendela waktu
-    /// (Pengaturan > Kontrol pada motor), aksi klik pertama dibatalkan lalu aksi "2x" dijalankan.
-    /// Skema 0: 1x ganti tampilan, 2x zoom. Skema 1: 1x zoom, 2x ganti tampilan.
-    /// Di layar Musik: 1x = volume, 2x = ganti tampilan.
-    /// Tombol "+" (atas) = tampilan berikutnya/zoom in/volume naik, "-" (bawah) kebalikannya.
+    /// Dash mengirim satu paket per tekan. Aturan (jarak antar tekan <= Durasi klik cepat di Pengaturan):
+    ///   Layar biasa : 1x zoom (langsung), 2x zoom lagi, 3x ganti tampilan (zoom dikembalikan). Atas = berikutnya, bawah = sebelumnya.
+    ///   Layar Musik : 1x volume (langsung), 2x lagu berikutnya (atas) / sebelumnya (bawah), 3x ganti tampilan.
+    ///                 Atas lalu bawah cepat (atau sebaliknya) = putar/jeda.
+    /// Tekan 1x dan zoom/volume tidak menunggu apa pun; efek klik awal dibatalkan bila rangkaian ternyata berlanjut.
+    /// Hanya lagu berikutnya yang ditunda (selama jendela klik), karena pindah lagu tidak bisa dibatalkan.
     private func buttonPressed(up: Bool) {
         let before = labelSends
         handleButton(up: up)
         // docs/protocol/link-a-dash.md: tepat setelah tiap tekan 51/52, kirim cmd 14 (flag 1, `07 1A ...`); tanpa itu
         // hanya tekanan pertama dalam sesi yang sampai ke app. Label zoom sudah merupakan cmd 14, tetapi hanya
-        // terkirim bila zoom berubah: klik volume di layar Musik atau ganti tampilan tidak mengirim
-        // apa pun sehingga tombol stang berhenti merespons ("hang"). Kini label dikirim ulang bila belum ada.
+        // terkirim bila zoom berubah, jadi bila belum ada label yang terkirim, kirim sekarang (prioritas).
         if authenticated && labelSends == before {
             lastZoomLabel = ""
             sendZoomLabel(effectiveZoom(navigating: navActive))
@@ -320,115 +321,77 @@ final class TftSession {
     }
 
     private func handleButton(up: Bool) {
-        let scheme = buttonSchemeProvider()
         let music = isMusicScreen()
-        let window = doubleClickWindow()
+        let gestures = music && holdSkipEnabled()
+        let window = max(0.2, doubleClickWindow())
         let now = Date()
-        var gap = ""
-        if let last = lastBtn { gap = " (+\(Int(now.timeIntervalSince(last) * 1000)) ms)" }
+        let gap = lastBtn.map { " (+\(Int(now.timeIntervalSince($0) * 1000)) ms)" } ?? ""
+        lastBtn = now
         let dir = up ? "atas" : "bawah"
-        if music && holdSkipEnabled() {
-            lastBtn = now
-            lastBtnUp = up
-            handleMusicButton(up: up, now: now, window: window, gap: gap)
-            return
-        }
-        if let last = lastBtn, lastBtnUp == up, now.timeIntervalSince(last) < window {
-            lastBtn = nil
-            onButtonEvent("\(dir) 2x cepat\(gap)")
-            if music {
-                onVolume(!up)                    // batalkan volume dari klik pertama
-                onStepScreen(up)
-            } else if scheme == 0 {
-                onStepScreen(!up)                // batalkan ganti tampilan
-                changeZoom(up ? 1 : -1)
-            } else {
-                changeZoom(up ? -1 : 1)          // batalkan zoom
-                onStepScreen(up)
-            }
-        } else {
-            lastBtn = now
-            lastBtnUp = up
-            onButtonEvent("\(dir) 1x\(gap)")
-            if music {
-                onVolume(up)
-            } else if scheme == 0 {
-                onStepScreen(up)
-            } else {
-                changeZoom(up ? 1 : -1)
-            }
-        }
-    }
 
-    /// Layar Musik dengan tekan tahan aktif.
-    /// Dash mengirim satu paket tiap tekan; saat tombol ditahan paket itu berulang. Rangkaian tekan arah sama (jeda
-    /// antar tekan maksimal sama dengan jendela klik 2x) yang berlangsung >= durasi tahan dengan >= 3 tekan dianggap
-    /// TAHAN: atas = lagu berikutnya, bawah = lagu sebelumnya (sekali per tahan).
-    /// Bila dash tidak mengulang paket saat ditahan, 3 tekan cepat arah sama melakukan hal yang sama.
-    /// Atas lalu bawah cepat (atau sebaliknya) = putar/jeda.
-    /// 1 tekan = volume (langsung), 2 tekan cepat = ganti tampilan (ditunda `holdProbe` supaya tidak salah dikira awal tahan).
-    private func handleMusicButton(up: Bool, now: Date, window: Double, gap: String) {
-        let dir = up ? "atas" : "bawah"
-        // Silang: tekan pertama (volume) disusul tombol arah BERLAWANAN dalam jendela klik 2x = putar/jeda.
-        if chainCount == 1, chainUp != up, !holdFired, now.timeIntervalSince(chainLast) <= window {
-            pendingScreenStep?.cancel()
-            pendingScreenStep = nil
+        // Musik: arah BERLAWANAN tepat setelah tekan pertama = putar/jeda
+        if gestures, chainCount == 1, chainUp != up, now.timeIntervalSince(chainLast) <= window {
             onVolume(!chainUp)                              // batalkan volume dari tekan pertama
+            chainCount = 0
             onButtonEvent("\(dir) setelah \(chainUp ? "atas" : "bawah") cepat\(gap) → putar/jeda")
-            chainCount = 0                                  // tekan berikutnya memulai rangkaian baru
-            holdFired = false
             onTogglePlay()
             return
         }
+
         if chainCount > 0, chainUp == up, now.timeIntervalSince(chainLast) <= window {
             chainCount += 1
         } else {
-            pendingScreenStep?.cancel()
-            pendingScreenStep = nil
+            cancelPendingSkip()
             chainUp = up
-            chainStart = now
             chainCount = 1
-            holdFired = false
+            chainZoomBase = zoomOffset
         }
         chainLast = now
-        let span = now.timeIntervalSince(chainStart)
-        let spanMs = Int(span * 1000)
 
-        if holdFired {
-            onButtonEvent("\(dir) tahan berlanjut (\(chainCount) tekan, \(spanMs) ms)\(gap)")
-            return
-        }
-        // Dash ternyata tidak selalu mengulang paket saat tombol ditahan, jadi 3 tekan cepat arah sama
-        // (jarak antar tekan <= jendela klik 2x) juga dianggap perintah ganti lagu, tanpa menunggu durasi tahan.
-        if chainCount >= 3 {
-            pendingScreenStep?.cancel()
-            pendingScreenStep = nil
-            holdFired = true
-            let how = span >= holdDuration() ? "TAHAN" : "3x cepat"
-            onButtonEvent("\(dir) \(how) (\(chainCount) tekan, \(spanMs) ms)\(gap) → lagu \(up ? "berikutnya" : "sebelumnya")")
-            onMusicSkip(up)
-            return
-        }
         switch chainCount {
         case 1:
             onButtonEvent("\(dir) 1x\(gap)")
-            onVolume(up)
+            if music { onVolume(up) } else { changeZoom(up ? 1 : -1) }
         case 2:
-            onButtonEvent("\(dir) 2x cepat\(gap)")
-            onVolume(!up)                                   // batalkan volume dari klik pertama
-            let work = DispatchWorkItem { [weak self] in
-                self?.pendingScreenStep = nil
-                self?.onStepScreen(up)
+            onButtonEvent("\(dir) 2x\(gap)")
+            if gestures {
+                onVolume(!up)                               // batalkan volume dari klik pertama
+                let work = DispatchWorkItem { [weak self] in
+                    self?.pendingSkip = nil
+                    self?.onButtonEvent("\(dir) 2x → lagu \(up ? "berikutnya" : "sebelumnya")")
+                    self?.onMusicSkip(up)
+                }
+                pendingSkip = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + window + 0.05, execute: work)
+            } else if music {
+                onVolume(up)
+            } else {
+                changeZoom(up ? 1 : -1)
             }
-            pendingScreenStep = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + holdProbe, execute: work)
+        case 3:
+            cancelPendingSkip()
+            onButtonEvent("\(dir) 3x\(gap) → ganti tampilan")
+            if music {
+                if !gestures { onVolume(!up); onVolume(!up) }   // batalkan dua langkah volume
+            } else {
+                setZoomOffset(chainZoomBase)                    // batalkan zoom dari dua klik pertama
+            }
+            onStepScreen(up)
         default:
-            onButtonEvent("\(dir) tekan ke-\(chainCount), \(spanMs) ms dari awal (tahan butuh \(Int(holdDuration() * 1000)) ms)\(gap)")
+            // tombol ditahan (dash mengulang paket) atau klik berlebih: abaikan sampai ada jeda
+            onButtonEvent("\(dir) tekan ke-\(chainCount) diabaikan\(gap)")
         }
     }
 
-    private func changeZoom(_ d: Double) {
-        zoomOffset = min(3, max(-3, zoomOffset + d))
+    private func cancelPendingSkip() {
+        pendingSkip?.cancel()
+        pendingSkip = nil
+    }
+
+    private func changeZoom(_ d: Double) { setZoomOffset(zoomOffset + d) }
+
+    private func setZoomOffset(_ v: Double) {
+        zoomOffset = min(3, max(-3, v))
         lastZoomLabel = ""
         // kirim label zoom sekarang juga, jangan menunggu frame berikutnya selesai digambar
         if authenticated { sendZoomLabel(effectiveZoom(navigating: navActive)) }
@@ -436,7 +399,7 @@ final class TftSession {
 
     // MARK: - Kirim
 
-    private func send(_ p: NaviPacket) { link.send(p.encode()) }
+    private func send(_ p: NaviPacket, priority: Bool = false) { link.send(p.encode(), priority: priority) }
 
     private func sendInitialState() {
         lastRoad = ""
@@ -479,7 +442,7 @@ final class TftSession {
         lastZoomLabel = text
         labelSends += 1
         let label = Array(text.utf8)
-        send(.pointer(NaviService.zoomLevel, [0x07, 0x1A, UInt8(label.count), 0x00] + label))
+        send(.pointer(NaviService.zoomLevel, [0x07, 0x1A, UInt8(label.count), 0x00] + label), priority: true)
     }
 
     private func effectiveZoom(navigating: Bool) -> Double {
@@ -685,9 +648,7 @@ final class TftSession {
         renderBusy = false
         readyJPEG = nil
         ackTimer?.invalidate()
-        pendingSingle?.cancel()
-        pendingScreenStep?.cancel()
-        pendingScreenStep = nil
+        cancelPendingSkip()
         chainCount = 0
         onStatus("Terputus")
         onLog("Sesi ditutup")

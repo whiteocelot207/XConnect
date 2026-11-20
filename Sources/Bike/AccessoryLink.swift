@@ -11,7 +11,9 @@ final class AccessoryLink: NSObject, StreamDelegate {
 
     private let protocolName: String
     private var session: EASession?
-    private var outQueue = [UInt8]()
+    /// antrean paket keluar; `headOffset` = berapa byte paket paling depan yang sudah tertulis (paket tidak boleh dipotong)
+    private var outQueue = [Data]()
+    private var headOffset = 0
 
     init(protocolName: String = AccessoryLink.naviProtocol) {
         self.protocolName = protocolName
@@ -32,9 +34,16 @@ final class AccessoryLink: NSObject, StreamDelegate {
         return true
     }
 
-    func send(_ data: Data) {
-        guard session != nil else { return }
-        outQueue.append(contentsOf: data)
+    /// `priority`: paket kecil yang harus cepat sampai (balasan tombol stang). Disisipkan di depan antrean, tepat
+    /// setelah paket yang sedang setengah terkirim, jadi tidak menunggu frame peta berikutnya yang sudah antre.
+    func send(_ data: Data, priority: Bool = false) {
+        guard session != nil, !data.isEmpty else { return }
+        if priority {
+            let idx = (headOffset > 0 && !outQueue.isEmpty) ? 1 : 0
+            outQueue.insert(data, at: idx)
+        } else {
+            outQueue.append(data)
+        }
         pump()
     }
 
@@ -47,15 +56,26 @@ final class AccessoryLink: NSObject, StreamDelegate {
         }
         session = nil
         outQueue.removeAll()
+        headOffset = 0
         if notify { onClosed?() }
     }
 
     private func pump() {
-        guard let os = session?.outputStream, !outQueue.isEmpty else { return }
-        while os.hasSpaceAvailable && !outQueue.isEmpty {
-            let n = outQueue.withUnsafeBufferPointer { os.write($0.baseAddress!, maxLength: $0.count) }
+        guard let os = session?.outputStream else { return }
+        while os.hasSpaceAvailable, let head = outQueue.first {
+            let remaining = head.count - headOffset
+            if remaining <= 0 { outQueue.removeFirst(); headOffset = 0; continue }
+            let offset = headOffset
+            let n = head.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Int in
+                guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { return -1 }
+                return os.write(base + offset, maxLength: remaining)
+            }
             if n <= 0 { break }
-            outQueue.removeFirst(n)
+            headOffset += n
+            if headOffset >= head.count {
+                outQueue.removeFirst()
+                headOffset = 0
+            }
         }
     }
 

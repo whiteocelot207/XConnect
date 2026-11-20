@@ -48,6 +48,9 @@ final class BikeController: NSObject, ObservableObject {
     private var bgTask = UIBackgroundTaskIdentifier.invalid
     private var bag = Set<AnyCancellable>()
     private let ccuProbe = CcuProbe()
+    /// membangunkan app tanpa dibuka (geofence titik parkir + BLE ke CCU), seperti WakeMonitor di NConnect
+    private let wake = WakeMonitor()
+    private var wakeCooldownUntil = Date.distantPast
     let vehicleLive = VehicleLive()
     private lazy var ccu: CcuLink = {
         let c = CcuLink(live: vehicleLive)
@@ -180,6 +183,12 @@ final class BikeController: NSObject, ObservableObject {
                 m.fuel.advance(odo: odo, tank: m.vehicle.tankL, def: self.settings.defaultKmPerL)
             }
             .store(in: &bag)
+
+        wake.onLog = { [weak self] s in self?.log(s) }
+        wake.onWake = { [weak self] reason in
+            DispatchQueue.main.async { self?.handleWake(reason) }
+        }
+        wake.start()
 
         SelfTest.run().forEach { log($0) }
         accessoryPresent = findDash() != nil
@@ -336,6 +345,23 @@ final class BikeController: NSObject, ObservableObject {
 
     // MARK: - Sambungan
 
+    /// App dibangunkan iOS (keluar dari titik parkir, atau CCU motor terjangkau): sambungkan dash, dan coba lagi beberapa
+    /// kali karena Bluetooth dash butuh beberapa detik setelah motor dinyalakan.
+    private func handleWake(_ reason: String) {
+        log("Wake: \(reason) (app \(appStateText))")
+        wakeCooldownUntil = Date().addingTimeInterval(40)
+        if UIApplication.shared.applicationState != .active { beginBackgroundTask() }
+        accessoryPresent = findDash() != nil
+        autoConnectIfNeeded()
+        for d in [2.0, 5.0, 10.0, 20.0, 30.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + d) { [weak self] in
+                guard let self = self else { return }
+                self.accessoryPresent = self.findDash() != nil
+                self.autoConnectIfNeeded()
+            }
+        }
+    }
+
     func autoConnectIfNeeded() {
         guard settings.autoConnect, !manualStop, session == nil, findDash() != nil else { return }
         connect(manual: false)
@@ -410,6 +436,8 @@ final class BikeController: NSObject, ObservableObject {
         setStatus("Terputus")
         log("Sesi dash tertutup (app \(appStateText)), menyambung ulang")
         scheduleReconnect()
+        // motor mati/diparkir: pasang geofence di sini supaya app terbangun sendiri saat berangkat lagi
+        if settings.autoConnect, let l = location.lastLocation { wake.arm(at: l) }
     }
 
     func syncHomeWork() {
@@ -418,6 +446,10 @@ final class BikeController: NSObject, ObservableObject {
 
     func locationUpdated(_ loc: CLLocation) {
         session?.gpsChanged()
+        if !isConnected, session == nil, !wake.armed, settings.autoConnect, !location.simulating,
+           Date() > wakeCooldownUntil, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy < 200 {
+            wake.arm(at: loc)
+        }
         if isConnected {
             if !location.simulating { model?.trips.update(loc) }     // simulasi tidak dicatat sebagai perjalanan
             model?.weather.refresh(loc.coordinate)
@@ -426,16 +458,28 @@ final class BikeController: NSObject, ObservableObject {
     }
 
     /// Nama jalan untuk bar bawah dash saat tidak navigasi. Dibatasi: minimal 6 detik dan 40 m antar permintaan.
+    /// Bila lokasi sekarang tidak punya nama jalan (atau geocoding gagal), nama dikosongkan: tidak boleh
+    /// menampilkan nama jalan terakhir yang sudah jauh terlewati.
     private func updateStreet(_ loc: CLLocation) {
-        guard settings.showRoadName else { return }
+        guard settings.showRoadName else {
+            if !currentStreet.isEmpty { currentStreet = ""; session?.updateIdleRoad("") }
+            return
+        }
         if let last = lastGeocodeLoc, loc.distance(from: last) < 40, !currentStreet.isEmpty { return }
+        // nama jalan lama yang sudah jauh (> 150 m) dari titik pencarian terakhir tidak lagi berlaku
+        if let last = lastGeocodeLoc, loc.distance(from: last) > 150, !currentStreet.isEmpty {
+            currentStreet = ""
+            session?.updateIdleRoad("")
+        }
         guard Date().timeIntervalSince(lastGeocode) > 6, !geocoder.isGeocoding else { return }
         lastGeocode = Date()
         lastGeocodeLoc = loc
         geocoder.reverseGeocodeLocation(loc, preferredLocale: Locale(identifier: "id_ID")) { [weak self] marks, _ in
-            guard let self = self, let pm = marks?.first else { return }
-            let name = pm.thoroughfare ?? pm.name ?? pm.subLocality ?? ""
+            // hanya `thoroughfare` (nama jalan). `name`/`subLocality` bisa berupa nomor rumah, tempat, atau kelurahan.
+            let raw = marks?.first?.thoroughfare ?? ""
+            let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             DispatchQueue.main.async {
+                guard let self = self else { return }
                 if name != self.currentStreet {
                     self.currentStreet = name
                     self.session?.updateIdleRoad(name)
@@ -660,6 +704,7 @@ final class BikeController: NSObject, ObservableObject {
                     self.model?.weather.refresh(self.location.coordinate)
                 }
                 self.isConnected = true
+                self.wake.disarm()
                 self.dashPart = part
                 self.syncHomeWork()
                 self.nav?.republish()
@@ -677,9 +722,8 @@ final class BikeController: NSObject, ObservableObject {
         s.onStepScreen = { [weak self] fwd in DispatchQueue.main.async { self?.stepScreen(forward: fwd) } }
         s.isMusicScreen = { [weak self] in self?.currentScreen == .music }
         s.onButtonEvent = { [weak self] in self?.buttonEvent($0) }
-        s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 800) / 1000 }
+        s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 450) / 1000 }
         s.holdSkipEnabled = { [weak self] in self?.settings.holdSkip ?? true }
-        s.holdDuration = { [weak self] in Double(self?.settings.holdMs ?? 700) / 1000 }
         s.onMusicSkip = { [weak self] next in DispatchQueue.main.async { self?.model?.music.skip(next: next) } }
         s.onTogglePlay = { [weak self] in DispatchQueue.main.async { self?.model?.music.wheelTogglePlay() } }
         s.onVolume = { [weak self] up in
@@ -692,7 +736,6 @@ final class BikeController: NSObject, ObservableObject {
         s.contentProvider = { [weak self] in self?.dashContent() ?? DashContent() }
         s.screensProvider = { [weak self] in self?.screens() ?? [.mapData] }
         s.screenIndexProvider = { [weak self] in self?.screenIndex ?? 0 }
-        s.buttonSchemeProvider = { 1 }   // skema tunggal: 1x zoom, 2x cepat ganti tampilan (pilihan skema dihapus dari Pengaturan)
         s.maxFpsProvider = { [weak self] in self?.settings.maxFps ?? 10 }
         s.qualityProvider = { [weak self] in self?.settings.dashQuality ?? 0.7 }
         s.autoZoomProvider = { [weak self] in self?.settings.autoZoom ?? true }

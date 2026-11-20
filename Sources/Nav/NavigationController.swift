@@ -431,7 +431,9 @@ final class NavigationController: ObservableObject {
         var cur = ""
         for m in r.maneuvers {
             if r.cum[m.beginIdx] <= progress + 1 {
-                if !m.street.isEmpty { cur = m.street }
+                // Ikuti segmen rute saat ini apa adanya: bila jalan ini tidak bernama, nama KOSONG,
+                // bukan nama jalan sebelumnya yang sudah terlewati.
+                cur = m.street
             } else {
                 break
             }
