@@ -26,8 +26,21 @@ final class BikeController: NSObject, ObservableObject {
     @Published var screenIndex = 0
     /// nama jalan saat ini (dari geocoding) bila tidak sedang navigasi
     @Published var currentStreet = ""
-    /// true selama halaman pengaturan posisi terbuka: tampilkan contoh panel navigasi
-    var demoNav = false
+    /// true selama halaman pengaturan posisi terbuka: tampilkan contoh panel navigasi (dan contoh garis rute)
+    var demoNav = false {
+        didSet {
+            if demoNav { loadDemoRoute(force: true) }
+            else { setDemoRoute([], origin: nil); demoRouteStatus = "" }
+        }
+    }
+    /// Bila diisi, pratinjau lokal selalu menggambar layar ini (halaman Peta dan Kartu Data mengunci pratinjau ke layar Peta).
+    var previewLockScreen: DashScreen?
+    /// Keterangan singkat status contoh rute di halaman Peta (kosong = tidak ada yang perlu ditampilkan).
+    @Published var demoRouteStatus = ""
+    private var _demoRoute: [CLLocationCoordinate2D] = []
+    private var demoRouteOrigin: CLLocationCoordinate2D?
+    private var demoRouteLoading = false
+    private var demoRouteNextTry = Date.distantPast
 
     weak var model: AppModel?
 
@@ -698,6 +711,59 @@ final class BikeController: NSObject, ObservableObject {
         return b
     }
 
+    // MARK: - Contoh rute untuk halaman Peta
+
+    /// Titik contoh rute (mengikuti jalan sungguhan dari server routing), dipakai pratinjau Peta saat tidak navigasi.
+    var demoRoute: [CLLocationCoordinate2D] {
+        sysLock.lock(); defer { sysLock.unlock() }
+        return _demoRoute
+    }
+
+    private func setDemoRoute(_ pts: [CLLocationCoordinate2D], origin: CLLocationCoordinate2D?) {
+        sysLock.lock()
+        _demoRoute = pts
+        sysLock.unlock()
+        demoRouteOrigin = origin
+    }
+
+    /// Hitung rute pendek (sekitar 1,8 km ke depan dari posisi sekarang) lewat Valhalla supaya garis contoh
+    /// mengikuti jalan yang tampil di peta. Dihitung ulang bila posisi bergeser lebih dari 300 m.
+    func loadDemoRoute(force: Bool = false) {
+        guard demoNav, !demoRouteLoading else { return }
+        let from = location.coordinate
+        if !force {
+            guard Date() >= demoRouteNextTry else { return }
+            if !demoRoute.isEmpty, let o = demoRouteOrigin, Geo.distance(o, from) < 300 { return }
+        }
+        let heading = location.bearingKnown ? location.bearing : 0
+        let to = Geo.destination(from: from, bearing: heading, meters: 1800)
+        let base = settings.routingBase
+        let costing = settings.costing
+        let profile = settings.routeProfile
+        demoRouteLoading = true
+        demoRouteStatus = "Memuat contoh rute…"
+        Task { [weak self] in
+            do {
+                let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from, to: to,
+                                                         heading: nil, alternatives: 0, profile: profile)
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.demoRouteLoading = false
+                    guard self.demoNav else { return }
+                    self.setDemoRoute(rs[0].points, origin: from)
+                    self.demoRouteStatus = ""
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.demoRouteLoading = false
+                    self.demoRouteNextTry = Date().addingTimeInterval(15)
+                    self.demoRouteStatus = "Contoh rute belum bisa dimuat (perlu internet): \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
     // MARK: - Preview di Home
 
     /// Dipanggil Home dan halaman Pengaturan saat tampil/hilang. Bila motor tidak tersambung, preview digambar lokal.
@@ -737,15 +803,18 @@ final class BikeController: NSObject, ObservableObject {
         localRenderID += 1
         let id = localRenderID
         let started = Date()
-        let screen = currentScreen
+        let screen = previewLockScreen ?? currentScreen
         let content = dashContent()
         let navigating = content.nav != nil
+        if demoNav { loadDemoRoute() }
+        let realRoute = nav?.upcomingPoints() ?? []
+        let routePts = navigating ? ((realRoute.isEmpty && demoNav) ? demoRoute : realRoute) : []
         let previewZoom = previewSmoother.step(to: settings.dashZoom(speedKmh: previewSpeedOverride ?? location.speedKmh),
                                                tau: settings.autoZoom ? settings.zoomSmooth : 0)
         let hud = DashHUD(size: CGSize(width: 480, height: 234), screen: screen, content: content,
                           center: location.coordinate, bearing: location.bearing,
                           zoom: previewZoom,
-                          route: navigating ? (nav?.upcomingPoints() ?? []) : [],
+                          route: routePts,
                           destination: navigating ? nav?.destinationCoordinate : nil)
         DashRenderer.render(hud) { [weak self] img in
             guard let self = self else { return }
@@ -816,7 +885,11 @@ final class BikeController: NSObject, ObservableObject {
             return self.settings.dashZoom(speedKmh: self.previewSpeedOverride ?? v)
         }
         s.zoomSmoothProvider = { [weak self] in (self?.settings.autoZoom ?? true) ? (self?.settings.zoomSmooth ?? 0.8) : 0 }
-        s.routeProvider = { [weak self] in self?.nav?.upcomingPoints() ?? [] }
+        s.routeProvider = { [weak self] in
+            let r = self?.nav?.upcomingPoints() ?? []
+            if r.isEmpty, let me = self, me.demoNav { return me.demoRoute }
+            return r
+        }
         s.destinationProvider = { [weak self] in self?.nav?.destinationCoordinate }
         s.wantsPreview = { [weak self] in
             guard let self = self else { return false }

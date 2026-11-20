@@ -133,6 +133,25 @@ struct DashFrameView: View {
     }
 }
 
+/// Pratinjau layar dash saja (tanpa bar atas dan bar bawah): hanya gambar yang digambar app, realtime.
+/// Dipakai di halaman Pengaturan (Layar dasbor, Kartu Data, Peta); Home tetap memakai DashFrameView berbingkai.
+struct DashScreenOnlyView: View {
+    @EnvironmentObject var bike: BikeController
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color.black)
+            if let img = bike.preview {
+                Image(uiImage: HomeView.visibleArea(img)).resizable().interpolation(.medium)
+            } else {
+                ProgressView()
+            }
+        }
+        .aspectRatio(480.0 / DashComposer.visHeight, contentMode: .fit)
+        .clipped()
+    }
+}
+
 /// Bar sinyal (0 = tanpa sinyal, 1 = SIM tanpa jaringan, 5 = jaringan data; skala 0-5 dipetakan ke 4 batang).
 private struct SignalBars: View {
     var level: Int

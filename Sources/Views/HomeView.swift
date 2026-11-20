@@ -12,16 +12,12 @@ struct HomeView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-            // pratinjau tetap di atas; hanya bagian di bawahnya yang tergulir
-            previewCard
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color(UIColor.systemBackground))
+            // seluruh isi Home bisa digulir; pratinjau dasbor ada tepat di bawah kartu "Hubungkan ke motor"
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     greetingHeader
                     statusCard
+                    previewCard
                     if nav.phase == .navigating { navCard }
                     if let p = trips.parked, !bike.isConnected { parkedCard(p) }
                     tiles
@@ -32,7 +28,6 @@ struct HomeView: View {
                     }
                 }
                 .padding()
-            }
             }
             .navigationBarTitle("", displayMode: .inline)
             .navigationBarHidden(true)

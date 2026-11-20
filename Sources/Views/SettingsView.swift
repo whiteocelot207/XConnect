@@ -381,22 +381,26 @@ struct ControlSettings: View {
 }
 
 /// Pratinjau layar dash di halaman pengaturan (ikut tampil di dash asli bila terhubung).
+/// Tanpa bar atas dan bar bawah; panah ganti layar hanya bila `arrows` true (halaman Layar dasbor).
 struct DashPreviewBox: View {
     @EnvironmentObject var bike: BikeController
+    var arrows = false
 
     var body: some View {
         VStack(spacing: 6) {
-            DashFrameView()
+            DashScreenOnlyView()
                 .cornerRadius(8)
-            HStack {
-                Button { bike.stepScreen(forward: false) } label: { Image(systemName: "chevron.left") }
-                    .buttonStyle(.bordered)
-                Spacer()
-                Text("\(bike.currentScreen.title) · \(min(bike.screenIndex, bike.screens().count - 1) + 1) dari \(bike.screens().count)")
-                    .font(.footnote)
-                Spacer()
-                Button { bike.stepScreen(forward: true) } label: { Image(systemName: "chevron.right") }
-                    .buttonStyle(.bordered)
+            if arrows {
+                HStack {
+                    Button { bike.stepScreen(forward: false) } label: { Image(systemName: "chevron.left") }
+                        .buttonStyle(.bordered)
+                    Spacer()
+                    Text("\(bike.currentScreen.title) · \(min(bike.screenIndex, bike.screens().count - 1) + 1) dari \(bike.screens().count)")
+                        .font(.footnote)
+                    Spacer()
+                    Button { bike.stepScreen(forward: true) } label: { Image(systemName: "chevron.right") }
+                        .buttonStyle(.bordered)
+                }
             }
         }
     }
@@ -408,15 +412,19 @@ struct DashPreviewLifecycle: ViewModifier {
     @EnvironmentObject var bike: BikeController
     var demoNav = false
     var focus: DashScreen? = nil
+    /// true: pratinjau dikunci ke layar `focus` (tidak bisa diganti dari halaman ini)
+    var lock = false
 
     func body(content: Content) -> some View {
         content
             .onAppear {
+                bike.previewLockScreen = lock ? focus : nil
                 bike.demoNav = demoNav
                 if let f = focus { bike.showScreen(f) }
                 bike.setPreviewVisible(true, owner: "pengaturan")
             }
             .onDisappear {
+                bike.previewLockScreen = nil
                 bike.demoNav = false
                 bike.previewSpeedOverride = nil
                 bike.setPreviewVisible(false, owner: "pengaturan")
@@ -426,10 +434,10 @@ struct DashPreviewLifecycle: ViewModifier {
 
 extension View {
     /// Pratinjau dash tetap di atas layar (tidak ikut tergulir); hanya isi di bawahnya yang tergulir.
-    func dashPinnedPreview(hint: String? = nil) -> some View {
+    func dashPinnedPreview(hint: String? = nil, arrows: Bool = false) -> some View {
         safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 4) {
-                DashPreviewBox().frame(maxWidth: 340)
+                DashPreviewBox(arrows: arrows).frame(maxWidth: 340)
                 if let h = hint {
                     Text(h).font(.caption2).foregroundColor(.secondary).multilineTextAlignment(.center)
                 }
@@ -442,8 +450,8 @@ extension View {
         }
     }
 
-    func dashPreviewLifecycle(demoNav: Bool = false, focus: DashScreen? = nil) -> some View {
-        modifier(DashPreviewLifecycle(demoNav: demoNav, focus: focus))
+    func dashPreviewLifecycle(demoNav: Bool = false, focus: DashScreen? = nil, lock: Bool = false) -> some View {
+        modifier(DashPreviewLifecycle(demoNav: demoNav, focus: focus, lock: lock))
     }
 }
 
@@ -532,7 +540,10 @@ struct MapSettings: View {
                     }
                 }
             }
-            Section(header: Text("Rute")) {
+            Section(header: Text("Rute"),
+                    footer: Text(bike.demoRouteStatus.isEmpty
+                                 ? "Garis contoh di pratinjau mengikuti jalan sungguhan di sekitar posisi Anda, jadi lebar dan tepi garis bisa dicoba langsung."
+                                 : bike.demoRouteStatus)) {
                 Picker("Warna rute", selection: $settings.routeColor) {
                     Text("Merah muda").tag(0)
                     Text("Biru").tag(1)
@@ -579,8 +590,8 @@ struct MapSettings: View {
         }
         .navigationTitle("Peta")
         .navigationBarTitleDisplayMode(.inline)
-        .dashPinnedPreview(hint: "Contoh panel navigasi tampil selama halaman ini terbuka.")
-        .dashPreviewLifecycle(demoNav: true, focus: .mapData)
+        .dashPinnedPreview(hint: "Contoh panel navigasi dan garis rute (mengikuti jalan di sekitar Anda) tampil selama halaman ini terbuka.")
+        .dashPreviewLifecycle(demoNav: true, focus: .mapData, lock: true)
     }
 }
 
@@ -639,7 +650,7 @@ struct CardSettings: View {
         .dashPinnedPreview(hint: settings.showCards
                            ? "Pratinjau layar Peta; perubahan di bawah langsung terlihat."
                            : "Kartu Data sedang dimatikan. Nyalakan di Pengaturan > Layar dasbor > Kartu Data.")
-        .dashPreviewLifecycle(focus: .mapData)
+        .dashPreviewLifecycle(focus: .mapData, lock: true)
     }
 }
 
@@ -770,7 +781,7 @@ struct ScreensSettings: View {
         .navigationTitle("Layar dasbor")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { EditButton() } }
-        .dashPinnedPreview(hint: "Ketuk panah untuk berpindah layar. Perubahan di bawah langsung terlihat.")
+        .dashPinnedPreview(arrows: true)
         .dashPreviewLifecycle()
         .onAppear { syncSlideshowToggle() }
         .onChange(of: slides.files) { _ in syncSlideshowToggle() }
