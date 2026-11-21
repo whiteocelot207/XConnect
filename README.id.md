@@ -49,7 +49,7 @@ Menambah bahasa cukup menambah kolom. `@dashLang` adalah kode bahasa yang dikiri
 
 1. Bangun IPA (lihat di bawah) atau unduh `XConnect.ipa` dari [Releases](../../releases).
 2. Pasang pertama kali dengan Sideloadly (atau SideStore / AltStore / LiveContainer). Bundle ID: `id.xconnect.app`.
-3. Update berikutnya: Pengaturan > Tentang > Cek update sekarang. Tambahkan sumber update sekali.
+3. Update berikutnya: Pengaturan > Tentang > Cek update sekarang.
 
 Butuh iOS 15 ke atas. Izinkan lokasi "Selalu", Bluetooth, dan Media & Apple Music.
 

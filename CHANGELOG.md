@@ -4,6 +4,15 @@ Add a new `## x.y.z` section at the top for each release. The app shows only the
 (Settings > About > What's new in this version); if a version has no section of its own, the newest section that is not
 newer than it is shown. The same section is used as the GitHub release notes.
 
+## 0.1.3
+
+### Fixed
+- The app closed right after opening (the floating banners were missing their data).
+
+### New
+- Setup: a new step after the welcome screen asks for your nickname (optional).
+- Navigate: "Find nearest gas station" button.
+
 ## 0.1.2
 
 ### New

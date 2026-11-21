@@ -908,7 +908,7 @@ final class BikeController: NSObject, ObservableObject {
         s.onStepScreen = { [weak self] fwd in DispatchQueue.main.async { self?.stepScreen(forward: fwd) } }
         s.isMusicScreen = { [weak self] in self?.currentScreen == .music }
         s.onButtonEvent = { [weak self] in self?.buttonEvent($0) }
-        s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 450) / 1000 }
+        s.doubleClickWindow = { [weak self] in Double(self?.settings.doubleClickMs ?? 300) / 1000 }
         s.holdSkipEnabled = { [weak self] in self?.settings.holdSkip ?? true }
         s.onMusicSkip = { [weak self] next in DispatchQueue.main.async { self?.model?.music.skip(next: next) } }
         s.onTogglePlay = { [weak self] in DispatchQueue.main.async { self?.model?.music.wheelTogglePlay() } }

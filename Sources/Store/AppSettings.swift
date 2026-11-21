@@ -56,8 +56,8 @@ final class AppSettings: ObservableObject {
     @Published var phoneRedPct: Int { didSet { put("phoneRedPct", phoneRedPct) } }
     @Published var maintWarnKm: Int { didSet { put("maintWarnKm", maintWarnKm) } }
     @Published var maintNotify: Bool { didSet { put("maintNotify", maintNotify) } }
-    /// Format pemilik/nama-repo, mis. "histrox/xconnect"
-    @Published var updateRepo: String { didSet { put("updateRepo", updateRepo) } }
+    /// Repo sumber update: tetap, dari AppConfig (tidak disimpan di UserDefaults dan tidak ikut cadangan)
+    var updateRepo: String { AppConfig.updateRepo }
     /// 0 = SideStore, 1 = AltStore, 2 = LiveContainer
     @Published var updater: Int { didSet { put("updater", updater) } }
     @Published var autoCheckUpdate: Bool { didSet { put("autoCheckUpdate", autoCheckUpdate) } }
@@ -117,8 +117,6 @@ final class AppSettings: ObservableObject {
     @Published var ccuFuelUnit: Int { didSet { put("ccuFuelUnit", ccuFuelUnit) } }
     /// nilai mentah dibagi angka ini (mis. 10 bila 352 berarti 35,2)
     @Published var ccuFuelDiv: Double { didSet { put("ccuFuelDiv", ccuFuelDiv) } }
-    /// true = jam 24 jam, false = 12 jam (untuk jam dan ETA yang digambar app)
-    @Published var clock24: Bool { didSet { put("clock24", clock24); Fmt.clock24 = clock24 } }
     /// kode bahasa yang dikirim ke dash (cmd 12). -1 = tidak dikirim. 0 Inggris, 15 Vietnam. Dugaan: format jam dash mengikuti bahasa
     @Published var dashLang: Int { didSet { put("dashLang", dashLang) } }
     /// ID data CCU tambahan yang ikut dilanggan (dipisah koma), untuk eksperimen
@@ -166,8 +164,8 @@ final class AppSettings: ObservableObject {
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
             "theme": 0, "colorTheme": 0, "language": "en", "setupDone": false, "dashLangSync": true, "userName": "", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
-            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0, "fuelRedKm": 40, "fuelAmberKm": 60, "battGreenV": 12.6, "battRedV": 11.8, "tempAmberC": 95, "tempRedC": 105, "phoneRedPct": 20, "maintWarnKm": 500, "maintNotify": true,
-            "updateRepo": "whiteocelot207/XConnect", "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
+            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0, "fuelRedKm": 40, "fuelAmberKm": 60, "battGreenV": 12.6, "battRedV": 11.8, "tempAmberC": 95, "tempRedC": 105, "phoneRedPct": 20, "maintWarnKm": 100, "maintNotify": true,
+            "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
             "routeWidth": 5.0, "routeBorder": 0.0, "markerSize": 0.6, "markerRing": true, "markerY": 0.78,
             "navPanelScale": 0.85, "musicBlurBG": true,
             "cardLayout": 1, "cardBig": 0, "cardS1": 1, "cardS2": 2, "cardS3": 3, "cardS4": 4,
@@ -175,7 +173,7 @@ final class AppSettings: ObservableObject {
             "infoPhotoL": 12, "infoPhotoR": 12, "photoShift": 0.0,
             "cardBgAlpha": 0.78, "markerX": -6.0,
             "navDX": -4.0, "navDY": -4.0, "etaDX": -50.0, "etaDY": 4.0,
-            "startScreen": 0, "doubleClickMs": 450, "holdSkip": true, "holdMs": 1000, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
+            "startScreen": 0, "doubleClickMs": 300, "holdSkip": true, "holdMs": 1000, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "ccuExtraIds": "",
             "showRoadName": true,
             "cardFontBig": 1.0, "cardFontSmall": 1.0, "dashQuality": 0.55, "keepAliveAudio": true, "etaShowDistance": true, "etaShowDuration": true, "etaShowArrival": true, "guideVoice": true, "guideDuck": true, "guideDuckLevel": 0.5, "guideVolume": 1.0, "guideBoostDb": 0.0,
             "routePrimary": 1.0, "routeTopSpeed": 80, "routeHills": 0.0, "routeLiving": 0.5,
@@ -221,7 +219,6 @@ final class AppSettings: ObservableObject {
         phoneRedPct = d.integer(forKey: "phoneRedPct")
         maintWarnKm = d.integer(forKey: "maintWarnKm")
         maintNotify = d.bool(forKey: "maintNotify")
-        updateRepo = d.string(forKey: "updateRepo") ?? ""
         updater = d.integer(forKey: "updater")
         autoCheckUpdate = d.bool(forKey: "autoCheckUpdate")
         ccuEnabled = d.bool(forKey: "ccuEnabled")
@@ -261,8 +258,7 @@ final class AppSettings: ObservableObject {
         ccuFuelUnit = min(max(0, d.integer(forKey: "ccuFuelUnit")), 2)
         ccuFuelDiv = max(0.001, d.double(forKey: "ccuFuelDiv"))
         dashLang = d.integer(forKey: "dashLang")
-        clock24 = d.bool(forKey: "clock24")
-        Fmt.clock24 = d.bool(forKey: "clock24")
+        Fmt.clock24 = true          // format jam tetap 24 jam
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
         showRoadName = d.bool(forKey: "showRoadName")
         cardFontBig = min(max(0.5, d.double(forKey: "cardFontBig")), 1.5)
@@ -323,7 +319,6 @@ final class AppSettings: ObservableObject {
         phoneRedPct = d.integer(forKey: "phoneRedPct")
         maintWarnKm = d.integer(forKey: "maintWarnKm")
         maintNotify = d.bool(forKey: "maintNotify")
-        updateRepo = d.string(forKey: "updateRepo") ?? ""
         updater = d.integer(forKey: "updater")
         autoCheckUpdate = d.bool(forKey: "autoCheckUpdate")
         ccuEnabled = d.bool(forKey: "ccuEnabled")
@@ -363,8 +358,7 @@ final class AppSettings: ObservableObject {
         ccuFuelUnit = min(max(0, d.integer(forKey: "ccuFuelUnit")), 2)
         ccuFuelDiv = max(0.001, d.double(forKey: "ccuFuelDiv"))
         dashLang = d.integer(forKey: "dashLang")
-        clock24 = d.bool(forKey: "clock24")
-        Fmt.clock24 = clock24
+        Fmt.clock24 = true          // format jam tetap 24 jam
         ccuExtraIds = d.string(forKey: "ccuExtraIds") ?? ""
         showRoadName = d.bool(forKey: "showRoadName")
         cardFontBig = min(max(0.5, d.double(forKey: "cardFontBig")), 1.5)

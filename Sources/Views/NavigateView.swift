@@ -40,6 +40,15 @@ struct NavigateView: View {
                             Label(tr("Open this link / coordinates"), systemImage: "link")
                         }
                     }
+                    Button {
+                        nav.query = ""
+                        nav.showFuelStations()
+                    } label: {
+                        HStack {
+                            Label(tr("Find nearest gas station"), systemImage: "fuelpump.fill")
+                            Spacer()
+                        }
+                    }
                 }
 
                 if !nav.searchResults.isEmpty {

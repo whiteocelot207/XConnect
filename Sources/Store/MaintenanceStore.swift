@@ -70,7 +70,7 @@ final class MaintenanceStore: ObservableObject {
     func checkReminders() {
         let d = UserDefaults.standard
         guard odometerKm > 0, (d.object(forKey: "maintNotify") as? Bool) ?? true else { return }
-        let warn = (d.object(forKey: "maintWarnKm") as? Int) ?? 500
+        let warn = (d.object(forKey: "maintWarnKm") as? Int) ?? 100
         var state = (d.dictionary(forKey: "maint.notified") as? [String: String]) ?? [:]
         for item in items {
             let rem = remainingKm(item)

@@ -4,6 +4,15 @@ Tambahkan bagian `## x.y.z` baru di paling atas untuk tiap rilis. Aplikasi hanya
 terpasang (Pengaturan > Tentang > Yang baru di versi ini); bila suatu versi tidak punya bagian sendiri, yang tampil adalah
 bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai catatan rilis GitHub.
 
+## 0.1.3
+
+### Diperbaiki
+- App langsung tertutup setelah dibuka (banner melayang kekurangan data).
+
+### Baru
+- Pengaturan awal: langkah baru setelah layar selamat datang menanyakan nama panggilan (boleh dikosongkan).
+- Navigasi: tombol "Cari SPBU terdekat".
+
 ## 0.1.2
 
 ### Baru

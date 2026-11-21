@@ -76,8 +76,7 @@ struct MotorView: View {
                 .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(vehicle.name).font(.title2).bold()
-                    let sub = [vehicle.model, vehicle.year].filter { !$0.isEmpty }.joined(separator: " · ")
-                    if !sub.isEmpty { Text(sub).foregroundColor(.secondary) }
+                    if !vehicle.model.isEmpty { Text(vehicle.model).foregroundColor(.secondary) }
                 }
                 Spacer()
             }

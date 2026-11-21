@@ -59,7 +59,7 @@ All texts live in `Sources/Resources/Translations.tsv` (tab separated):
 
 1. Build the IPA (see below) or download `XConnect.ipa` from [Releases](../../releases).
 2. First install with Sideloadly (or SideStore / AltStore / LiveContainer). Bundle ID: `id.xconnect.app`.
-3. Later updates: Settings > About > Check for updates. Add the update source once (button "Add source to ...").
+3. Later updates: Settings > About > Check for updates.
 
 Requires iOS 15 or later (iPhone). Allow location "Always", Bluetooth and Media & Apple Music so the app can
 connect when the motorcycle is switched on and show the playing song.

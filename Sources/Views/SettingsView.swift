@@ -159,15 +159,6 @@ struct AppearanceSettings: View {
             Section(header: Text(tr("Greeting on the dash"))) {
                 TextField(tr("Nickname (shown on the dash)"), text: $settings.userName)
             }
-            Section(header: Text(tr("Clock format")),
-                    footer: Text(tr("Applies to the clock and estimated arrival time (ETA) drawn by XConnect. The clock in the top bar of the dash is drawn by the dash itself and cannot be changed from the app."))) {
-                Picker(tr("Clock format"), selection: $settings.clock24) {
-                    Text(tr("24-hour (13:45)")).tag(true)
-                    Text(tr("12-hour (1:45 PM)")).tag(false)
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            }
         }
         .navigationTitle(tr("Appearance"))
         .navigationBarTitleDisplayMode(.inline)
@@ -290,8 +281,6 @@ struct VehicleSettings: View {
                 if isCustomModel {
                     TextField(tr("Motorcycle type/model"), text: $vehicle.model)
                 }
-                TextField(tr("Year (e.g. 2023)"), text: $vehicle.year)
-                    .keyboardType(.numberPad)
             }
             Section(header: Text(tr("Tank and consumption"))) {
                 Stepper(tr("Tank capacity {0}", Fmt.liters(vehicle.tankL)), value: $vehicle.tankL, in: 3...30, step: 0.1)
@@ -385,7 +374,7 @@ struct ControlSettings: View {
                     Text(tr("Map zoom")).foregroundColor(.secondary)
                 }
                 HStack {
-                    Text(tr("2 presses"))
+                    Text(tr("2 quick presses"))
                     Spacer()
                     Text(tr("Zoom again")).foregroundColor(.secondary)
                 }
@@ -493,17 +482,6 @@ struct MapSettings: View {
 
     var body: some View {
         Form {
-            Section {
-                NavigationLink(destination: RouteSettings()) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "arrow.triangle.turn.up.right.diamond").foregroundColor(.accentColor).frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(tr("Routes and search")).font(.headline)
-                            Text(tr("Route profile, voice guidance, routing server")).font(.footnote).foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
             Section(footer: Text(tr("Download the areas you pass often so the dash map still shows without a mobile network."))) {
                 NavigationLink(destination: OfflineMapView()) {
                     HStack(spacing: 12) {
@@ -515,6 +493,17 @@ struct MapSettings: View {
                                  : tr("{0} areas · {1}", offline.areas.count, OfflineMapStore.mbText(offline.totalBytes)))
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            Section {
+                NavigationLink(destination: RouteSettings()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond").foregroundColor(.accentColor).frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tr("Routes and search")).font(.headline)
+                            Text(tr("Route profile, voice guidance, routing server")).font(.footnote).foregroundColor(.secondary)
                         }
                     }
                 }
@@ -927,22 +916,27 @@ struct CcuRawView: View {
 }
 
 struct DebugSettings: View {
+    /// true = tampilkan bagian eksperimen Link CCU dan Bahasa dash
+    private static let showHiddenExperiments = false
     @EnvironmentObject var bike: BikeController
     @EnvironmentObject var settings: AppSettings
 
     var body: some View {
         Form {
-            Section(header: Text(tr("CCU link (experiment)")),
-                    footer: Text(tr("Opens the com.yconnect.data session and logs all incoming bytes, to learn how to read the odometer and motorcycle data on the iPhone."))) {
-                Button(tr("Run CCU probe")) { bike.runCcuProbe() }
-                Button(tr("Stop CCU probe")) { bike.stopCcuProbe() }
-                Text(bike.vehicleLive.state).font(.footnote).foregroundColor(.secondary)
-            }
-            Section(header: Text(tr("Dash language (experiment)")),
-                    footer: Text(tr("The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 11 = Indonesian, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd."))) {
-                Toggle(tr("Send the app language to the dash"), isOn: $settings.dashLangSync)
-                Stepper(settings.dashLang < 0 ? tr("Language code: from app language") : tr("Language code: {0}", settings.dashLang),
-                        value: $settings.dashLang, in: -1...63)
+            // Disembunyikan (bukan dihapus): ubah ke true bila eksperimen ini diperlukan lagi.
+            if Self.showHiddenExperiments {
+                Section(header: Text(tr("CCU link (experiment)")),
+                        footer: Text(tr("Opens the com.yconnect.data session and logs all incoming bytes, to learn how to read the odometer and motorcycle data on the iPhone."))) {
+                    Button(tr("Run CCU probe")) { bike.runCcuProbe() }
+                    Button(tr("Stop CCU probe")) { bike.stopCcuProbe() }
+                    Text(bike.vehicleLive.state).font(.footnote).foregroundColor(.secondary)
+                }
+                Section(header: Text(tr("Dash language (experiment)")),
+                        footer: Text(tr("The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 11 = Indonesian, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd."))) {
+                    Toggle(tr("Send the app language to the dash"), isOn: $settings.dashLangSync)
+                    Stepper(settings.dashLang < 0 ? tr("Language code: from app language") : tr("Language code: {0}", settings.dashLang),
+                            value: $settings.dashLang, in: -1...63)
+                }
             }
             Section(header: Text(tr("Log"))) {
                 Button(tr("Copy log")) { UIPasteboard.general.string = bike.logLines.joined(separator: "\n") }
@@ -984,17 +978,14 @@ struct AboutSettings: View {
                     Label(tr("Experiments and log"), systemImage: "ladybug")
                 }
             }
-            Section(header: Text(tr("Version and updates")),
-                    footer: Text(tr("Updates are fetched from GitHub Releases (the Actions workflow publishes them automatically on every build). iOS does not let an app install an IPA by itself, so the Install button opens SideStore, AltStore, or LiveContainer with the latest IPA: just one confirmation tap there. In LiveContainer, if the bundle ID already exists choose Replace so the app data stays. If XConnect itself runs inside LiveContainer, run it in multitasking mode or in a second LiveContainer so the main LiveContainer is free to process the installation."))) {
+            Section(header: Text(tr("Version and updates"))) {
                 HStack { Text(tr("Installed")); Spacer(); Text("\(UpdateService.currentVersion)").foregroundColor(.secondary) }
                 if let l = updater.latest {
                     HStack { Text(tr("Latest")); Spacer(); Text(l.name).foregroundColor(.secondary) }
                 }
                 if !updater.message.isEmpty { Text(updater.message).font(.footnote).foregroundColor(.secondary) }
             }
-            Section(header: Text(tr("Update source"))) {
-                TextField("pemilik/nama-repo", text: $settings.updateRepo)
-                    .autocapitalization(.none).disableAutocorrection(true)
+            Section {
                 Toggle(tr("Check automatically when the app opens"), isOn: $settings.autoCheckUpdate)
                 Button(updater.checking ? tr("Checking…") : tr("Check for updates now")) {
                     updater.check(repo: settings.updateRepo)
@@ -1046,7 +1037,7 @@ struct BackupSettings: View {
 
     var body: some View {
         Form {
-            Section(footer: Text(tr("The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size."))) {
+            Section(footer: Text(tr("The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size."))) {
                 Button(tr("Save backup to a file")) {
                     doc = SettingsBackupDocument(data: settings.exportBackup())
                     exporting = true

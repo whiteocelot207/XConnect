@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Pengaturan awal saat app dibuka pertama kali: sapaan selamat datang, pilih bahasa, pilih motor.
+/// Pengaturan awal saat app dibuka pertama kali: sapaan selamat datang, nama panggilan, pilih bahasa, pilih motor, perizinan.
 struct OnboardingView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var vehicle: VehicleStore
@@ -17,8 +17,9 @@ struct OnboardingView: View {
                 VStack(spacing: 18) {
                     switch step {
                     case 0: welcome
-                    case 1: language
-                    case 2: motorcycle
+                    case 1: nickname
+                    case 2: language
+                    case 3: motorcycle
                     default: permissions
                     }
                 }
@@ -33,9 +34,9 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                 }
                 Button {
-                    if step < 3 { withAnimation { step += 1 } } else { finish() }
+                    if step < 4 { withAnimation { step += 1 } } else { finish() }
                 } label: {
-                    Text(step == 0 ? tr("Get started") : (step < 3 ? tr("Next") : tr("Finish")))
+                    Text(step == 0 ? tr("Get started") : (step < 4 ? tr("Next") : tr("Finish")))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -55,6 +56,19 @@ struct OnboardingView: View {
             Text(tr("Welcome to XConnect")).font(.largeTitle).bold().multilineTextAlignment(.center)
             Text(tr("Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in a few quick steps."))
                 .font(.body).foregroundColor(.secondary).multilineTextAlignment(.center)
+        }
+    }
+
+    private var nickname: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "person.crop.circle").font(.system(size: 48)).foregroundColor(.accentColor)
+            Text(tr("What should we call you?")).font(.title).bold().multilineTextAlignment(.center)
+            Text(tr("This name is shown as a greeting on the dash. You can leave it empty and change it later in Settings > Appearance."))
+                .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+            TextField(tr("Nickname (shown on the dash)"), text: $settings.userName)
+                .textFieldStyle(.roundedBorder)
+                .disableAutocorrection(true)
+                .padding(.top, 6)
         }
     }
 
@@ -88,7 +102,6 @@ struct OnboardingView: View {
                     TextField(tr("Motorcycle type/model"), text: $vehicle.model)
                 }
                 TextField(tr("Motorcycle name"), text: $vehicle.name)
-                TextField(tr("Year (e.g. 2023)"), text: $vehicle.year).keyboardType(.numberPad)
                 Stepper(tr("Tank capacity {0}", Fmt.liters(vehicle.tankL)), value: $vehicle.tankL, in: 3...30, step: 0.1)
             }
             .textFieldStyle(.roundedBorder)
