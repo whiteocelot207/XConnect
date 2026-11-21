@@ -45,10 +45,15 @@ struct RootView: View {
             .accentColor(AppTheme.theme(settings.colorTheme).color)
             .tint(AppTheme.theme(settings.colorTheme).color)
             .overlay(alignment: .top) {
+                // PENTING: overlay berada DI LUAR rantai .environmentObject di atas, jadi tidak mewarisinya.
+                // Banner memakai @EnvironmentObject, sehingga harus disuntik ulang di sini (kalau tidak: crash saat peluncuran).
                 VStack(spacing: 0) {
                     UpdateBanner(tab: $tab)
                     MaintenanceBanner(tab: $tab)
                 }
+                .environmentObject(app.settings)
+                .environmentObject(app.updater)
+                .environmentObject(app.maint)
             }
             .fullScreenCover(isPresented: Binding(get: { !settings.setupDone }, set: { _ in })) {
                 OnboardingView()
