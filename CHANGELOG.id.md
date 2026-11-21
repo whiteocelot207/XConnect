@@ -7,6 +7,10 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 ## 0.1.3
 
 ### Diperbaiki
+- Perawatan: "Ingatkan sebelum servis" sekarang kolom isian kilometer, bukan tombol plus/minus.
+- SPBU: pencarian kini beralih ke server cadangan dan memperluas radius (sampai 25 km), serta membedakan "server sibuk" dari "tidak ada SPBU di dekat".
+- Teks Perizinan dan perawatan: contoh sekarang SIM, bukan STNK.
+- Pengaturan awal/Pengaturan: memilih motor lain kini hanya menampilkan satu kolom "Nama motor", bukan dua.
 - App langsung tertutup setelah dibuka (banner melayang kekurangan data).
 - Pengaturan awal: izin Bluetooth tidak lagi muncul sendiri saat app pertama dibuka; baru diminta saat Anda mengetuk Izinkan di langkah Perizinan.
 - Dash: warna peringatan (bensin, aki 12V, suhu mesin, baterai HP) sekarang mengikuti pengaturan di semua tempat, termasuk kartu layar Speedometer dan info pojok.
@@ -17,7 +21,7 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 - Navigasi: tombol "Cari SPBU terdekat".
 - Pengaturan awal: bahasa langsung ditanyakan di tampilan pertama.
 - Perizinan: izin Foto (galeri) ditambahkan. Tombol Selesai tidak bisa diketuk sebelum semua izin diberikan.
-- Perawatan: tiap item bisa berdasarkan kilometer atau waktu. Item kilometer punya jarak "ingatkan sebelum" sendiri; item waktu (mis. masa berlaku STNK) punya tanggal jatuh tempo dan pengingat 1, 3, atau 6 bulan sebelumnya. Selang (1 bulan sampai 5 tahun) hanya bisa dipilih bila "Berulang" dinyalakan.
+- Perawatan: tiap item bisa berdasarkan kilometer atau waktu. Item kilometer punya jarak "ingatkan sebelum" sendiri; item waktu (mis. masa berlaku SIM) punya tanggal jatuh tempo dan pengingat 1, 3, atau 6 bulan sebelumnya. Selang (1 bulan sampai 5 tahun) hanya bisa dipilih bila "Berulang" dinyalakan.
 - Perawatan: ikon tiap item bisa dipilih dari banyak simbol dan emoji bertema motor.
 
 ### Diubah

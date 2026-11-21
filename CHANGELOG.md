@@ -7,6 +7,10 @@ newer than it is shown. The same section is used as the GitHub release notes.
 ## 0.1.3
 
 ### Fixed
+- Maintenance: "Remind before service" is now a field you type the kilometers into instead of a plus/minus stepper.
+- Gas stations: the search now falls back to backup servers and widens the radius (up to 25 km), and tells apart "server busy" from "no gas station nearby".
+- Permissions and maintenance texts: the example is now SIM instead of STNK.
+- Setup/Settings: choosing another motorcycle now shows a single "Motorcycle name" field instead of two.
 - The app closed right after opening (the floating banners were missing their data).
 - Setup: the Bluetooth permission no longer pops up by itself when the app is first opened; it is only requested when you tap Allow on the Permissions step.
 - Dash: warning colors (fuel, 12V battery, engine temperature, phone battery) now follow your settings everywhere, including the Speedometer screen cards and the corner info.
@@ -17,7 +21,7 @@ newer than it is shown. The same section is used as the GitHub release notes.
 - Navigate: "Find nearest gas station" button.
 - Setup: the language is asked right on the first screen.
 - Permissions: a Photos (gallery) permission was added. The Finish button stays disabled until every permission is allowed.
-- Maintenance: each item can be based on kilometers or on time. Kilometer items have their own "remind before" distance; time items (for example STNK validity) have a due date and a reminder 1, 3 or 6 months before. The interval (1 month to 5 years) can only be chosen when "Repeat" is turned on.
+- Maintenance: each item can be based on kilometers or on time. Kilometer items have their own "remind before" distance; time items (for example SIM validity) have a due date and a reminder 1, 3 or 6 months before. The interval (1 month to 5 years) can only be chosen when "Repeat" is turned on.
 - Maintenance: choose an icon for each item from many motorcycle-related symbols and emoji.
 
 ### Changed

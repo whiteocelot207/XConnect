@@ -532,7 +532,6 @@ Reading now: {0}	Reading now: {0}	Terbaca sekarang: {0}
 Recalculating route	Recalculating route	Menghitung ulang rute
 Recalculating route…	Recalculating route…	Menghitung ulang rute…
 Recent	Recent	Terakhir
-Remind {0} km before service	Remind {0} km before service	Ingatkan {0} km sebelum servis
 Remove from favorites	Remove from favorites	Hapus dari favorit
 Rename	Rename	Ganti nama
 Rename favorite	Rename favorite	Ganti nama favorit
@@ -803,7 +802,7 @@ Find nearest gas station	Find nearest gas station	Cari SPBU terdekat
 What should we call you?	What should we call you?	Mau dipanggil apa?
 This name is shown as a greeting on the dash. You can leave it empty and change it later in Settings > Appearance.	This name is shown as a greeting on the dash. You can leave it empty and change it later in Settings > Appearance.	Nama ini tampil sebagai sapaan di dash. Boleh dikosongkan dan bisa diubah nanti di Pengaturan > Tampilan.
 Lets you pick photos from your gallery for the dash Photos screen and the motorcycle photo.	Lets you pick photos from your gallery for the dash Photos screen and the motorcycle photo.	Memilih foto dari galeri untuk layar Foto di dash dan foto motor.
-Maintenance and document (e.g. STNK) reminders.	Maintenance and document (e.g. STNK) reminders.	Pengingat perawatan dan dokumen (mis. STNK).
+Maintenance and document (e.g. SIM) reminders.	Maintenance and document (e.g. SIM) reminders.	Pengingat perawatan dan dokumen (mis. SIM).
 Tap Allow on every item to continue. Location must be set to Always.	Tap Allow on every item to continue. Location must be set to Always.	Ketuk Izinkan pada setiap item untuk melanjutkan. Lokasi harus diatur ke Selalu.
 Overdue {0} days	Overdue {0} days	Terlambat {0} hari
 Due today	Due today	Jatuh tempo hari ini
@@ -827,10 +826,13 @@ Due date	Due date	Jatuh tempo
 Remind me	Remind me	Ingatkan saya
 {0} before	{0} before	{0} sebelumnya
 The reminder appears when the distance left is at or below the value you set for this item.	The reminder appears when the distance left is at or below the value you set for this item.	Peringatan muncul saat sisa jarak sama dengan atau di bawah nilai yang Anda atur untuk item ini.
-The reminder appears this long before the due date, for example the STNK validity.	The reminder appears this long before the due date, for example the STNK validity.	Peringatan muncul sekian lama sebelum jatuh tempo, misalnya masa berlaku STNK.
+The reminder appears this long before the due date, for example the SIM validity.	The reminder appears this long before the due date, for example the SIM validity.	Peringatan muncul sekian lama sebelum jatuh tempo, misalnya masa berlaku SIM.
 Turns maintenance notifications and the banner on or off. When to be reminded is set per item in the Bike tab > Maintenance (by kilometers or by time). Kilometer items need the ODO from the CCU, so they work while the app is connected to the motorcycle.	Turns maintenance notifications and the banner on or off. When to be reminded is set per item in the Bike tab > Maintenance (by kilometers or by time). Kilometer items need the ODO from the CCU, so they work while the app is connected to the motorcycle.	Menyalakan atau mematikan notifikasi dan banner perawatan. Kapan diingatkan diatur per item di tab Motor > Perawatan (berdasarkan kilometer atau waktu). Item berdasarkan kilometer butuh ODO dari CCU, jadi bekerja saat app terhubung ke motor.
 
 Repeat	Repeat	Berulang
 New due date	New due date	Jatuh tempo baru
 Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.	Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.	Berulang: jatuh tempo berikutnya dihitung dari penggantian terakhir ditambah selang. Tanggal jatuh tempo tetap bisa diubah manual.
-One time: only a due date, for example the STNK validity. The reminder appears this long before it.	One time: only a due date, for example the STNK validity. The reminder appears this long before it.	Sekali: hanya satu tanggal jatuh tempo, misalnya masa berlaku STNK. Peringatan muncul sekian lama sebelumnya.
+One time: only a due date, for example the SIM validity. The reminder appears this long before it.	One time: only a due date, for example the SIM validity. The reminder appears this long before it.	Sekali: hanya satu tanggal jatuh tempo, misalnya masa berlaku SIM. Peringatan muncul sekian lama sebelumnya.
+Remind before service (km)	Remind before service (km)	Ingatkan sebelum servis (km)
+The gas station server is busy or there is no connection. Try again in a moment.	The gas station server is busy or there is no connection. Try again in a moment.	Server SPBU sedang sibuk atau tidak ada koneksi. Coba lagi sebentar.
+No gas station found within 25 km	No gas station found within 25 km	Tidak ada SPBU dalam radius 25 km

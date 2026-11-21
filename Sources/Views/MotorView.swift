@@ -391,7 +391,7 @@ struct MaintDraft {
     // acuan kilometer
     var intervalKmText = "5000"
     var lastKmText = ""
-    var warnKm = 100
+    var warnKmText = "100"
     // acuan waktu
     var repeats = false
     var intervalMonths = 12
@@ -416,7 +416,7 @@ struct MaintDraft {
         basis = item.basis
         intervalKmText = String(item.intervalKm)
         lastKmText = item.lastServiceKm > 0 ? String(format: "%g", item.lastServiceKm) : ""
-        warnKm = item.warnKm
+        warnKmText = String(item.warnKm)
         repeats = item.repeats
         intervalMonths = item.intervalMonths
         warnMonths = item.warnMonths
@@ -436,7 +436,7 @@ struct MaintDraft {
         item.basis = basis
         item.intervalKm = max(1, Int(intervalKmText.filter { $0.isNumber }) ?? item.intervalKm)
         item.lastServiceKm = Double(lastKmText.replacingOccurrences(of: ",", with: ".")) ?? item.lastServiceKm
-        item.warnKm = warnKm
+        item.warnKm = max(1, Int(warnKmText.filter { $0.isNumber }) ?? item.warnKm)
         item.repeats = repeats
         item.intervalMonths = intervalMonths
         item.warnMonths = warnMonths
@@ -475,7 +475,7 @@ struct MaintDraftForm: View {
                     ? tr("The reminder appears when the distance left is at or below the value you set for this item.")
                     : (draft.repeats
                         ? tr("Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.")
-                        : tr("One time: only a due date, for example the STNK validity. The reminder appears this long before it.")))) {
+                        : tr("One time: only a due date, for example the SIM validity. The reminder appears this long before it.")))) {
             Picker(tr("Schedule based on"), selection: $draft.basis) {
                 Text(tr("Kilometers")).tag(MaintBasis.km)
                 Text(tr("Time")).tag(MaintBasis.time)
@@ -491,7 +491,10 @@ struct MaintDraftForm: View {
                     TextField("0", text: $draft.lastKmText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                 }
                 DatePicker(tr("Last replaced on"), selection: $draft.lastDate, in: ...Date(), displayedComponents: .date)
-                Stepper(tr("Remind {0} km before service", draft.warnKm), value: $draft.warnKm, in: 100...5000, step: 100)
+                HStack {
+                    Text(tr("Remind before service (km)"))
+                    TextField("100", text: $draft.warnKmText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                }
             } else {
                 Toggle(tr("Repeat"), isOn: $draft.repeats)
                     .onChange(of: draft.repeats) { on in if on { draft.recomputeDue() } }

@@ -278,9 +278,6 @@ struct VehicleSettings: View {
                     ForEach(VehicleStore.presets, id: \.model) { Text($0.model).tag($0.model) }
                     Text(tr("More")).tag(tr("More"))
                 }
-                if isCustomModel {
-                    TextField(tr("Motorcycle type/model"), text: $vehicle.model)
-                }
             }
             Section(header: Text(tr("Tank and consumption"))) {
                 Stepper(tr("Tank capacity {0}", Fmt.liters(vehicle.tankL)), value: $vehicle.tankL, in: 3...30, step: 0.1)

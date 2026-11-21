@@ -38,23 +38,77 @@ enum PlaceSearch {
         return out
     }
 
-    /// SPBU (amenity=fuel) dalam radius tertentu lewat Overpass API (gratis, pakai wajar).
+    /// Server Overpass (gratis). Dicoba berurutan: bila satu sibuk/lambat/error, lanjut ke server berikutnya.
+    private static let overpassServers = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+    ]
+
+    /// SPBU (amenity=fuel) terdekat lewat Overpass API. Radius diperluas otomatis (radius -> 10 km -> 25 km)
+    /// bila belum ada hasil, dan server cadangan dipakai bila server utama sibuk. Melempar error hanya bila
+    /// semua server gagal (supaya tampilan bisa membedakan "server sibuk" dari "memang tidak ada SPBU").
     static func fuelStations(near: CLLocationCoordinate2D, radius: Int) async throws -> [Place] {
+        var lastError: Error = URLError(.cannotConnectToHost)
+        var reachedServer = false
+        for r in [radius, max(radius, 10000), max(radius, 25000)] {
+            do {
+                let res = try await queryFuel(near: near, radius: r)
+                reachedServer = true
+                if !res.isEmpty { return res }
+            } catch {
+                lastError = error
+                break
+            }
+        }
+        if reachedServer { return [] }
+        throw lastError
+    }
+
+    private static func queryFuel(near: CLLocationCoordinate2D, radius: Int) async throws -> [Place] {
         let lat = near.latitude
         let lon = near.longitude
-        let ql = "[out:json][timeout:15];(node[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon));way[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon)););out center 60;"
-        guard let url = URL(string: "https://overpass-api.de/api/interpreter") else { return [] }
-        var req = URLRequest(url: url, timeoutInterval: 20)
-        req.httpMethod = "POST"
-        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        req.setValue("XConnect/0.2 (personal navigation app)", forHTTPHeaderField: "User-Agent")
+        let ql = "[out:json][timeout:20];(node[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon));way[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon)););out center 60;"
         let enc = ql.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-        req.httpBody = ("data=" + enc).data(using: .utf8)
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let body = ("data=" + enc).data(using: .utf8)
 
-        guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let els = obj["elements"] as? [[String: Any]] else { return [] }
+        var lastError: Error = URLError(.cannotConnectToHost)
+        for server in overpassServers {
+            guard let url = URL(string: server) else { continue }
+            var req = URLRequest(url: url, timeoutInterval: 25)
+            req.httpMethod = "POST"
+            req.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
+            req.setValue("application/json", forHTTPHeaderField: "Accept")
+            req.setValue("XConnect/0.1 (personal navigation app; iOS)", forHTTPHeaderField: "User-Agent")
+            req.httpBody = body
+            do {
+                let (data, resp) = try await URLSession.shared.data(for: req)
+                // 429 / 5xx = server sibuk -> coba server berikutnya
+                if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
+                    lastError = URLError(.badServerResponse)
+                    continue
+                }
+                // server sibuk kadang membalas HTML atau JSON dengan "remark" tanpa elemen
+                guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let els = obj["elements"] as? [[String: Any]] else {
+                    lastError = URLError(.cannotParseResponse)
+                    continue
+                }
+                if els.isEmpty, let remark = obj["remark"] as? String, remark.lowercased().contains("error") || remark.lowercased().contains("timed out") {
+                    lastError = URLError(.timedOut)
+                    continue
+                }
+                return parseFuel(els, near: near)
+            } catch {
+                lastError = error
+                continue
+            }
+        }
+        throw lastError
+    }
 
+    private static func parseFuel(_ els: [[String: Any]], near: CLLocationCoordinate2D) -> [Place] {
         var items = [(Place, Double)]()
         for e in els {
             var plat = e["lat"] as? Double

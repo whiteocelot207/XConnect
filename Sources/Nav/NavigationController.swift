@@ -99,11 +99,15 @@ final class NavigationController: ObservableObject {
         let near = location.coordinate
         searching = true
         Task { [weak self] in
-            let res = (try? await PlaceSearch.fuelStations(near: near, radius: 5000)) ?? []
+            var res = [Place]()
+            var failed = false
+            do { res = try await PlaceSearch.fuelStations(near: near, radius: 5000) } catch { failed = true }
             DispatchQueue.main.async {
                 self?.searchResults = res
                 self?.searching = false
-                self?.message = res.isEmpty ? tr("No gas station found or the server is busy") : ""
+                if !res.isEmpty { self?.message = "" }
+                else { self?.message = failed ? tr("The gas station server is busy or there is no connection. Try again in a moment.")
+                                              : tr("No gas station found within 25 km") }
             }
         }
     }

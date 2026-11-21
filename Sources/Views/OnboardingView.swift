@@ -99,9 +99,7 @@ struct OnboardingView: View {
                 if !isCustomModel { choose(tr("Other motorcycle"), tank: nil) }
             }
             VStack(spacing: 10) {
-                if isCustomModel {
-                    TextField(tr("Motorcycle type/model"), text: $vehicle.model)
-                }
+                // satu kolom saja: Nama motor (berlaku untuk XMAX, NMAX, maupun motor lain)
                 TextField(tr("Motorcycle name"), text: $vehicle.name)
                 Stepper(tr("Tank capacity {0}", Fmt.liters(vehicle.tankL)), value: $vehicle.tankL, in: 3...30, step: 0.1)
             }
@@ -143,9 +141,12 @@ struct OnboardingView: View {
 
     private func choose(_ model: String, tank: Double?) {
         let oldIsDefaultName = vehicle.name.isEmpty || vehicle.name == vehicle.model
+            || VehicleStore.presets.contains { $0.model == vehicle.name }
+        let isPreset = VehicleStore.presets.contains { $0.model == model }
         vehicle.model = model
         if let t = tank { vehicle.tankL = t }
-        if oldIsDefaultName { vehicle.name = model }
+        // XMAX/NMAX: nama motor terisi otomatis; motor lain: nama dikosongkan agar diisi sendiri
+        if oldIsDefaultName { vehicle.name = isPreset ? model : "" }
     }
 
     private func finish() {
