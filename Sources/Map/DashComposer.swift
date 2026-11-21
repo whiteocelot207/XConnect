@@ -34,6 +34,9 @@ struct NavHUD {
 
 struct DashContent {
     var night = false
+    /// gradasi tema warna (kotak data besar)
+    var themeA = UIColor(red: 0.40, green: 0.27, blue: 0.64, alpha: 1)
+    var themeB = UIColor(red: 0.80, green: 0.32, blue: 0.52, alpha: 1)
     var speedKmh = 0
     var speedFromBike = false
     var phoneBattery = -1
@@ -273,9 +276,14 @@ enum DashComposer {
         guard f != .none else { return }
         cg.saveGState()
         UIBezierPath(roundedRect: r, cornerRadius: 12).addClip()
-        let cols: [CGColor] = c.night
-            ? [UIColor(red: 0.20, green: 0.17, blue: 0.44, alpha: 1).cgColor, UIColor(red: 0.50, green: 0.20, blue: 0.46, alpha: 1).cgColor]
-            : [UIColor(red: 0.40, green: 0.27, blue: 0.64, alpha: 1).cgColor, UIColor(red: 0.80, green: 0.32, blue: 0.52, alpha: 1).cgColor]
+        // gradasi dari tema warna; malam hari digelapkan agar tidak menyilaukan
+        func shade(_ u: UIColor) -> CGColor {
+            guard c.night else { return u.cgColor }
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            u.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return UIColor(red: r * 0.5, green: g * 0.5, blue: b * 0.5, alpha: 1).cgColor
+        }
+        let cols: [CGColor] = [shade(c.themeA), shade(c.themeB)]
         if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols as CFArray, locations: [0, 1]) {
             cg.drawLinearGradient(g, start: CGPoint(x: r.minX, y: r.minY), end: CGPoint(x: r.maxX, y: r.maxY), options: [])
         }

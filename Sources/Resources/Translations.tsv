@@ -171,7 +171,7 @@ CCU: subscribing to server {0} id {1}	CCU: subscribing to server {0} id {1}	CCU:
 Change	Change	Ubah
 Change photo	Change photo	Ganti foto
 Change photo every {0} seconds	Change photo every {0} seconds	Ganti foto tiap {0} detik
-Changes the accent color of the app. Dark, light, or follow phone is set under App appearance.	Changes the accent color of the app. Dark, light, or follow phone is set under App appearance.	Mengubah warna aksen aplikasi. Mode gelap, terang, atau ikut ponsel diatur di Tampilan aplikasi.
+Changes the gradient color of the app and of the big boxes on the dash. Dark, light, or follow phone is set under App appearance.	Changes the gradient color of the app and of the big boxes on the dash. Dark, light, or follow phone is set under App appearance.	Mengubah warna gradasi aplikasi dan kotak besar di dash. Mode gelap, terang, atau ikut ponsel diatur di Tampilan aplikasi.
 Check automatically when the app opens	Check automatically when the app opens	Cek otomatis saat app dibuka
 Check for updates now	Check for updates now	Cek update sekarang
 Checking…	Checking…	Memeriksa…
@@ -307,6 +307,9 @@ Fuel left is calculated from the average consumption reported by the motorcycle 
 Fuel left now (L)	Fuel left now (L)	Sisa bensin sekarang (L)
 Fuel range	Fuel range	Jarak tempuh BBM
 Fuel range (km)	Fuel range (km)	Jarak tempuh BBM (km)
+Estimated remaining fuel range (km)	Estimated remaining fuel range (km)	Estimasi sisa jarak tempuh BBM (km)
+{0} remaining (km)	{0} remaining (km)	Sisa jarak {0} (km)
+Maintenance remaining (km)	Maintenance remaining (km)	Sisa jarak perawatan (km)
 Fuel range amber below {0} km	Fuel range amber below {0} km	Jarak BBM kuning di bawah {0} km
 Fuel range red below {0} km	Fuel range red below {0} km	Jarak BBM merah di bawah {0} km
 Gas station	Gas station	SPBU
@@ -802,7 +805,7 @@ Find nearest gas station	Find nearest gas station	Cari SPBU terdekat
 What should we call you?	What should we call you?	Mau dipanggil apa?
 This name is shown as a greeting on the dash. You can leave it empty and change it later in Settings > Appearance.	This name is shown as a greeting on the dash. You can leave it empty and change it later in Settings > Appearance.	Nama ini tampil sebagai sapaan di dash. Boleh dikosongkan dan bisa diubah nanti di Pengaturan > Tampilan.
 Lets you pick photos from your gallery for the dash Photos screen and the motorcycle photo.	Lets you pick photos from your gallery for the dash Photos screen and the motorcycle photo.	Memilih foto dari galeri untuk layar Foto di dash dan foto motor.
-Maintenance and document (e.g. SIM) reminders.	Maintenance and document (e.g. SIM) reminders.	Pengingat perawatan dan dokumen (mis. SIM).
+Maintenance and document (e.g. driver's license) reminders.	Maintenance and document (e.g. driver's license) reminders.	Pengingat perawatan dan dokumen (mis. SIM).
 Tap Allow on every item to continue. Location must be set to Always.	Tap Allow on every item to continue. Location must be set to Always.	Ketuk Izinkan pada setiap item untuk melanjutkan. Lokasi harus diatur ke Selalu.
 Overdue {0} days	Overdue {0} days	Terlambat {0} hari
 Due today	Due today	Jatuh tempo hari ini
@@ -826,13 +829,13 @@ Due date	Due date	Jatuh tempo
 Remind me	Remind me	Ingatkan saya
 {0} before	{0} before	{0} sebelumnya
 The reminder appears when the distance left is at or below the value you set for this item.	The reminder appears when the distance left is at or below the value you set for this item.	Peringatan muncul saat sisa jarak sama dengan atau di bawah nilai yang Anda atur untuk item ini.
-The reminder appears this long before the due date, for example the SIM validity.	The reminder appears this long before the due date, for example the SIM validity.	Peringatan muncul sekian lama sebelum jatuh tempo, misalnya masa berlaku SIM.
+The reminder appears this long before the due date, for example the driver's license validity.	The reminder appears this long before the due date, for example the driver's license validity.	Peringatan muncul sekian lama sebelum jatuh tempo, misalnya masa berlaku SIM.
 Turns maintenance notifications and the banner on or off. When to be reminded is set per item in the Bike tab > Maintenance (by kilometers or by time). Kilometer items need the ODO from the CCU, so they work while the app is connected to the motorcycle.	Turns maintenance notifications and the banner on or off. When to be reminded is set per item in the Bike tab > Maintenance (by kilometers or by time). Kilometer items need the ODO from the CCU, so they work while the app is connected to the motorcycle.	Menyalakan atau mematikan notifikasi dan banner perawatan. Kapan diingatkan diatur per item di tab Motor > Perawatan (berdasarkan kilometer atau waktu). Item berdasarkan kilometer butuh ODO dari CCU, jadi bekerja saat app terhubung ke motor.
 
 Repeat	Repeat	Berulang
 New due date	New due date	Jatuh tempo baru
 Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.	Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.	Berulang: jatuh tempo berikutnya dihitung dari penggantian terakhir ditambah selang. Tanggal jatuh tempo tetap bisa diubah manual.
-One time: only a due date, for example the SIM validity. The reminder appears this long before it.	One time: only a due date, for example the SIM validity. The reminder appears this long before it.	Sekali: hanya satu tanggal jatuh tempo, misalnya masa berlaku SIM. Peringatan muncul sekian lama sebelumnya.
+One time: only a due date, for example the driver's license validity. The reminder appears this long before it.	One time: only a due date, for example the driver's license validity. The reminder appears this long before it.	Sekali: hanya satu tanggal jatuh tempo, misalnya masa berlaku SIM. Peringatan muncul sekian lama sebelumnya.
 Remind before service (km)	Remind before service (km)	Ingatkan sebelum servis (km)
 The gas station server is busy or there is no connection. Try again in a moment.	The gas station server is busy or there is no connection. Try again in a moment.	Server SPBU sedang sibuk atau tidak ada koneksi. Coba lagi sebentar.
-No gas station found within 25 km	No gas station found within 25 km	Tidak ada SPBU dalam radius 25 km
+No gas station found within 15 km	No gas station found within 15 km	Tidak ada SPBU dalam radius 15 km

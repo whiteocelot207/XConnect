@@ -72,7 +72,7 @@ struct PermissionsList: View {
                           detail: tr("Lets you pick photos from your gallery for the dash Photos screen and the motorcycle photo."),
                           status: perms.photos) { perms.requestPhotos() }
             PermissionRow(icon: "bell.fill", title: tr("Notifications"),
-                          detail: tr("Maintenance and document (e.g. SIM) reminders."),
+                          detail: tr("Maintenance and document (e.g. driver's license) reminders."),
                           status: perms.notifications) { perms.requestNotifications() }
         }
         .onAppear { perms.refresh() }

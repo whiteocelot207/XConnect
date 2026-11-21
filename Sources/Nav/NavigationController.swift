@@ -97,19 +97,32 @@ final class NavigationController: ObservableObject {
 
     func showFuelStations() {
         let near = location.coordinate
-        searching = true
+        message = ""
+        // hasil cache langsung tampil, lalu diperbarui di latar belakang
+        let cached = PlaceSearch.cachedFuel(near: near)
+        if let c = cached { searchResults = c }
+        searching = cached == nil
         Task { [weak self] in
             var res = [Place]()
             var failed = false
             do { res = try await PlaceSearch.fuelStations(near: near, radius: 5000) } catch { failed = true }
             DispatchQueue.main.async {
-                self?.searchResults = res
                 self?.searching = false
-                if !res.isEmpty { self?.message = "" }
-                else { self?.message = failed ? tr("The gas station server is busy or there is no connection. Try again in a moment.")
-                                              : tr("No gas station found within 25 km") }
+                if !res.isEmpty { self?.searchResults = res; self?.message = ""; return }
+                if cached != nil { return }          // cache sudah tampil, biarkan
+                self?.searchResults = []
+                self?.message = failed ? tr("The gas station server is busy or there is no connection. Try again in a moment.")
+                                       : tr("No gas station found within 15 km")
             }
         }
+    }
+
+    /// Jarak dari lokasi sekarang ke tempat, mis. "850 m" atau "2,4 km"; nil bila GPS belum ada.
+    func distanceText(to p: Place) -> String? {
+        guard location.hasFix else { return nil }
+        let d = Geo.distance(location.coordinate, p.coordinate)
+        if d < 1000 { return "\(Int((d / 10).rounded()) * 10) m" }
+        return String(format: d < 10000 ? "%.1f km" : "%.0f km", d / 1000).localizedDecimal
     }
 
     // MARK: - Rute

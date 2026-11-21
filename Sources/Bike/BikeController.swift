@@ -600,6 +600,9 @@ final class BikeController: NSObject, ObservableObject {
     func dashContent() -> DashContent {
         var c = DashContent()
         c.night = settings.isNight()
+        let th = AppTheme.theme(settings.colorTheme)
+        c.themeA = th.uiColor
+        c.themeB = th.uiColor2
         c.showCards = settings.showCards
         c.routeColor = settings.routeUIColor
         c.greeting = settings.userName
@@ -903,6 +906,7 @@ final class BikeController: NSObject, ObservableObject {
                 self.syncHomeWork()
                 self.nav?.republish()
                 self.startCcuIfNeeded()
+                self.prefetchFuel()
             }
         }
         s.onBikeSpeed = { [weak self] v in DispatchQueue.main.async { self?.bikeSpeedKmh = v } }
@@ -961,11 +965,22 @@ final class BikeController: NSObject, ObservableObject {
             done(Array(places.favorites.prefix(30)))
         } else {
             let near = location.coordinate
+            // jawab cepat dari cache (diisi saat dash tersambung); dash menunggu sebentar saja
+            if let cached = PlaceSearch.cachedFuel(near: near) { done(cached); return }
             Task {
-                let res = (try? await PlaceSearch.fuelStations(near: near, radius: 5000)) ?? []
+                let res = (try? await PlaceSearch.fuelStations(near: near, radius: 5000))
+                    ?? PlaceSearch.staleFuel(near: near) ?? []
                 done(res)
             }
         }
+    }
+
+    /// Isi cache SPBU di latar belakang supaya menu SPBU di dash langsung terisi saat dibuka.
+    func prefetchFuel() {
+        guard location.hasFix else { return }
+        let near = location.coordinate
+        guard PlaceSearch.cachedFuel(near: near) == nil else { return }
+        Task { _ = try? await PlaceSearch.fuelStations(near: near, radius: 5000) }
     }
 
     // MARK: - Eksperimen CCU

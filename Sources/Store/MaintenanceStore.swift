@@ -199,6 +199,11 @@ final class MaintenanceStore: ObservableObject {
     }
 
     /// Sisa km terkecil di antara item beracuan KM (untuk ringkasan).
+    /// Item beracuan kilometer yang paling dekat jadwalnya (untuk label "Sisa jarak <nama>").
+    var nearestKmItem: MaintItem? {
+        items.filter { $0.basis == .km }.min { remainingKm($0) < remainingKm($1) }
+    }
+
     var nearestRemainingKm: Int? {
         items.filter { $0.basis == .km }.map { remainingKm($0) }.min()
     }

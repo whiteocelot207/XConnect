@@ -7,9 +7,13 @@ newer than it is shown. The same section is used as the GitHub release notes.
 ## 0.1.3
 
 ### Fixed
+- English texts: the permission and time-based maintenance examples now say "driver's license" instead of the Indonesian "SIM".
+- Gas stations: all search servers are asked at the same time (much faster), results are cached, and the list now shows the distance to each station.
+- Dash: the gas station menu is filled from a cache prepared when the dash connects, so it no longer reports that it cannot get data from the phone.
+- Navigate: tapping a gas station (or any result) always opens the route choice first.
 - Maintenance: "Remind before service" is now a field you type the kilometers into instead of a plus/minus stepper.
 - Gas stations: the search now falls back to backup servers and widens the radius (up to 25 km), and tells apart "server busy" from "no gas station nearby".
-- Permissions and maintenance texts: the example is now SIM instead of STNK.
+- Permissions and maintenance texts: the example is now the driver's license (SIM in Indonesian) instead of STNK.
 - Setup/Settings: choosing another motorcycle now shows a single "Motorcycle name" field instead of two.
 - The app closed right after opening (the floating banners were missing their data).
 - Setup: the Bluetooth permission no longer pops up by itself when the app is first opened; it is only requested when you tap Allow on the Permissions step.
@@ -17,6 +21,8 @@ newer than it is shown. The same section is used as the GitHub release notes.
 - Backup: the automatic backup also leaves out the Recent places (Home, Office and favorites are kept).
 
 ### New
+- Motor tab: "Fuel range" is now "Estimated remaining fuel range (km)", and the maintenance figure is named after the closest item (for example "Engine oil remaining (km)").
+- Color themes are now gradients, used for the big cards in the app and the big data boxes on the dash.
 - Setup: a new step after the welcome screen asks for your nickname (optional).
 - Navigate: "Find nearest gas station" button.
 - Setup: the language is asked right on the first screen.

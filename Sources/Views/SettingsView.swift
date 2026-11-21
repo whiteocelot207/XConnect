@@ -143,13 +143,13 @@ struct AppearanceSettings: View {
                 .labelsHidden()
             }
             Section(header: Text(tr("Color theme")),
-                    footer: Text(tr("Changes the accent color of the app. Dark, light, or follow phone is set under App appearance."))) {
+                    footer: Text(tr("Changes the gradient color of the app and of the big boxes on the dash. Dark, light, or follow phone is set under App appearance."))) {
                 ForEach(AppTheme.all) { th in
                     Button {
                         settings.colorTheme = th.id
                     } label: {
                         HStack(spacing: 14) {
-                            Circle().fill(th.color).frame(width: 26, height: 26)
+                            Circle().fill(th.gradient).frame(width: 26, height: 26)
                             Text(th.name).foregroundColor(.primary)
                             Spacer()
                             if settings.colorTheme == th.id {

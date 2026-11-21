@@ -180,7 +180,11 @@ struct NavigateView: View {
     }
 
     private func placeRow(_ p: Place, icon: String) -> some View {
-        Button { nav.select(p) } label: {
+        Button {
+            nav.select(p)
+            // selalu tampilkan pilihan rute dulu (bukan langsung navigasi)
+            if nav.destination != nil && nav.phase != .navigating { showRoute = true }
+        } label: {
             HStack(spacing: 12) {
                 Image(systemName: icon).foregroundColor(.accentColor).frame(width: 26)
                 VStack(alignment: .leading, spacing: 2) {
@@ -190,6 +194,9 @@ struct NavigateView: View {
                     }
                 }
                 Spacer()
+                if let d = nav.distanceText(to: p) {
+                    Text(d).font(.footnote.weight(.semibold)).foregroundColor(.accentColor)
+                }
                 Image(systemName: "chevron.right").font(.footnote).foregroundColor(.secondary)
             }
         }

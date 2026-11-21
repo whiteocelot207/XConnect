@@ -56,7 +56,13 @@ struct MotorView: View {
         .navigationViewStyle(.stack)
     }
 
-    private var cardBG: Color { Color(UIColor.secondarySystemBackground) }
+    /// Latar kartu besar: warna dasar + gradasi lembut dari tema warna yang dipilih.
+    private var cardBG: some View {
+        ZStack {
+            Color(UIColor.secondarySystemBackground)
+            AppTheme.theme(settings.colorTheme).softGradient
+        }
+    }
 
     // MARK: - Ringkasan
 
@@ -87,9 +93,10 @@ struct MotorView: View {
             HStack {
                 stat(Fmt.km(maint.odometerKm, decimals: 0), tr("ODO (km)"))
                 Divider().frame(height: 36)
-                stat(fuel.levelL > 0 ? "\(rangeKm)" : "—", tr("Fuel range (km)"))
+                stat(fuel.levelL > 0 ? "\(rangeKm)" : "—", tr("Estimated remaining fuel range (km)"))
                 Divider().frame(height: 36)
-                stat(maint.nearestRemainingKm.map { "\($0)" } ?? "—", tr("Maintenance (km)"))
+                stat(maint.nearestRemainingKm.map { "\($0)" } ?? "—",
+                     maint.nearestKmItem.map { tr("{0} remaining (km)", $0.title) } ?? tr("Maintenance remaining (km)"))
             }
             .padding()
             .background(cardBG)
@@ -125,6 +132,7 @@ struct MotorView: View {
         VStack(spacing: 2) {
             Text(value).font(.title3).bold()
             Text(label).font(.caption2).foregroundColor(.secondary).multilineTextAlignment(.center)
+                .lineLimit(3).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
     }
@@ -475,7 +483,7 @@ struct MaintDraftForm: View {
                     ? tr("The reminder appears when the distance left is at or below the value you set for this item.")
                     : (draft.repeats
                         ? tr("Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.")
-                        : tr("One time: only a due date, for example the SIM validity. The reminder appears this long before it.")))) {
+                        : tr("One time: only a due date, for example the driver's license validity. The reminder appears this long before it.")))) {
             Picker(tr("Schedule based on"), selection: $draft.basis) {
                 Text(tr("Kilometers")).tag(MaintBasis.km)
                 Text(tr("Time")).tag(MaintBasis.time)

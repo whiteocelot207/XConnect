@@ -38,7 +38,8 @@ enum PlaceSearch {
         return out
     }
 
-    /// Server Overpass (gratis). Dicoba berurutan: bila satu sibuk/lambat/error, lanjut ke server berikutnya.
+    /// Server Overpass (gratis). Semuanya ditanya BERSAMAAN dan yang menjawab lebih dulu dipakai, jadi satu server
+    /// yang sibuk/lambat tidak membuat pencarian menunggu lama.
     private static let overpassServers = [
         "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
@@ -46,17 +47,43 @@ enum PlaceSearch {
         "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
     ]
 
-    /// SPBU (amenity=fuel) terdekat lewat Overpass API. Radius diperluas otomatis (radius -> 10 km -> 25 km)
-    /// bila belum ada hasil, dan server cadangan dipakai bila server utama sibuk. Melempar error hanya bila
-    /// semua server gagal (supaya tampilan bisa membedakan "server sibuk" dari "memang tidak ada SPBU").
+    // MARK: Cache SPBU (supaya dash dan daftar di app langsung terisi)
+
+    private static var fuelCache: (lat: Double, lon: Double, at: Date, places: [Place])?
+    private static let cacheLock = NSLock()
+
+    /// Hasil terakhir bila masih segar (maks `maxAge` detik) dan lokasinya masih dekat (maks `maxMeters`).
+    static func cachedFuel(near: CLLocationCoordinate2D, maxAge: TimeInterval = 900, maxMeters: Double = 1500) -> [Place]? {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        guard let c = fuelCache, !c.places.isEmpty, Date().timeIntervalSince(c.at) < maxAge,
+              Geo.distance(near, CLLocationCoordinate2D(latitude: c.lat, longitude: c.lon)) < maxMeters else { return nil }
+        return c.places
+    }
+
+    /// Cadangan bila server gagal: hasil lama (maks 6 jam, maks 30 km dari lokasi sekarang).
+    static func staleFuel(near: CLLocationCoordinate2D) -> [Place]? {
+        cachedFuel(near: near, maxAge: 6 * 3600, maxMeters: 30000)
+    }
+
+    private static func storeFuel(_ places: [Place], near: CLLocationCoordinate2D) {
+        guard !places.isEmpty else { return }
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        fuelCache = (near.latitude, near.longitude, Date(), places)
+    }
+
+    /// SPBU (amenity=fuel) terdekat lewat Overpass API. Mulai dari `radius`; bila kosong diperluas ke 15 km.
+    /// Melempar error hanya bila semua server gagal (agar tampilan bisa membedakan "server sibuk" dari "tidak ada SPBU").
     static func fuelStations(near: CLLocationCoordinate2D, radius: Int) async throws -> [Place] {
-        var lastError: Error = URLError(.cannotConnectToHost)
         var reachedServer = false
-        for r in [radius, max(radius, 10000), max(radius, 25000)] {
+        var lastError: Error = URLError(.cannotConnectToHost)
+        for r in [radius, max(radius, 15000)] {
             do {
                 let res = try await queryFuel(near: near, radius: r)
                 reachedServer = true
-                if !res.isEmpty { return res }
+                if !res.isEmpty {
+                    storeFuel(res, near: near)
+                    return res
+                }
             } catch {
                 lastError = error
                 break
@@ -69,43 +96,49 @@ enum PlaceSearch {
     private static func queryFuel(near: CLLocationCoordinate2D, radius: Int) async throws -> [Place] {
         let lat = near.latitude
         let lon = near.longitude
-        let ql = "[out:json][timeout:20];(node[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon));way[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon)););out center 60;"
+        let ql = "[out:json][timeout:9];(node[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon));way[\"amenity\"=\"fuel\"](around:\(radius),\(lat),\(lon)););out center 40;"
         let enc = ql.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         let body = ("data=" + enc).data(using: .utf8)
 
-        var lastError: Error = URLError(.cannotConnectToHost)
-        for server in overpassServers {
-            guard let url = URL(string: server) else { continue }
-            var req = URLRequest(url: url, timeoutInterval: 25)
-            req.httpMethod = "POST"
-            req.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
-            req.setValue("application/json", forHTTPHeaderField: "Accept")
-            req.setValue("XConnect/0.1 (personal navigation app; iOS)", forHTTPHeaderField: "User-Agent")
-            req.httpBody = body
-            do {
-                let (data, resp) = try await URLSession.shared.data(for: req)
-                // 429 / 5xx = server sibuk -> coba server berikutnya
-                if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
-                    lastError = URLError(.badServerResponse)
-                    continue
-                }
-                // server sibuk kadang membalas HTML atau JSON dengan "remark" tanpa elemen
-                guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let els = obj["elements"] as? [[String: Any]] else {
-                    lastError = URLError(.cannotParseResponse)
-                    continue
-                }
-                if els.isEmpty, let remark = obj["remark"] as? String, remark.lowercased().contains("error") || remark.lowercased().contains("timed out") {
-                    lastError = URLError(.timedOut)
-                    continue
-                }
-                return parseFuel(els, near: near)
-            } catch {
-                lastError = error
-                continue
+        return try await withThrowingTaskGroup(of: [Place].self, returning: [Place].self) { group in
+            for server in overpassServers {
+                group.addTask { try await PlaceSearch.fetchFuel(server: server, body: body, near: near) }
             }
+            var lastError: Error = URLError(.cannotConnectToHost)
+            while true {
+                do {
+                    if let r = try await group.next() {
+                        group.cancelAll()
+                        return r
+                    }
+                    break
+                } catch {
+                    lastError = error
+                }
+            }
+            throw lastError
         }
-        throw lastError
+    }
+
+    private static func fetchFuel(server: String, body: Data?, near: CLLocationCoordinate2D) async throws -> [Place] {
+        guard let url = URL(string: server) else { throw URLError(.badURL) }
+        var req = URLRequest(url: url, timeoutInterval: 10)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue("XConnect/0.1 (personal navigation app; iOS)", forHTTPHeaderField: "User-Agent")
+        req.httpBody = body
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        // 429 / 5xx = server sibuk
+        if let http = resp as? HTTPURLResponse, http.statusCode != 200 { throw URLError(.badServerResponse) }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let els = obj["elements"] as? [[String: Any]] else { throw URLError(.cannotParseResponse) }
+        // server kewalahan kadang membalas elemen kosong + "remark" berisi error
+        if els.isEmpty, let remark = (obj["remark"] as? String)?.lowercased(),
+           remark.contains("error") || remark.contains("timed out") || remark.contains("out of memory") {
+            throw URLError(.timedOut)
+        }
+        return PlaceSearch.parseFuel(els, near: near)
     }
 
     private static func parseFuel(_ els: [[String: Any]], near: CLLocationCoordinate2D) -> [Place] {

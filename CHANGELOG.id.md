@@ -7,6 +7,10 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 ## 0.1.3
 
 ### Diperbaiki
+- Teks bahasa Inggris: contoh di Perizinan dan perawatan beracuan waktu kini "driver's license", bukan "SIM" yang bahasa Indonesia.
+- SPBU: semua server pencarian ditanya bersamaan (jauh lebih cepat), hasil disimpan sementara, dan daftar kini menampilkan jarak ke tiap SPBU.
+- Dash: menu SPBU diisi dari cache yang disiapkan saat dash tersambung, jadi tidak lagi gagal mendapatkan data dari HP.
+- Navigasi: mengetuk SPBU (atau hasil lain) selalu membuka pilihan rute dulu.
 - Perawatan: "Ingatkan sebelum servis" sekarang kolom isian kilometer, bukan tombol plus/minus.
 - SPBU: pencarian kini beralih ke server cadangan dan memperluas radius (sampai 25 km), serta membedakan "server sibuk" dari "tidak ada SPBU di dekat".
 - Teks Perizinan dan perawatan: contoh sekarang SIM, bukan STNK.
@@ -17,6 +21,8 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 - Cadangan: cadangan otomatis juga tidak menyertakan daftar tempat Terakhir (Rumah, Kantor, dan favorit tetap ikut).
 
 ### Baru
+- Tab Motor: "Jarak tempuh BBM" menjadi "Estimasi sisa jarak tempuh BBM (km)", dan angka perawatan memakai nama item terdekat (mis. "Sisa jarak Oli mesin (km)").
+- Tema warna kini gradasi, dipakai di kartu besar aplikasi dan kotak data besar di dash.
 - Pengaturan awal: langkah baru setelah layar selamat datang menanyakan nama panggilan (boleh dikosongkan).
 - Navigasi: tombol "Cari SPBU terdekat".
 - Pengaturan awal: bahasa langsung ditanyakan di tampilan pertama.
