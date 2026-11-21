@@ -49,6 +49,9 @@ struct NavigateView: View {
                             Spacer()
                         }
                     }
+                    if !nav.fuelMessage.isEmpty {
+                        Text(nav.fuelMessage).font(.footnote).foregroundColor(.orange)
+                    }
                 }
 
                 if !nav.searchResults.isEmpty {
@@ -68,9 +71,7 @@ struct NavigateView: View {
                         } label: { leftLabel(tr("Open Google Maps"), icon: "map").padding(.vertical, 10) }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
-                        Button { pasteLink() } label: { leftLabel(tr("Paste link"), icon: "doc.on.clipboard").padding(.vertical, 10) }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
+                        pasteLinkButton
                         if !nav.message.isEmpty {
                             Text(nav.message).font(.footnote).foregroundColor(.orange)
                         }
@@ -168,6 +169,37 @@ struct NavigateView: View {
             if jump > 8 { nav.resolveLink(q) }       // tempelan sekaligus = langsung diproses
         } else {
             nav.queryChanged()
+        }
+    }
+
+    /// iOS 16+: tombol tempel resmi dari sistem, tidak memunculkan izin "Tempel dari app lain" (izin tidak bisa
+    /// diatur otomatis oleh app). iOS 15: tombol biasa yang membaca clipboard.
+    @ViewBuilder private var pasteLinkButton: some View {
+        if #available(iOS 16.0, *) {
+            // Teks tampil "Tempel tautan"; tombol tempel sistem diletakkan transparan di atasnya (blendMode)
+            // sehingga tetap menerima ketukan tanpa memunculkan pertanyaan izin.
+            leftLabel(tr("Paste link"), icon: "doc.on.clipboard")
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .foregroundColor(.white)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.accentColor))
+                .overlay(
+                    PasteButton(payloadType: String.self) { strings in
+                        DispatchQueue.main.async {
+                            if let s = strings.first, !s.isEmpty { nav.resolveLink(s) }
+                            else { nav.message = tr("The clipboard is empty. Copy a link from Google Maps first.") }
+                        }
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonBorderShape(.roundedRectangle(radius: 10))
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .blendMode(.destinationOver)
+                )
+        } else {
+            Button { pasteLink() } label: { leftLabel(tr("Paste link"), icon: "doc.on.clipboard").padding(.vertical, 10) }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
         }
     }
 

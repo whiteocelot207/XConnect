@@ -90,11 +90,11 @@ struct MotorView: View {
             .background(cardBG)
             .cornerRadius(14)
 
-            HStack {
+            HStack(alignment: .top) {
                 stat(Fmt.km(maint.odometerKm, decimals: 0), tr("ODO (km)"))
-                Divider().frame(height: 36)
+                Divider().frame(height: 76)
                 stat(fuel.levelL > 0 ? "\(rangeKm)" : "—", tr("Estimated remaining fuel range (km)"))
-                Divider().frame(height: 36)
+                Divider().frame(height: 76)
                 stat(maint.nearestRemainingKm.map { "\($0)" } ?? "—",
                      maint.nearestKmItem.map { tr("{0} remaining (km)", $0.title) } ?? tr("Maintenance remaining (km)"))
             }
@@ -133,6 +133,7 @@ struct MotorView: View {
             Text(value).font(.title3).bold()
             Text(label).font(.caption2).foregroundColor(.secondary).multilineTextAlignment(.center)
                 .lineLimit(3).minimumScaleFactor(0.8)
+                .frame(height: 54, alignment: .top)     // tinggi label sama, supaya angka sejajar
         }
         .frame(maxWidth: .infinity)
     }

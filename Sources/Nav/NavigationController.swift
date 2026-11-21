@@ -26,6 +26,8 @@ final class NavigationController: ObservableObject {
     @Published var routeVersion = 0
     @Published var busy = false
     @Published var message = ""
+    /// pesan khusus pencarian SPBU (tampil di bawah tombol Cari SPBU)
+    @Published var fuelMessage = ""
     @Published var distToTurnM: Double = 0
     @Published var nextInstruction = ""
     @Published var nextSymbol = "arrow.up"
@@ -88,19 +90,27 @@ final class NavigationController: ObservableObject {
             let res = (try? await PlaceSearch.search(q, near: near)) ?? []
             if Task.isCancelled { return }
             DispatchQueue.main.async {
-                self?.searchResults = res
+                self?.searchResults = self?.sortedByDistance(res) ?? res
                 self?.searching = false
                 if res.isEmpty { self?.message = tr("Place not found") }
             }
         }
     }
 
+    /// Urutkan dari yang paling dekat dengan lokasi sekarang (bila GPS sudah ada).
+    private func sortedByDistance(_ ps: [Place]) -> [Place] {
+        guard location.hasFix else { return ps }
+        let here = location.coordinate
+        return ps.sorted { Geo.distance(here, $0.coordinate) < Geo.distance(here, $1.coordinate) }
+    }
+
     func showFuelStations() {
         let near = location.coordinate
         message = ""
+        fuelMessage = ""
         // hasil cache langsung tampil, lalu diperbarui di latar belakang
         let cached = PlaceSearch.cachedFuel(near: near)
-        if let c = cached { searchResults = c }
+        if let c = cached { searchResults = sortedByDistance(c) }
         searching = cached == nil
         Task { [weak self] in
             var res = [Place]()
@@ -108,11 +118,11 @@ final class NavigationController: ObservableObject {
             do { res = try await PlaceSearch.fuelStations(near: near, radius: 5000) } catch { failed = true }
             DispatchQueue.main.async {
                 self?.searching = false
-                if !res.isEmpty { self?.searchResults = res; self?.message = ""; return }
+                if !res.isEmpty { self?.searchResults = self?.sortedByDistance(res) ?? res; self?.fuelMessage = ""; return }
                 if cached != nil { return }          // cache sudah tampil, biarkan
                 self?.searchResults = []
-                self?.message = failed ? tr("The gas station server is busy or there is no connection. Try again in a moment.")
-                                       : tr("No gas station found within 15 km")
+                self?.fuelMessage = failed ? tr("The gas station server is busy or there is no connection. Try again in a moment.")
+                                           : tr("No gas station found within 15 km")
             }
         }
     }
@@ -215,16 +225,19 @@ final class NavigationController: ObservableObject {
         busy = true
         message = initial ? tr("Calculating route…") : tr("Recalculating route…")
         if !initial && phase == .navigating { voice?.speak(tr("Recalculating route")) }
-        let alts = (initial && phase != .navigating) ? 2 : 0
+        let alts = (initial && (phase != .navigating || autoStart)) ? 2 : 0
+        let wantFastest = autoStart      // tombol stang (rumah/kantor/favorit): ambil rute tercepat
         Task { [weak self] in
             do {
                 let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from,
                                                          to: dest.coordinate, heading: heading, alternatives: alts,
                                                          profile: profile)
                 DispatchQueue.main.async {
+                    var best = 0
+                    if wantFastest, let k = rs.indices.min(by: { rs[$0].totalS < rs[$1].totalS }) { best = k }
                     self?.routes = rs
-                    self?.routeIndex = 0
-                    self?.applyRoute(rs[0], initial: initial)
+                    self?.routeIndex = best
+                    self?.applyRoute(rs[best], initial: initial)
                 }
             } catch {
                 DispatchQueue.main.async {

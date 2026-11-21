@@ -7,6 +7,11 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 ## 0.1.3
 
 ### Diperbaiki
+- SPBU: pesan error kini tampil tepat di bawah tombol "Cari SPBU terdekat".
+- Navigasi: hasil pencarian tempat dan SPBU diurutkan dari yang terdekat.
+- Tombol stang (Rumah, Kantor, favorit) kini memilih rute tercepat dari rute yang tersedia.
+- Tab Motor: angka ODO, sisa jarak BBM, dan perawatan kini sejajar pada tinggi yang sama.
+- Navigasi: di iOS 16 ke atas tombol Tempel tautan memakai kontrol tempel sistem, jadi pertanyaan "Tempel dari app lain" tidak muncul lagi (app tidak bisa mengubah pengaturan iOS itu sendiri).
 - Teks bahasa Inggris: contoh di Perizinan dan perawatan beracuan waktu kini "driver's license", bukan "SIM" yang bahasa Indonesia.
 - SPBU: semua server pencarian ditanya bersamaan (jauh lebih cepat), hasil disimpan sementara, dan daftar kini menampilkan jarak ke tiap SPBU.
 - Dash: menu SPBU diisi dari cache yang disiapkan saat dash tersambung, jadi tidak lagi gagal mendapatkan data dari HP.
