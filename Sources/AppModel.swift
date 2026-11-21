@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 import UIKit
 import Combine
 
@@ -19,6 +20,7 @@ final class AppModel: ObservableObject {
     let nav: NavigationController
     let bike: BikeController
     let updater = UpdateService()
+    let permissions = PermissionCenter()
     private var bag = Set<AnyCancellable>()
 
     /// Muat ulang semua store dari UserDefaults/file setelah memulihkan cadangan.
@@ -43,9 +45,6 @@ final class AppModel: ObservableObject {
         loc.onUpdate = { [weak n, weak b] l in
             n?.locationUpdated(l)
             b?.locationUpdated(l)
-        }
-        tripStore.onTripEnded = { [weak mt, weak b] t in
-            if b?.vehicleLive.odoKm == nil { mt?.addKm(t.distanceKm) }   // bila CCU memberi ODO, jangan dihitung ganda
         }
         settings = s
         location = loc
@@ -84,13 +83,19 @@ final class AppModel: ObservableObject {
     }
 }
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
         let model = AppModel.shared
         let state = application.applicationState == .background ? tr("background") : tr("foreground")
         let reason = (launchOptions ?? [:]).keys.map { $0.rawValue.replacingOccurrences(of: "UIApplicationLaunchOptions", with: "") }
-        model.bike.log(tr("App launch ({0}{1})", state, reason.isEmpty ? "" : ", pemicu: " + reason.joined(separator: ", ")))
+        model.bike.log(tr("App launch ({0}{1})", state, reason.isEmpty ? "" : tr(", trigger: ") + reason.joined(separator: ", ")))
         return true
     }
 }

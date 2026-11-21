@@ -31,7 +31,7 @@ struct SettingsView: View {
                         icon: "antenna.radiowaves.left.and.right") {
                         ConnectionSettings()
                     }
-                    row(tr("Motorcycle and fuel"), subtitle: tr("{0} · tank · fuel consumption", vehicle.model), icon: "bicycle") {
+                    row(tr("Motorcycle and fuel"), subtitle: tr("{0} · tank · fuel consumption", vehicle.model), icon: "motorcycle.custom") {
                         VehicleSettings()
                     }
                 }
@@ -44,8 +44,8 @@ struct SettingsView: View {
                         CardSettings()
                     }
                     row(tr("Map"), subtitle: offline.areas.isEmpty
-                        ? tr("Offline maps · day/night · route · bike marker")
-                        : tr("{0} offline areas · day/night · route · bike marker", offline.areas.count), icon: "map",
+                        ? tr("Offline maps · routes · voice · day/night · bike marker")
+                        : tr("{0} offline areas · routes · voice · day/night · bike marker", offline.areas.count), icon: "map",
                         isActive: $openMaps) {
                         MapSettings()
                     }
@@ -53,20 +53,11 @@ struct SettingsView: View {
                         ControlSettings()
                     }
                 }
-                Section(header: Text(tr("Navigate"))) {
-                    row(tr("Routes and search"), subtitle: tr("Route profile, voice guidance, routing server"),
-                        icon: "arrow.triangle.turn.up.right.diamond") {
-                        RouteSettings()
-                    }
-                }
                 Section(header: Text(tr("More"))) {
-                    row(tr("Backup and restore"), subtitle: tr("Save/restore all settings to a file"), icon: "externaldrive") {
-                        BackupSettings()
+                    row(tr("Permissions"), subtitle: tr("Location, Bluetooth, music, notifications"), icon: "checkmark.shield") {
+                        PermissionsSettings()
                     }
-                    row(tr("Experiments and log"), subtitle: tr("Dash language, CCU link probe, connection log"), icon: "ladybug") {
-                        DebugSettings()
-                    }
-                    row(tr("About"), subtitle: tr("XConnect {0} · app updates", UpdateService.currentVersion), icon: "info.circle") {
+                    row(tr("About"), subtitle: tr("XConnect {0} · what's new · backup · log", UpdateService.currentVersion), icon: "info.circle") {
                         AboutSettings()
                     }
                 }
@@ -99,7 +90,7 @@ struct SettingsView: View {
                               @ViewBuilder destination: () -> D) -> some View {
         NavigationLink(destination: destination(), isActive: isActive) {
             HStack(spacing: 14) {
-                Image(systemName: icon).foregroundColor(.accentColor).frame(width: 28)
+                RowIcon(name: icon).foregroundColor(.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.headline)
                     Text(subtitle).font(.footnote).foregroundColor(.secondary)
@@ -113,7 +104,7 @@ struct SettingsView: View {
                               @ViewBuilder destination: () -> D) -> some View {
         NavigationLink(destination: destination()) {
             HStack(spacing: 14) {
-                Image(systemName: icon).foregroundColor(.accentColor).frame(width: 28)
+                RowIcon(name: icon).foregroundColor(.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.headline)
                     Text(subtitle).font(.footnote).foregroundColor(.secondary)
@@ -166,7 +157,6 @@ struct AppearanceSettings: View {
                 }
             }
             Section(header: Text(tr("Greeting on the dash"))) {
-                TextField(tr("Greeting (e.g. Hello)"), text: $settings.greetingWord)
                 TextField(tr("Nickname (shown on the dash)"), text: $settings.userName)
             }
             Section(header: Text(tr("Clock format")),
@@ -273,7 +263,7 @@ struct VehicleSettings: View {
                         if let img = vehicle.photo {
                             Image(uiImage: img).resizable().scaledToFill()
                         } else {
-                            Image(systemName: "bicycle").font(.largeTitle).foregroundColor(.accentColor)
+                            MotorcycleIcon().frame(width: 46, height: 28).foregroundColor(.accentColor)
                         }
                     }
                     .frame(width: 72, height: 72)
@@ -302,14 +292,27 @@ struct VehicleSettings: View {
                 }
                 TextField(tr("Year (e.g. 2023)"), text: $vehicle.year)
                     .keyboardType(.numberPad)
-                TextField(tr("License plate"), text: $vehicle.plate)
-                    .autocapitalization(.allCharacters)
-                    .disableAutocorrection(true)
             }
             Section(header: Text(tr("Tank and consumption"))) {
                 Stepper(tr("Tank capacity {0}", Fmt.liters(vehicle.tankL)), value: $vehicle.tankL, in: 3...30, step: 0.1)
                 Stepper(tr("Default consumption {0} km/L", Fmt.km(settings.defaultKmPerL)), value: $settings.defaultKmPerL,
                         in: 10...80, step: 0.5)
+            }
+            Section(header: Text(tr("Warning colors")),
+                    footer: Text(tr("Colors on the dash Data Cards and the Bike tab. Fuel range turns amber, then red, below these distances. 12V battery is green at or above the first value, amber down to the second, red below it. Engine temperature turns amber, then red, at these temperatures."))) {
+                Stepper(tr("Fuel range amber below {0} km", settings.fuelAmberKm), value: $settings.fuelAmberKm, in: 10...300, step: 5)
+                Stepper(tr("Fuel range red below {0} km", settings.fuelRedKm), value: $settings.fuelRedKm, in: 5...300, step: 5)
+                Stepper(tr("12V battery green from {0} V", String(format: "%.1f", settings.battGreenV).localizedDecimal), value: $settings.battGreenV, in: 11.0...14.0, step: 0.1)
+                Stepper(tr("12V battery red below {0} V", String(format: "%.1f", settings.battRedV).localizedDecimal), value: $settings.battRedV, in: 10.0...13.5, step: 0.1)
+                Stepper(tr("Engine temp amber from {0} °C", settings.tempAmberC), value: $settings.tempAmberC, in: 60...130, step: 1)
+                Stepper(tr("Engine temp red from {0} °C", settings.tempRedC), value: $settings.tempRedC, in: 60...140, step: 1)
+                Stepper(tr("Phone battery red at {0}% or less", settings.phoneRedPct), value: $settings.phoneRedPct, in: 5...50, step: 5)
+            }
+            Section(header: Text(tr("Maintenance reminders")),
+                    footer: Text(tr("A notification is sent when an item gets within this distance of its service, and again when it is overdue. It needs the ODO from the CCU, so it works while the app is connected to the motorcycle."))) {
+                Toggle(tr("Notify me about maintenance"), isOn: $settings.maintNotify)
+                    .onChange(of: settings.maintNotify) { on in if on { MaintenanceStore.requestNotificationPermission() } }
+                Stepper(tr("Remind {0} km before service", settings.maintWarnKm), value: $settings.maintWarnKm, in: 100...3000, step: 100)
             }
             Section(header: Text(tr("Fuel consumption from CCU")),
                     footer: Text(tr("Fuel left is calculated from the average consumption reported by the motorcycle CCU (more accurate than the default value), and decreases gradually according to the consumption at that moment. Pick the byte in the CCU data packet (id 1) that holds the average consumption: see Raw CCU data below and compare it with the average fuel figure on the dash. Adjust the width, unit, and divisor until \"Reading now\" matches the dash. If the value is invalid, your own consumption over the last 30 days (from the dash average) is used, then the default value."))) {
@@ -490,6 +493,17 @@ struct MapSettings: View {
 
     var body: some View {
         Form {
+            Section {
+                NavigationLink(destination: RouteSettings()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond").foregroundColor(.accentColor).frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tr("Routes and search")).font(.headline)
+                            Text(tr("Route profile, voice guidance, routing server")).font(.footnote).foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
             Section(footer: Text(tr("Download the areas you pass often so the dash map still shows without a mobile network."))) {
                 NavigationLink(destination: OfflineMapView()) {
                     HStack(spacing: 12) {
@@ -822,6 +836,7 @@ struct ScreensSettings: View {
 struct RouteSettings: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var nav: NavigationController
+    @EnvironmentObject var bike: BikeController
 
     var body: some View {
         Form {
@@ -840,7 +855,7 @@ struct RouteSettings: View {
                 Button(tr("Use Valhalla default (45 km/h)")) { settings.applyRouteProfile(.valhallaScooter) }
             }
             Section(header: Text(tr("Voice guidance")),
-                    footer: Text(tr("Example: \"In 100 meters, turn right onto Jalan Lingkar Luar Jakarta\". While the voice plays, music from other apps is lowered automatically by iOS and then returns to normal. The iPhone master volume is not changed, and the amount of lowering is decided by iOS (it cannot be set as a percentage). The voice comes out of the active audio output (speaker, headset, or the motorcycle Bluetooth)."))) {
+                    footer: Text(tr("Example: \"In 100 meters, turn right onto Main Street\". While the voice plays, music from other apps is lowered automatically by iOS and then returns to normal. The iPhone master volume is not changed, and the amount of lowering is decided by iOS (it cannot be set as a percentage). The voice comes out of the active audio output (speaker, headset, or the motorcycle Bluetooth)."))) {
                 Toggle(tr("Voice prompts"), isOn: $settings.guideVoice)
                 if settings.guideVoice {
                     Toggle(tr("Lower the music volume while speaking"), isOn: $settings.guideDuck)
@@ -848,7 +863,7 @@ struct RouteSettings: View {
                     sliderRow(tr("Voice booster"), value: $settings.guideBoostDb, range: 0...18, step: 3, unit: "dB")
                     Text(tr("The booster makes the guidance voice louder than full volume (+6 dB is roughly twice as loud, +12 dB four times). Start at +6 dB, then raise it if it is still too quiet. If it sounds distorted, lower it. Use Try voice to test."))
                         .font(.caption).foregroundColor(.secondary)
-                    Button(tr("Try voice")) { nav.voice?.test() }
+                    Button(tr("Try voice")) { bike.nearestStreet { nav.voice?.test(street: $0) } }
                 }
             }
             Section(header: Text(tr("Routing server")),
@@ -924,7 +939,7 @@ struct DebugSettings: View {
                 Text(bike.vehicleLive.state).font(.footnote).foregroundColor(.secondary)
             }
             Section(header: Text(tr("Dash language (experiment)")),
-                    footer: Text(tr("The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd."))) {
+                    footer: Text(tr("The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 11 = Indonesian, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd."))) {
                 Toggle(tr("Send the app language to the dash"), isOn: $settings.dashLangSync)
                 Stepper(settings.dashLang < 0 ? tr("Language code: from app language") : tr("Language code: {0}", settings.dashLang),
                         value: $settings.dashLang, in: -1...63)
@@ -957,6 +972,17 @@ struct AboutSettings: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+            Section {
+                NavigationLink(destination: WhatsNewView()) {
+                    Label(tr("What's new in this version"), systemImage: "sparkles")
+                }
+                NavigationLink(destination: BackupSettings()) {
+                    Label(tr("Backup and restore"), systemImage: "externaldrive")
+                }
+                NavigationLink(destination: DebugSettings()) {
+                    Label(tr("Experiments and log"), systemImage: "ladybug")
+                }
             }
             Section(header: Text(tr("Version and updates")),
                     footer: Text(tr("Updates are fetched from GitHub Releases (the Actions workflow publishes them automatically on every build). iOS does not let an app install an IPA by itself, so the Install button opens SideStore, AltStore, or LiveContainer with the latest IPA: just one confirmation tap there. In LiveContainer, if the bundle ID already exists choose Replace so the app data stays. If XConnect itself runs inside LiveContainer, run it in multitasking mode or in a second LiveContainer so the main LiveContainer is free to process the installation."))) {
@@ -1020,13 +1046,13 @@ struct BackupSettings: View {
 
     var body: some View {
         Form {
-            Section(footer: Text(tr("The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, plate, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size."))) {
+            Section(footer: Text(tr("The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size."))) {
                 Button(tr("Save backup to a file")) {
                     doc = SettingsBackupDocument(data: settings.exportBackup())
                     exporting = true
                 }
                 .fileExporter(isPresented: $exporting, document: doc, contentType: .json,
-                              defaultFilename: tr("XConnect-settings")) { result in
+                              defaultFilename: "XConnect_setting") { result in
                     switch result {
                     case .success: message = tr("Backup saved.")
                     case .failure(let e): message = tr("Failed to save: {0}", e.localizedDescription)

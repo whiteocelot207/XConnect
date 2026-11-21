@@ -243,10 +243,10 @@ struct NavigateView: View {
                             .font(.footnote)
                             .foregroundColor(.orange)
                         Picker(tr("Simulation speed"), selection: $nav.simSpeedKmh) {
-                            Text("20 km/j").tag(20.0)
-                            Text("40 km/j").tag(40.0)
-                            Text("80 km/j").tag(80.0)
-                            Text("150 km/j").tag(150.0)
+                            Text("20 " + tr("km/h")).tag(20.0)
+                            Text("40 " + tr("km/h")).tag(40.0)
+                            Text("80 " + tr("km/h")).tag(80.0)
+                            Text("150 " + tr("km/h")).tag(150.0)
                         }
                         .pickerStyle(.segmented)
                     }
@@ -273,7 +273,7 @@ struct NavigateView: View {
     private func leftLabel(_ title: String, icon: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon).frame(width: 22)
-            Text(title).lineLimit(1).minimumScaleFactor(0.8)
+            Text(title).font(.system(size: 20, weight: .bold)).lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

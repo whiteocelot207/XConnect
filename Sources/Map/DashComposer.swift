@@ -43,6 +43,7 @@ struct DashContent {
     var tempC: Int?
     var weatherText = ""
     var greeting = ""
+    var warn = WarnThresholds()
     var clock = ""
     var nav: NavHUD?
     var showCards = true

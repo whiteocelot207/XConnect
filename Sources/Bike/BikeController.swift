@@ -85,6 +85,45 @@ final class BikeController: NSObject, ObservableObject {
     private var localBusySince = Date.distantPast
     private var localRenderID = 0
     private let geocoder = CLGeocoder()
+    private let streetGeocoder = CLGeocoder()
+    /// nama jalan terdekat yang dipakai contoh panel navigasi di pratinjau
+    @Published var demoStreet = ""
+    private var demoStreetFrom: CLLocation?
+    private var demoStreetBusy = false
+
+    /// Cari nama jalan terdekat dari posisi sekarang: titik sendiri dulu, lalu cincin 60/150/300 m ke 8 arah,
+    /// sampai ada titik yang punya nama jalan (thoroughfare). Hasil dikirim di main thread; kosong bila tidak ketemu.
+    func nearestStreet(_ completion: @escaping (String) -> Void) {
+        if !currentStreet.isEmpty { completion(currentStreet); return }
+        guard let l = location.lastLocation else { completion(""); return }
+        var pts = [l.coordinate]
+        for r in [60.0, 150.0, 300.0] {
+            for b in stride(from: 0.0, to: 360.0, by: 45.0) { pts.append(Geo.destination(from: l.coordinate, bearing: b, meters: r)) }
+        }
+        func step(_ i: Int) {
+            guard i < pts.count else { completion(""); return }
+            streetGeocoder.reverseGeocodeLocation(CLLocation(latitude: pts[i].latitude, longitude: pts[i].longitude),
+                                                  preferredLocale: Loc.shared.locale) { marks, _ in
+                let name = (marks?.compactMap { $0.thoroughfare }.first { !$0.isEmpty }) ?? ""
+                DispatchQueue.main.async { name.isEmpty ? step(i + 1) : completion(name) }
+            }
+        }
+        step(0)
+    }
+
+    private func refreshDemoStreet() {
+        guard !demoStreetBusy, let l = location.lastLocation else { return }
+        if let from = demoStreetFrom, !demoStreet.isEmpty, l.distance(from: from) < 400 { return }
+        demoStreetBusy = true
+        DispatchQueue.main.async { [weak self] in
+            self?.nearestStreet { name in
+                guard let self = self else { return }
+                self.demoStreetBusy = false
+                self.demoStreetFrom = self.location.lastLocation
+                if !name.isEmpty { self.demoStreet = name }
+            }
+        }
+    }
     private var lastGeocode = Date.distantPast
     private var lastGeocodeLoc: CLLocation?
     private let netInfo = CTTelephonyNetworkInfo()
@@ -199,7 +238,7 @@ final class BikeController: NSObject, ObservableObject {
             }
         }
         ccu.onLog = { [weak self] s in self?.log("CCU BLE: " + s) }
-        ccu.prepare()   // memunculkan izin Bluetooth di Pengaturan iOS
+        if settings.setupDone { ccu.prepare() }   // memunculkan izin Bluetooth di Pengaturan iOS (sebelumnya: lewat pengaturan awal)
         vehicleLive.$odoKm.compactMap { $0 }
             .sink { [weak self] odo in
                 guard let self = self, let m = self.model, odo > 0 else { return }
@@ -556,6 +595,7 @@ final class BikeController: NSObject, ObservableObject {
         c.showCards = settings.showCards
         c.routeColor = settings.routeUIColor
         c.greeting = settings.userName
+        c.warn = settings.warn
         c.clock = Fmt.clock(Date())
         let live = vehicleLive
         let bikeSpd = bikeSpeedKmh ?? live.speedKmh
@@ -613,12 +653,13 @@ final class BikeController: NSObject, ObservableObject {
         c.weatherText = m.weather.text
         c.nav = m.nav.hud
         if c.nav == nil, demoNav {
+            refreshDemoStreet()
             // contoh kotak estimasi mengikuti pilihan di Pengaturan (semua dimatikan = kotak tidak tampil)
             var parts = [String]()
             if settings.etaShowDistance { parts.append(Fmt.distance(1600)) }
             if settings.etaShowDuration { parts.append(Fmt.duration(37 * 60)) }
             if settings.etaShowArrival { parts.append(Fmt.clock(Date().addingTimeInterval(37 * 60))) }
-            c.nav = NavHUD(icon: 35, text: "Jalan Lingkar Luar Jakarta", dist: "65 m", summary: parts.joined(separator: " · "))
+            c.nav = NavHUD(icon: 35, text: demoStreet.isEmpty ? tr("Nearest street") : demoStreet, dist: "65 m", summary: parts.joined(separator: " · "))
         }
         if let l = location.lastLocation {
             c.altitudeM = Int(l.altitude.rounded())

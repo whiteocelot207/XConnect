@@ -20,7 +20,7 @@ struct SettingsBackupDocument: FileDocument {
 extension AppSettings {
     /// Data motor berupa nilai sederhana (nama, tipe, tahun, plat, tangki, ODO, level bensin).
     static let vehicleValueKeys: [String] = [
-        "veh.name", "veh.model", "veh.year", "veh.plate", "veh.tank",
+        "veh.name", "veh.model", "veh.year", "veh.tank",
         "maint.odo.v3", "fuel.level", "fuel.odo", "fuel.mayBeOff"
     ]
 

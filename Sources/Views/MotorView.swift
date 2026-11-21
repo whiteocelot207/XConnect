@@ -1,20 +1,20 @@
 import SwiftUI
 
 enum MotorSheet: Identifiable {
-    case odometer
     case addLiters
     case setLevel
     case addMaint
     case history(String)
+    case replace(String)
     case editMaint(String)
 
     var id: String {
         switch self {
-        case .odometer: return "odometer"
         case .addLiters: return "addLiters"
         case .setLevel: return "setLevel"
         case .addMaint: return "addMaint"
         case .history(let s): return "history-" + s
+        case .replace(let s): return "replace-" + s
         case .editMaint(let s): return "edit-" + s
         }
     }
@@ -25,6 +25,7 @@ struct MotorView: View {
     @EnvironmentObject var fuel: FuelStore
     @EnvironmentObject var vehicle: VehicleStore
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var live: VehicleLive
     @EnvironmentObject var trips: TripStore
 
     @State private var tab = 0
@@ -66,7 +67,7 @@ struct MotorView: View {
                     if let img = vehicle.photo {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
-                        Image(systemName: "bicycle").font(.largeTitle).foregroundColor(.accentColor)
+                        MotorcycleIcon().frame(width: 46, height: 28).foregroundColor(.accentColor)
                     }
                 }
                 .frame(width: 72, height: 72)
@@ -77,12 +78,6 @@ struct MotorView: View {
                     Text(vehicle.name).font(.title2).bold()
                     let sub = [vehicle.model, vehicle.year].filter { !$0.isEmpty }.joined(separator: " · ")
                     if !sub.isEmpty { Text(sub).foregroundColor(.secondary) }
-                    if !vehicle.plate.isEmpty {
-                        Text(vehicle.plate)
-                            .font(.footnote.weight(.semibold))
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Capsule().fill(Color.gray.opacity(0.2)))
-                    }
                 }
                 Spacer()
             }
@@ -104,15 +99,23 @@ struct MotorView: View {
             fuelCard
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                Button { sheet = .odometer } label: { infoTile("ODO", Fmt.km(maint.odometerKm) + " km", "road.lanes") }
-                infoTile(tr("12V battery"), "— V", "bolt.fill")
-                infoTile(tr("Coolant"), "— °C", "thermometer")
-                infoTile(tr("Ignition"), "—", "key.fill")
+                infoTile("ODO", maint.odometerKm > 0 ? Fmt.km(maint.odometerKm) + " km" : "— km", "road.lanes")
+                infoTile(tr("12V battery"), live.batteryV.map { String(format: "%.1f V", $0).localizedDecimal } ?? "— V", "bolt.fill",
+                         color: live.batteryV.map { $0 >= settings.battGreenV ? .green : ($0 >= settings.battRedV ? .orange : .red) })
+                infoTile(tr("Coolant"), live.coolantC.map { "\($0) °C" } ?? "— °C", "thermometer",
+                         color: live.coolantC.map { $0 >= settings.tempRedC ? .red : ($0 >= settings.tempAmberC ? .orange : .primary) })
+                infoTile(tr("Ignition"), live.ignitionOn.map { $0 ? "ON" : "OFF" } ?? "—", "key.fill",
+                         color: live.ignitionOn.map { $0 ? .green : .primary })
             }
-            Text(tr("ODO is calculated from GPS while riding and you can correct it. Battery, temperature, and ignition fill in automatically once the CCU link is up."))
+            Text(tr("ODO is read from the motorcycle CCU and cannot be edited. Battery, temperature, and ignition fill in automatically once the CCU link is up."))
                 .font(.footnote)
                 .foregroundColor(.secondary)
         }
+    }
+
+    /// merah di bawah batas merah, kuning di bawah batas kuning (Pengaturan > Motor dan BBM)
+    private var fuelColor: Color {
+        rangeKm < settings.fuelRedKm ? .red : (rangeKm < settings.fuelAmberKm ? .orange : .green)
     }
 
     private var rangeKm: Int {
@@ -127,13 +130,13 @@ struct MotorView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func infoTile(_ title: String, _ value: String, _ icon: String) -> some View {
+    private func infoTile(_ title: String, _ value: String, _ icon: String, color: Color? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: icon).foregroundColor(.accentColor)
                 Text(title).font(.caption).foregroundColor(.secondary)
             }
-            Text(value).font(.title3).bold().foregroundColor(.primary)
+            Text(value).font(.title3).bold().foregroundColor(color ?? .primary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -149,13 +152,13 @@ struct MotorView: View {
         return VStack(alignment: .leading, spacing: 10) {
             Text(tr("Fuel left (estimate)")).font(.headline)
             HStack(alignment: .firstTextBaseline) {
-                Text(fuel.levelL > 0 ? "≈ \(rangeKm) km" : "— km").font(.largeTitle).bold()
+                Text(fuel.levelL > 0 ? "≈ \(rangeKm) km" : "— km").font(.largeTitle).bold().foregroundColor(fuel.levelL > 0 ? fuelColor : .primary)
                 Spacer()
                 Text(fuel.levelL > 0 ? "≈ \(Fmt.km(remaining)) / \(Fmt.km(vehicle.tankL)) L" : tr("No data yet"))
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }
-            ProgressView(value: fuel.levelL > 0 ? frac : 0).tint(frac < 0.2 ? .red : .green)
+            ProgressView(value: fuel.levelL > 0 ? frac : 0).tint(fuelColor)
             Text(tr("Consumption calculated ≈ {0} km/L ({1}).{2}", Fmt.km(kmpl), kmplInfo.source, kmplInfo.measured || kmplInfo.source != tr("default value") ? " " + tr("Fuel left decreases with the consumption at that moment each time the motorcycle runs.") : " " + tr("Enter the average fuel byte from the dash in Settings > Motorcycle and fuel so consumption follows your riding style.")))
                 .font(.footnote)
                 .foregroundColor(.secondary)
@@ -204,7 +207,7 @@ struct MotorView: View {
         let remaining = maint.remainingKm(item)
         let used = max(0, maint.odometerKm - item.lastServiceKm)
         let frac = min(1, used / Double(max(1, item.intervalKm)))
-        let color: Color = remaining < 0 ? .red : (remaining < 500 ? .orange : .accentColor)
+        let color: Color = remaining < 0 ? .red : (remaining < settings.maintWarnKm ? .orange : .accentColor)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 ZStack {
@@ -220,10 +223,13 @@ struct MotorView: View {
             Text(remaining < 0 ? tr("Overdue {0} km", -remaining) : tr("{0} km left", remaining))
                 .font(.footnote).bold().foregroundColor(color)
             Text(tr("Every {0} km", item.intervalKm)).font(.footnote).foregroundColor(.secondary)
+            if let d = item.lastServiceDate {
+                Text(tr("Last replaced {0}", MaintHistorySheet.dateString(d))).font(.footnote).foregroundColor(.secondary)
+            }
             Button { sheet = .history(item.id) } label: { Text(tr("History ›")).font(.footnote) }
             Spacer(minLength: 0)
             HStack {
-                Button { maint.markServiced(item.id) } label: {
+                Button { sheet = .replace(item.id) } label: {
                     Label(tr("Replaced"), systemImage: "checkmark").font(.footnote).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -300,8 +306,8 @@ struct MotorView: View {
             .frame(height: 150, alignment: .bottom)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                infoTile(tr("Top speed"), "\(Int(maxKmh.rounded())) km/j", "speedometer")
-                infoTile(tr("Average speed"), "\(Int(avg.rounded())) km/j", "chart.line.uptrend.xyaxis")
+                infoTile(tr("Top speed"), "\(Int(maxKmh.rounded())) " + tr("km/h"), "speedometer")
+                infoTile(tr("Average speed"), "\(Int(avg.rounded())) " + tr("km/h"), "chart.line.uptrend.xyaxis")
                 infoTile(tr("Riding time"), tr("{0} minutes", Int((sec / 60).rounded())), "clock.fill")
                 infoTile(tr("Average fuel use"), Fmt.km(kmpl) + " km/L", "fuelpump.fill")
             }
@@ -316,8 +322,6 @@ struct MotorView: View {
     @ViewBuilder
     private func sheetView(_ s: MotorSheet) -> some View {
         switch s {
-        case .odometer:
-            NumberSheet(title: tr("ODO (km)"), initial: maint.odometerKm) { maint.odometerKm = $0 }
         case .setLevel:
             NumberSheet(title: tr("Fuel left now (L)"), initial: fuel.remainingL(odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)) {
                 fuel.setLevel($0, odo: maint.odometerKm, tank: vehicle.tankL)
@@ -330,6 +334,8 @@ struct MotorView: View {
             AddMaintSheet()
         case .history(let id):
             MaintHistorySheet(itemID: id)
+        case .replace(let id):
+            MaintReplaceSheet(itemID: id)
         case .editMaint(let id):
             MaintEditSheet(itemID: id)
         }
@@ -368,17 +374,31 @@ struct NumberSheet: View {
     }
 }
 
+/// Isian angka yang diketik: menyimpan teks, mengubah ke angka saat berubah.
+private func digits(_ s: String) -> Int? { Int(s.filter { $0.isNumber }) }
+private func decimal(_ s: String) -> Double? { Double(s.replacingOccurrences(of: ",", with: ".")) }
+
 struct AddMaintSheet: View {
     @EnvironmentObject var maint: MaintenanceStore
     @Environment(\.presentationMode) private var presentation
     @State private var name = ""
-    @State private var interval = 5000
+    @State private var intervalText = "5000"
+    @State private var lastText = ""
+    @State private var lastDate = Date()
 
     var body: some View {
         NavigationView {
             Form {
                 TextField(tr("Item name (e.g. Front tire)"), text: $name)
-                Stepper(tr("Every {0} km", interval), value: $interval, in: 500...60000, step: 500)
+                HStack {
+                    Text(tr("Every (km)"))
+                    TextField("5000", text: $intervalText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                }
+                HStack {
+                    Text(tr("Last replaced at (km)"))
+                    TextField("0", text: $lastText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                }
+                DatePicker(tr("Last replaced on"), selection: $lastDate, in: ...Date(), displayedComponents: .date)
             }
             .navigationTitle(tr("Add item"))
             .navigationBarTitleDisplayMode(.inline)
@@ -389,11 +409,53 @@ struct AddMaintSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Add")) {
                         let n = name.trimmingCharacters(in: .whitespaces)
-                        if !n.isEmpty { maint.addItem(name: n, intervalKm: interval) }
+                        if !n.isEmpty {
+                            maint.addItem(name: n, intervalKm: max(1, digits(intervalText) ?? 5000),
+                                          lastKm: decimal(lastText) ?? maint.odometerKm, lastDate: lastDate)
+                        }
                         presentation.wrappedValue.dismiss()
                     }
                 }
             }
+            .onAppear { lastText = maint.odometerKm > 0 ? String(format: "%g", maint.odometerKm.rounded()) : "" }
+        }
+    }
+}
+
+/// Catat penggantian: tanggal bawaan hari ini, ODO bawaan pembacaan sekarang; keduanya bisa diubah/diketik.
+struct MaintReplaceSheet: View {
+    let itemID: String
+    @EnvironmentObject var maint: MaintenanceStore
+    @Environment(\.presentationMode) private var presentation
+    @State private var date = Date()
+    @State private var odoText = ""
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text(maint.items.first(where: { $0.id == itemID })?.name ?? ""),
+                        footer: Text(tr("The date defaults to today and the ODO to the current reading from the CCU."))) {
+                    DatePicker(tr("Replaced on"), selection: $date, in: ...Date(), displayedComponents: .date)
+                    HStack {
+                        Text(tr("ODO when replaced (km)"))
+                        TextField("0", text: $odoText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    }
+                }
+            }
+            .navigationTitle(tr("Replaced"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(tr("Cancel")) { presentation.wrappedValue.dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(tr("Save")) {
+                        maint.markServiced(itemID, date: date, odoKm: decimal(odoText) ?? maint.odometerKm)
+                        presentation.wrappedValue.dismiss()
+                    }
+                }
+            }
+            .onAppear { odoText = maint.odometerKm > 0 ? String(format: "%g", maint.odometerKm.rounded()) : "" }
         }
     }
 }
@@ -441,6 +503,8 @@ struct MaintEditSheet: View {
     let itemID: String
     @EnvironmentObject var maint: MaintenanceStore
     @Environment(\.presentationMode) private var presentation
+    @State private var intervalText = ""
+    @State private var lastText = ""
 
     var body: some View {
         NavigationView {
@@ -448,10 +512,24 @@ struct MaintEditSheet: View {
                 if let i = maint.items.firstIndex(where: { $0.id == itemID }) {
                     Section {
                         TextField(tr("Name"), text: $maint.items[i].name)
-                        Stepper(tr("Every {0} km", maint.items[i].intervalKm), value: $maint.items[i].intervalKm,
-                                in: 500...60000, step: 500)
-                        Stepper(tr("Last replaced at {0} km", Int(maint.items[i].lastServiceKm)),
-                                value: $maint.items[i].lastServiceKm, in: 0...999999, step: 100)
+                        HStack {
+                            Text(tr("Every (km)"))
+                            TextField("5000", text: $intervalText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                                .onChange(of: intervalText) { t in
+                                    if let v = digits(t), v > 0, v != maint.items[i].intervalKm { maint.items[i].intervalKm = v }
+                                }
+                        }
+                        HStack {
+                            Text(tr("Last replaced at (km)"))
+                            TextField("0", text: $lastText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                                .onChange(of: lastText) { t in
+                                    if let v = decimal(t), v != maint.items[i].lastServiceKm { maint.items[i].lastServiceKm = v }
+                                }
+                        }
+                        DatePicker(tr("Last replaced on"),
+                                   selection: Binding(get: { maint.items[i].lastServiceDate ?? Date() },
+                                                      set: { maint.items[i].lastServiceDate = $0 }),
+                                   in: ...Date(), displayedComponents: .date)
                     }
                     Section {
                         Button(tr("Delete item"), role: .destructive) {
@@ -466,6 +544,12 @@ struct MaintEditSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Done")) { presentation.wrappedValue.dismiss() }
+                }
+            }
+            .onAppear {
+                if let it = maint.items.first(where: { $0.id == itemID }) {
+                    intervalText = String(it.intervalKm)
+                    lastText = it.lastServiceKm > 0 ? String(format: "%g", it.lastServiceKm) : ""
                 }
             }
         }

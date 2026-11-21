@@ -61,22 +61,24 @@ enum DashField: Int, CaseIterable {
             return (tr("Weather"), c.tempC.map { "\($0)°" } ?? "--°", "", white)
         case .phoneBattery:
             let v = c.phoneBattery
-            return (tr("Phone battery"), v >= 0 ? "\(v)" : "—", v >= 0 ? "%" : "", v >= 0 && v <= 20 ? red : white)
+            return (tr("Phone battery"), v >= 0 ? "\(v)" : "—", v >= 0 ? "%" : "", v >= 0 && v <= c.warn.phoneRedPct ? red : white)
         case .fuel:
             guard let f = c.fuelL else { return (tr("Fuel left"), "—", "", white) }
-            return (tr("Fuel left"), Fmt.liters(f).replacingOccurrences(of: " L", with: ""), "L", f < 2.5 ? red : (f < 4 ? amber : white))
+            let col: UIColor = c.rangeKm.map { $0 < c.warn.fuelRedKm ? red : ($0 < c.warn.fuelAmberKm ? amber : white) }
+                ?? (f < 2.5 ? red : (f < 4 ? amber : white))
+            return (tr("Fuel left"), Fmt.liters(f).replacingOccurrences(of: " L", with: ""), "L", col)
         case .range:
             guard let r = c.rangeKm else { return (tr("Range"), "—", "", white) }
-            return (tr("Range"), "\(r)", "km", r < 35 ? red : (r < 60 ? amber : white))
+            return (tr("Range"), "\(r)", "km", r < c.warn.fuelRedKm ? red : (r < c.warn.fuelAmberKm ? amber : white))
         case .batteryV:
             guard let v = c.batteryV else { return (tr("12V battery"), "—", "", white) }
-            return (tr("12V battery"), String(format: "%.1f", v), "V", v >= 12.6 ? green : (v >= 11.8 ? amber : red))
+            return (tr("12V battery"), String(format: "%.1f", v), "V", v >= c.warn.battGreenV ? green : (v >= c.warn.battRedV ? amber : red))
         case .odo:
             guard let o = c.odoKm else { return ("ODO", "—", "", white) }
             return ("ODO", "\(Int(o))", "km", white)
         case .coolant:
             guard let t = c.coolantC else { return (tr("Engine temp"), "—", "", white) }
-            return (tr("Engine temp"), "\(t)", "°C", t >= 105 ? red : (t >= 95 ? amber : white))
+            return (tr("Engine temp"), "\(t)", "°C", t >= c.warn.tempRedC ? red : (t >= c.warn.tempAmberC ? amber : white))
         case .airTemp:
             guard let t = c.airC else { return (tr("Air temp"), "—", "", white) }
             return (tr("Air temp"), "\(t)", "°C", white)
@@ -133,4 +135,15 @@ struct CardConfig {
     var small = [1, 2, 3, 4]
     var bigScale: CGFloat = 1      // skala huruf kotak besar (otomatis mengecil bila tidak muat)
     var smallScale: CGFloat = 1    // skala huruf kotak kecil
+}
+
+/// Batas warna peringatan (merah/kuning/hijau) untuk kartu data di dash dan tab Motor. Diatur di Pengaturan > Motor dan BBM.
+struct WarnThresholds {
+    var fuelRedKm = 40
+    var fuelAmberKm = 60
+    var battGreenV = 12.6
+    var battRedV = 11.8
+    var tempAmberC = 95
+    var tempRedC = 105
+    var phoneRedPct = 20
 }

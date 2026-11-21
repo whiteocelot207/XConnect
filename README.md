@@ -6,7 +6,7 @@ An iPhone app that shows a map, motorcycle data, music and photos on the TFT das
 It talks to the dash over ExternalAccessory (iAP, `com.garmin.navilite.data`) and reads motorcycle data from the
 CCU over Bluetooth LE. Unofficial and not affiliated with Yamaha.
 
-Current version: **0.1.1** (first release).
+Current version: **0.1.2** (see CHANGELOG.md).
 
 ## Features
 
@@ -19,10 +19,16 @@ Current version: **0.1.1** (first release).
   route preview map, navigation simulation, voice guidance (with music ducking and an optional volume booster).
 - **Routing** with Valhalla (scooter profile: main roads, speed limit, hills, alleys, trails, ferries, tolls, shortest).
 - **Offline maps**: save areas you often ride through. Day/night map style (automatic 18:00-06:00).
-- **Motorcycle tab**: ODO, battery, coolant, fuel estimate, maintenance items with history, trip history.
+- **Motorcycle tab**: ODO (read from the CCU, not editable), battery, coolant, fuel estimate, maintenance items with history, trip history.
+- **Warning colors** (Settings > Motorcycle and fuel): fuel range, 12V battery, engine temperature and phone battery
+  turn amber/red at limits you set, on the dash Data Cards and the Bike tab.
+- **Maintenance reminders**: a notification when an item is near its service distance and when it is overdue.
+- **Update banner**: a floating banner at the top when a new version is on GitHub Releases.
 - **Fuel estimate**: average consumption from the dash (CCU) when readable, else your own last 30 days, else a default.
 - **Handlebar controls**: zoom, switch screen, music gestures (volume, next/previous, play/pause).
 - **Backup and restore** of all settings, places, motorcycle data, maintenance, fuel and trips to a JSON file.
+- **First-run setup**: welcome, language, motorcycle and permissions (location "Always", Bluetooth, music, notifications).
+  Permissions can be checked and requested again in Settings > Permissions.
 - **In-app updates** from GitHub Releases (opens SideStore, AltStore or LiveContainer with the latest IPA).
 
 ## Languages and themes
@@ -46,8 +52,8 @@ All texts live in `Sources/Resources/Translations.tsv` (tab separated):
 - Rows starting with `@` are language data: `@name` (shown in the picker), `@locale`, `@voice` (speech voice),
   `@routing` (Valhalla language), `@decimal`, `@dashLang` (language code sent to the dash, empty = not sent).
 - To add a language, add a column in the header and fill it in. No code change is needed.
-- `@dashLang`: only `0` = English and `15` = Vietnamese are known. The code for Indonesian is unknown, so it is empty
-  (nothing is sent). Settings > Experiments and log > Dash language lets you try a code manually.
+- `@dashLang`: the language code sent to the dash: `0` = English, `11` = Indonesian (`15` = Vietnamese is also known).
+  Settings > Experiments and log > Dash language lets you try another code manually.
 
 ## Install
 
@@ -72,6 +78,12 @@ The project is generated with XcodeGen from `project.yml`; MapLibre is the only 
 Versions are `x.y.z`. `MARKETING_VERSION` in `project.yml` is the base (`0.1.1`). Each build raises `z` automatically
 (0.1.1, 0.1.2, ...). To start a new minor version, set it to e.g. `0.2.1` and push. Releases are tagged `v<version>`.
 
+## Changelog
+
+`CHANGELOG.md` (English) and `CHANGELOG.id.md` (Indonesian) list every version as a `## x.y.z` section. They are bundled
+into the app, which shows only the section of the installed version (Settings > About > What's new in this version),
+and the workflow uses the same section as the GitHub release notes. Add a section at the top for each release.
+
 ## Project layout
 
 ```
@@ -85,6 +97,7 @@ Sources/
   Util/      formatting, Loc (translations), AppTheme
   Views/     SwiftUI screens
   Resources/ Translations.tsv, InfoPlist.strings
+CHANGELOG.md, CHANGELOG.id.md   release notes per version (bundled into the app)
 ```
 
 ## Known limitations

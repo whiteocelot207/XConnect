@@ -66,8 +66,9 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
         if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
     }
 
-    func test() {
-        speak(tr("In 100 meters, turn right onto Jalan Lingkar Luar Jakarta"), force: true)
+    func test(street: String) {
+        let name = street.isEmpty ? tr("Main Street") : street
+        speak(tr("In 100 meters, turn right onto {0}", name), force: true)
     }
 
     /// Hentikan suara sekarang (navigasi dihentikan).

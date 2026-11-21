@@ -4,6 +4,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var vehicle: VehicleStore
+    @EnvironmentObject var perms: PermissionCenter
     @State private var step = 0
 
     private var isCustomModel: Bool {
@@ -17,7 +18,8 @@ struct OnboardingView: View {
                     switch step {
                     case 0: welcome
                     case 1: language
-                    default: motorcycle
+                    case 2: motorcycle
+                    default: permissions
                     }
                 }
                 .padding(.horizontal, 24)
@@ -31,9 +33,9 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                 }
                 Button {
-                    if step < 2 { withAnimation { step += 1 } } else { finish() }
+                    if step < 3 { withAnimation { step += 1 } } else { finish() }
                 } label: {
-                    Text(step == 0 ? tr("Get started") : (step == 1 ? tr("Next") : tr("Finish")))
+                    Text(step == 0 ? tr("Get started") : (step < 3 ? tr("Next") : tr("Finish")))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -51,7 +53,7 @@ struct OnboardingView: View {
                 .frame(width: 112, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
             Text(tr("Welcome to XConnect")).font(.largeTitle).bold().multilineTextAlignment(.center)
-            Text(tr("Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in two quick steps."))
+            Text(tr("Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in a few quick steps."))
                 .font(.body).foregroundColor(.secondary).multilineTextAlignment(.center)
         }
     }
@@ -71,7 +73,7 @@ struct OnboardingView: View {
 
     private var motorcycle: some View {
         VStack(spacing: 14) {
-            Image(systemName: "bicycle").font(.system(size: 48)).foregroundColor(.accentColor)
+            MotorcycleIcon().frame(width: 84, height: 50).foregroundColor(.accentColor)
             Text(tr("Choose your motorcycle")).font(.title).bold().multilineTextAlignment(.center)
             Text(tr("This sets the tank capacity for the fuel estimate. You can change everything later in Settings > Motorcycle and fuel."))
                 .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
@@ -87,13 +89,22 @@ struct OnboardingView: View {
                 }
                 TextField(tr("Motorcycle name"), text: $vehicle.name)
                 TextField(tr("Year (e.g. 2023)"), text: $vehicle.year).keyboardType(.numberPad)
-                TextField(tr("License plate"), text: $vehicle.plate)
-                    .autocapitalization(.allCharacters)
-                    .disableAutocorrection(true)
                 Stepper(tr("Tank capacity {0}", Fmt.liters(vehicle.tankL)), value: $vehicle.tankL, in: 3...30, step: 0.1)
             }
             .textFieldStyle(.roundedBorder)
             .padding(.top, 6)
+        }
+    }
+
+    private var permissions: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "checkmark.shield").font(.system(size: 48)).foregroundColor(.accentColor)
+            Text(tr("Allow access")).font(.title).bold().multilineTextAlignment(.center)
+            Text(tr("XConnect needs these to work with your motorcycle. You can review them later in Settings > Permissions."))
+                .font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+            VStack(spacing: 10) { PermissionsList() }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.06)))
         }
     }
 
@@ -122,5 +133,6 @@ struct OnboardingView: View {
     private func finish() {
         if vehicle.name.trimmingCharacters(in: .whitespaces).isEmpty { vehicle.name = vehicle.model }
         settings.setupDone = true
+        if settings.maintNotify { MaintenanceStore.requestNotificationPermission() }
     }
 }

@@ -46,6 +46,16 @@ final class AppSettings: ObservableObject {
         return zoomAbove
     }
     @Published var defaultKmPerL: Double { didSet { put("defaultKmPerL", defaultKmPerL) } }
+    // Batas peringatan warna (kartu dash dan tab Motor) dan pengingat perawatan
+    @Published var fuelRedKm: Int { didSet { put("fuelRedKm", fuelRedKm) } }
+    @Published var fuelAmberKm: Int { didSet { put("fuelAmberKm", fuelAmberKm) } }
+    @Published var battGreenV: Double { didSet { put("battGreenV", battGreenV) } }
+    @Published var battRedV: Double { didSet { put("battRedV", battRedV) } }
+    @Published var tempAmberC: Int { didSet { put("tempAmberC", tempAmberC) } }
+    @Published var tempRedC: Int { didSet { put("tempRedC", tempRedC) } }
+    @Published var phoneRedPct: Int { didSet { put("phoneRedPct", phoneRedPct) } }
+    @Published var maintWarnKm: Int { didSet { put("maintWarnKm", maintWarnKm) } }
+    @Published var maintNotify: Bool { didSet { put("maintNotify", maintNotify) } }
     /// Format pemilik/nama-repo, mis. "histrox/xconnect"
     @Published var updateRepo: String { didSet { put("updateRepo", updateRepo) } }
     /// 0 = SideStore, 1 = AltStore, 2 = LiveContainer
@@ -81,7 +91,6 @@ final class AppSettings: ObservableObject {
     /// geser foto slideshow ke atas (negatif) / bawah (positif), px
     @Published var photoShift: Double { didSet { put("photoShift", photoShift) } }
     /// kata sapaan di kotak cuaca dash (mis. "Halo")
-    @Published var greetingWord: String { didSet { put("greetingWord", greetingWord) } }
     /// 0 = transparan, 1 = hitam pekat (latar kolom Kartu Data di layar Peta)
     @Published var cardBgAlpha: Double { didSet { put("cardBgAlpha", cardBgAlpha) } }
     /// geser titik motor ke kiri (negatif) / kanan (positif), px
@@ -156,15 +165,15 @@ final class AppSettings: ObservableObject {
     static let defaultValues: [String: Any] = [
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
-            "theme": 0, "colorTheme": 0, "language": "en", "setupDone": false, "dashLangSync": true, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
-            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0,
+            "theme": 0, "colorTheme": 0, "language": "en", "setupDone": false, "dashLangSync": true, "userName": "", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
+            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0, "fuelRedKm": 40, "fuelAmberKm": 60, "battGreenV": 12.6, "battRedV": 11.8, "tempAmberC": 95, "tempRedC": 105, "phoneRedPct": 20, "maintWarnKm": 500, "maintNotify": true,
             "updateRepo": "whiteocelot207/XConnect", "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
             "routeWidth": 5.0, "routeBorder": 0.0, "markerSize": 0.6, "markerRing": true, "markerY": 0.78,
             "navPanelScale": 0.85, "musicBlurBG": true,
             "cardLayout": 1, "cardBig": 0, "cardS1": 1, "cardS2": 2, "cardS3": 3, "cardS4": 4,
             "etaScale": 0.9, "infoDashL": 4, "infoDashR": 2, "infoMusicL": 1, "infoMusicR": 16,
             "infoPhotoL": 12, "infoPhotoR": 12, "photoShift": 0.0,
-            "greetingWord": "", "cardBgAlpha": 0.78, "markerX": -6.0,
+            "cardBgAlpha": 0.78, "markerX": -6.0,
             "navDX": -4.0, "navDY": -4.0, "etaDX": -50.0, "etaDY": 4.0,
             "startScreen": 0, "doubleClickMs": 450, "holdSkip": true, "holdMs": 1000, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
@@ -203,6 +212,15 @@ final class AppSettings: ObservableObject {
         zoomAbove = d.double(forKey: "zoomAbove")
         zoomSmooth = d.double(forKey: "zoomSmooth")
         defaultKmPerL = d.double(forKey: "defaultKmPerL")
+        fuelRedKm = d.integer(forKey: "fuelRedKm")
+        fuelAmberKm = d.integer(forKey: "fuelAmberKm")
+        battGreenV = d.double(forKey: "battGreenV")
+        battRedV = d.double(forKey: "battRedV")
+        tempAmberC = d.integer(forKey: "tempAmberC")
+        tempRedC = d.integer(forKey: "tempRedC")
+        phoneRedPct = d.integer(forKey: "phoneRedPct")
+        maintWarnKm = d.integer(forKey: "maintWarnKm")
+        maintNotify = d.bool(forKey: "maintNotify")
         updateRepo = d.string(forKey: "updateRepo") ?? ""
         updater = d.integer(forKey: "updater")
         autoCheckUpdate = d.bool(forKey: "autoCheckUpdate")
@@ -228,7 +246,6 @@ final class AppSettings: ObservableObject {
         infoPhotoL = d.integer(forKey: "infoPhotoL")
         infoPhotoR = d.integer(forKey: "infoPhotoR")
         photoShift = d.double(forKey: "photoShift")
-        greetingWord = d.string(forKey: "greetingWord") ?? ""
         cardBgAlpha = d.double(forKey: "cardBgAlpha")
         markerX = d.double(forKey: "markerX")
         navDX = d.double(forKey: "navDX")
@@ -297,6 +314,15 @@ final class AppSettings: ObservableObject {
         zoomAbove = d.double(forKey: "zoomAbove")
         zoomSmooth = d.double(forKey: "zoomSmooth")
         defaultKmPerL = d.double(forKey: "defaultKmPerL")
+        fuelRedKm = d.integer(forKey: "fuelRedKm")
+        fuelAmberKm = d.integer(forKey: "fuelAmberKm")
+        battGreenV = d.double(forKey: "battGreenV")
+        battRedV = d.double(forKey: "battRedV")
+        tempAmberC = d.integer(forKey: "tempAmberC")
+        tempRedC = d.integer(forKey: "tempRedC")
+        phoneRedPct = d.integer(forKey: "phoneRedPct")
+        maintWarnKm = d.integer(forKey: "maintWarnKm")
+        maintNotify = d.bool(forKey: "maintNotify")
         updateRepo = d.string(forKey: "updateRepo") ?? ""
         updater = d.integer(forKey: "updater")
         autoCheckUpdate = d.bool(forKey: "autoCheckUpdate")
@@ -322,7 +348,6 @@ final class AppSettings: ObservableObject {
         infoPhotoL = d.integer(forKey: "infoPhotoL")
         infoPhotoR = d.integer(forKey: "infoPhotoR")
         photoShift = d.double(forKey: "photoShift")
-        greetingWord = d.string(forKey: "greetingWord") ?? ""
         cardBgAlpha = d.double(forKey: "cardBgAlpha")
         markerX = d.double(forKey: "markerX")
         navDX = d.double(forKey: "navDX")
@@ -365,8 +390,14 @@ final class AppSettings: ObservableObject {
         routeShortest = d.bool(forKey: "routeShortest")
     }
 
-    /// Kata sapaan di dash dan Home: isian sendiri, atau kata bawaan bahasa aplikasi bila kosong.
-    var greeting: String { greetingWord.isEmpty ? tr("Hello") : greetingWord }
+    /// Kata sapaan di dash dan Home: tetap, mengikuti bahasa aplikasi (hanya nama yang bisa diisi).
+    /// Batas warna peringatan untuk kartu dash.
+    var warn: WarnThresholds {
+        WarnThresholds(fuelRedKm: fuelRedKm, fuelAmberKm: fuelAmberKm, battGreenV: battGreenV, battRedV: battRedV,
+                       tempAmberC: tempAmberC, tempRedC: tempRedC, phoneRedPct: phoneRedPct)
+    }
+
+    var greeting: String { tr("Hello") }
 
     /// Kode bahasa yang dikirim ke dash: isian manual (Eksperimen) bila diisi, kalau tidak kode bahasa aplikasi
     /// (kolom @dashLang di Translations.tsv). -1 = tidak dikirim.

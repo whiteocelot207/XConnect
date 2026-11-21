@@ -6,7 +6,7 @@ Aplikasi iPhone untuk menampilkan peta, data motor, musik, dan foto di dash TFT 
 ExternalAccessory (iAP, `com.garmin.navilite.data`), plus data motor dari CCU lewat Bluetooth LE.
 Tidak resmi dan tidak berafiliasi dengan Yamaha.
 
-Versi sekarang: **0.1.1** (rilis pertama).
+Versi sekarang: **0.1.2** (lihat CHANGELOG.id.md).
 
 ## Fitur
 
@@ -19,9 +19,15 @@ Versi sekarang: **0.1.1** (rilis pertama).
 - **Routing** dengan Valhalla (profil skuter: jalan utama, batas kecepatan, tanjakan, gang, jalan setapak, feri, tol, terpendek).
 - **Peta offline** dan gaya peta siang/malam (otomatis 18.00-06.00).
 - **Tab Motor**: ODO, aki, cairan pendingin, perkiraan bensin, perawatan beserta riwayat, riwayat perjalanan.
+- **Warna peringatan** (Pengaturan > Motor dan BBM): jarak BBM, aki 12V, suhu mesin, dan baterai HP berubah kuning/merah
+  pada batas yang Anda atur, di Kartu Data dash dan tab Motor.
+- **Pengingat perawatan**: notifikasi saat item mendekati jarak servis dan saat sudah terlambat.
+- **Banner update**: banner melayang di atas layar bila ada versi baru di GitHub Releases.
 - **Bensin**: konsumsi rata-rata dari dash (CCU) bila terbaca, lalu konsumsi Anda 30 hari terakhir, lalu nilai bawaan.
 - **Kontrol stang**: zoom, ganti tampilan, gesture musik (volume, lagu berikutnya/sebelumnya, putar/jeda).
 - **Cadangkan dan pulihkan** semua pengaturan, tempat, data motor, perawatan, bensin, dan perjalanan ke file JSON.
+- **Pengaturan awal**: sapaan, bahasa, motor, dan perizinan (lokasi "Selalu", Bluetooth, musik, notifikasi).
+  Izin bisa dicek dan diminta lagi di Pengaturan > Perizinan.
 - **Update dari dalam app** lewat GitHub Releases (membuka SideStore, AltStore, atau LiveContainer).
 
 ## Bahasa dan tema
@@ -36,8 +42,8 @@ Versi sekarang: **0.1.1** (rilis pertama).
 Semua teks ada di `Sources/Resources/Translations.tsv` (dipisah tab): kolom `key` (teks Inggris yang dipakai kode
 sebagai `tr("...")`), lalu satu kolom per bahasa (sel kosong = teks Inggris). `{0}`, `{1}` adalah penampung nilai.
 Baris berawalan `@` adalah data bahasa: `@name`, `@locale`, `@voice`, `@routing`, `@decimal`, `@dashLang`.
-Menambah bahasa cukup menambah kolom. `@dashLang` hanya mengenal `0` = Inggris dan `15` = Vietnam; kode untuk
-Indonesia belum diketahui sehingga kosong (tidak dikirim). Bisa dicoba manual di Pengaturan > Eksperimen dan log.
+Menambah bahasa cukup menambah kolom. `@dashLang` adalah kode bahasa yang dikirim ke dash: `0` = Inggris, `11` = Indonesia
+(`15` = Vietnam juga dikenal). Kode lain bisa dicoba manual di Pengaturan > Eksperimen dan log.
 
 ## Pasang
 
@@ -58,6 +64,12 @@ Butuh iOS 15 ke atas. Izinkan lokasi "Selalu", Bluetooth, dan Media & Apple Musi
 
 Format `x.y.z`. `MARKETING_VERSION` di `project.yml` adalah versi dasar (`0.1.1`); tiap build menaikkan `z` otomatis
 (0.1.1, 0.1.2, ...). Untuk minor baru, ubah jadi mis. `0.2.1` lalu push. Tag Release: `v<versi>`.
+
+## Catatan versi
+
+`CHANGELOG.md` (Inggris) dan `CHANGELOG.id.md` (Indonesia) mencatat tiap versi sebagai bagian `## x.y.z`. Keduanya ikut
+dibundel ke app, yang hanya menampilkan bagian untuk versi terpasang (Pengaturan > Tentang > Yang baru di versi ini),
+dan workflow memakai bagian yang sama sebagai catatan rilis GitHub. Tambahkan bagian baru di paling atas tiap rilis.
 
 ## Keterbatasan
 

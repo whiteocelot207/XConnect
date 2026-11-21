@@ -38,7 +38,8 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         manager.activityType = .automotiveNavigation
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
-        manager.requestAlwaysAuthorization()
+        // sebelum pengaturan awal selesai, izin diminta lewat layar pengaturan awal (PermissionCenter)
+        if UserDefaults.standard.bool(forKey: "setupDone") { manager.requestAlwaysAuthorization() }
         manager.startUpdatingLocation()
         manager.startMonitoringSignificantLocationChanges()
     }

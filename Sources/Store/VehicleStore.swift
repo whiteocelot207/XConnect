@@ -7,7 +7,6 @@ final class VehicleStore: ObservableObject {
     @Published var model: String { didSet { UserDefaults.standard.set(model, forKey: "veh.model") } }
     /// tahun pembuatan (teks, mis. "2023"); kosong bila belum diisi
     @Published var year: String { didSet { UserDefaults.standard.set(year, forKey: "veh.year") } }
-    @Published var plate: String { didSet { UserDefaults.standard.set(plate, forKey: "veh.plate") } }
     @Published var tankL: Double { didSet { UserDefaults.standard.set(tankL, forKey: "veh.tank") } }
     @Published var photo: UIImage?
 
@@ -20,11 +19,10 @@ final class VehicleStore: ObservableObject {
 
     init() {
         let d = UserDefaults.standard
-        d.register(defaults: ["veh.name": "XMAX", "veh.model": "XMAX", "veh.tank": 13.0, "veh.year": "", "veh.plate": ""])
+        d.register(defaults: ["veh.name": "XMAX", "veh.model": "XMAX", "veh.tank": 13.0, "veh.year": ""])
         name = d.string(forKey: "veh.name") ?? "XMAX"
         model = d.string(forKey: "veh.model") ?? "XMAX"
         year = d.string(forKey: "veh.year") ?? ""
-        plate = d.string(forKey: "veh.plate") ?? ""
         tankL = d.double(forKey: "veh.tank")
         if let data = try? Data(contentsOf: VehicleStore.photoURL) { photo = UIImage(data: data) }
     }
@@ -35,7 +33,6 @@ final class VehicleStore: ObservableObject {
         name = d.string(forKey: "veh.name") ?? "XMAX"
         model = d.string(forKey: "veh.model") ?? "XMAX"
         year = d.string(forKey: "veh.year") ?? ""
-        plate = d.string(forKey: "veh.plate") ?? ""
         tankL = d.double(forKey: "veh.tank")
         if let data = try? Data(contentsOf: VehicleStore.photoURL) { photo = UIImage(data: data) } else { photo = nil }
     }

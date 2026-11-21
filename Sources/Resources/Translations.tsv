@@ -2,14 +2,16 @@ key	en	id
 # XConnect translation dictionary. Columns: key (English text used in code), then one column per language.
 # Placeholders {0} {1} ... are replaced by the values passed to tr(). In a cell: \n = new line, \t = tab, \\ = backslash.
 # Empty cell = use the English text. Rows starting with @ are language data (see README, "Translations").
-# @dashLang = language code sent to the dash (cmd 12); empty = not sent. 0 = English, 15 = Vietnamese are known. The code for Indonesian is not known yet.
+# @dashLang = language code sent to the dash (cmd 12); empty = not sent. 0 = English, 11 = Indonesian, 15 = Vietnamese.
 @name	English	Bahasa Indonesia
 @locale	en_US	id_ID
 @voice	en-US	id-ID
 @routing	en-US	id-ID
 @decimal	.	,
-@dashLang	0	
+@dashLang	0	11
  · web {0} addresses	 · web {0} addresses	 · web {0} alamat
++{0} more	+{0} more	+{0} lagi
+, trigger: 	, trigger: 	, pemicu: 
 0 = avoid hills, 1 = no problem	0 = avoid hills, 1 = no problem	0 = hindari tanjakan, 1 = tidak masalah
 0 = avoid main roads, 1 = prefer main roads	0 = avoid main roads, 1 = prefer main roads	0 = hindari jalan utama, 1 = utamakan jalan utama
 1 = default size. Text shrinks automatically when the card content is too long, so it never spills out of the card.	1 = default size. Text shrinks automatically when the card content is too long, so it never spills out of the card.	1 = ukuran bawaan. Huruf otomatis dikecilkan bila isi kartu terlalu panjang, jadi tidak pernah keluar dari kartu.
@@ -22,6 +24,8 @@ key	en	id
 12V BATT	12V BATT	AKI
 12V battery	12V battery	Aki
 12V battery (V)	12V battery (V)	Aki (V)
+12V battery green from {0} V	12V battery green from {0} V	Aki 12V hijau mulai {0} V
+12V battery red below {0} V	12V battery red below {0} V	Aki 12V merah di bawah {0} V
 12V battery: 	12V battery: 	Aki: 
 2 bytes (n and n+1)	2 bytes (n and n+1)	2 byte (n dan n+1)
 2 presses	2 presses	Tekan 2x
@@ -29,6 +33,7 @@ key	en	id
 3 quick presses	3 quick presses	Tekan 3x cepat
 4 small	4 small	4 kecil
 7 days	7 days	7 hari
+A notification is sent when an item gets within this distance of its service, and again when it is overdue. It needs the ODO from the CCU, so it works while the app is connected to the motorcycle.	A notification is sent when an item gets within this distance of its service, and again when it is overdue. It needs the ODO from the CCU, so it works while the app is connected to the motorcycle.	Notifikasi dikirim saat sebuah item mendekati jadwal servis dalam jarak ini, dan lagi saat sudah terlambat. Butuh ODO dari CCU, jadi bekerja saat aplikasi terhubung ke motor.
 A sample navigation panel and route line (following the roads around you) show while this page is open.	A sample navigation panel and route line (following the roads around you) show while this page is open.	Contoh panel navigasi dan garis rute (mengikuti jalan di sekitar Anda) tampil selama halaman ini terbuka.
 About	About	Tentang
 About {0} MB. Wi-Fi is better, with the app kept open until it finishes.	About {0} MB. Wi-Fi is better, with the app kept open until it finishes.	Sekitar {0} MB. Lebih baik menggunakan Wi-Fi, dengan aplikasi tetap terbuka hingga selesai.
@@ -54,7 +59,11 @@ Air temp	Air temp	Suhu udara
 Air temp (CCU)	Air temp (CCU)	Suhu udara (CCU)
 Air temp: {0} °C	Air temp: {0} °C	Suhu udara: {0} °C
 Alleys and residential streets	Alleys and residential streets	Gang dan jalan permukiman
+Allow	Allow	Izinkan
+Allow access	Allow access	Izinkan akses
+Allow Always	Allow Always	Izinkan Selalu
 Allow music access	Allow music access	Izinkan akses musik
+Allowed	Allowed	Diizinkan
 Alternative {0}	Alternative {0}	Alternatif {0}
 Altitude	Altitude	Ketinggian
 Altitude (GPS)	Altitude (GPS)	Ketinggian (GPS)
@@ -124,6 +133,7 @@ BLE: scanning for YCCU_{0}	BLE: scanning for YCCU_{0}	BLE: scan mencari YCCU_{0}
 BLE: write {0} failed: {1}	BLE: write {0} failed: {1}	BLE: tulis {0} gagal: {1}
 BLE: {0} characteristics	BLE: {0} characteristics	BLE: {0} karakteristik
 Blue	Blue	Biru
+Bluetooth	Bluetooth	Bluetooth
 Blurred cover background	Blurred cover background	Latar sampul blur
 Button gestures (Music screen)	Button gestures (Music screen)	Gesture tombol (layar Musik)
 Button: 	Button: 	Tombol: 
@@ -180,12 +190,14 @@ Cloudy	Cloudy	Berawan
 cmd 314: CCU ID = {0}, passkey received (6 characters, hidden)	cmd 314: CCU ID = {0}, passkey received (6 characters, hidden)	cmd 314: ID CCU = {0}, passkey diterima (6 karakter, disembunyikan)
 codes	codes	kode
 Color theme	Color theme	Tema warna
+Colors on the dash Data Cards and the Bike tab. Fuel range turns amber, then red, below these distances. 12V battery is green at or above the first value, amber down to the second, red below it. Engine temperature turns amber, then red, at these temperatures.	Colors on the dash Data Cards and the Bike tab. Fuel range turns amber, then red, below these distances. 12V battery is green at or above the first value, amber down to the second, red below it. Engine temperature turns amber, then red, at these temperatures.	Warna di Kartu Data dash dan tab Motor. Jarak BBM jadi kuning, lalu merah, di bawah jarak ini. Aki 12V hijau di atau di atas nilai pertama, kuning sampai nilai kedua, merah di bawahnya. Suhu mesin jadi kuning, lalu merah, pada suhu ini.
 Column background darkness (0 = transparent)	Column background darkness (0 = transparent)	Kegelapan latar kolom (0 = transparan)
 Connect to the motorcycle	Connect to the motorcycle	Hubungkan ke motor
 Connected	Connected	Terhubung
 Connected, waiting for the dash to request the map	Connected, waiting for the dash to request the map	Terhubung, menunggu dash minta peta
 Connecting…	Connecting…	Menghubungkan…
 Connection	Connection	Koneksi
+Connects to the motorcycle CCU to read battery, ODO and temperature, and wakes the app when the motorcycle is switched on.	Connects to the motorcycle CCU to read battery, ODO and temperature, and wakes the app when the motorcycle is switched on.	Terhubung ke CCU motor untuk membaca aki, ODO, dan suhu, serta membangunkan app saat motor dinyalakan.
 Consumption byte: off	Consumption byte: off	Byte konsumsi: mati
 Consumption byte: {0}	Consumption byte: {0}	Byte konsumsi: {0}
 Consumption calculated ≈ {0} km/L ({1}).{2}	Consumption calculated ≈ {0} km/L ({1}).{2}	Konsumsi dihitung ≈ {0} km/L ({1}).{2}
@@ -198,7 +210,6 @@ Dash did not acknowledge the frame ({0} s), closing session	Dash did not acknowl
 Dash display	Dash display	Tampilan dasbor
 Dash image quality	Dash image quality	Kualitas gambar dash
 Dash language (experiment)	Dash language (experiment)	Bahasa dash (eksperimen)
-Dash language, CCU link probe, connection log	Dash language, CCU link probe, connection log	Bahasa dash, probe link CCU, log sambungan
 Dash not found	Dash not found	Dash tidak ditemukan
 Dash on the motorcycle	Dash on the motorcycle	Dasbor di motor
 Dash screen: {0}	Dash screen: {0}	Tampilan dash: {0}
@@ -223,6 +234,7 @@ Delete	Delete	Hapus
 Delete area "{0}"?	Delete area "{0}"?	Hapus area "{0}"?
 Delete item	Delete item	Hapus item
 Delete photo	Delete photo	Hapus foto
+Denied	Denied	Ditolak
 Destination on the left	Destination on the left	Tujuan di kiri
 Destination on the right	Destination on the right	Tujuan di kanan
 Direction box (green, turn icon)	Direction box (green, turn icon)	Kotak petunjuk arah (hijau, ikon belok)
@@ -247,6 +259,8 @@ Engine fault codes (CCU)	Engine fault codes (CCU)	Kode gangguan mesin (CCU)
 Engine oil	Engine oil	Oli mesin
 Engine temp	Engine temp	Suhu mesin
 Engine temp (CCU)	Engine temp (CCU)	Suhu mesin (CCU)
+Engine temp amber from {0} °C	Engine temp amber from {0} °C	Suhu mesin kuning mulai {0} °C
+Engine temp red from {0} °C	Engine temp red from {0} °C	Suhu mesin merah mulai {0} °C
 Engine temp: {0} °C	Engine temp: {0} °C	Suhu mesin: {0} °C
 Enter liters	Enter liters	Masukkan liter
 Enter roundabout	Enter roundabout	Masuk bundaran
@@ -255,8 +269,9 @@ Enter the GitHub repo as owner/repo-name	Enter the GitHub repo as owner/repo-nam
 Enter the GitHub repo first (owner/repo-name)	Enter the GitHub repo first (owner/repo-name)	Isi repo GitHub dulu (pemilik/nama-repo)
 enter the roundabout	enter the roundabout	masuk bundaran
 Estimate box (distance and time)	Estimate box (distance and time)	Kotak estimasi (jarak dan waktu)
+Every (km)	Every (km)	Setiap (km)
 Every {0} km	Every {0} km	Setiap {0} km
-Example: "In 100 meters, turn right onto Jalan Lingkar Luar Jakarta". While the voice plays, music from other apps is lowered automatically by iOS and then returns to normal. The iPhone master volume is not changed, and the amount of lowering is decided by iOS (it cannot be set as a percentage). The voice comes out of the active audio output (speaker, headset, or the motorcycle Bluetooth).	Example: "In 100 meters, turn right onto Jalan Lingkar Luar Jakarta". While the voice plays, music from other apps is lowered automatically by iOS and then returns to normal. The iPhone master volume is not changed, and the amount of lowering is decided by iOS (it cannot be set as a percentage). The voice comes out of the active audio output (speaker, headset, or the motorcycle Bluetooth).	Contoh: "Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).
+Example: "In 100 meters, turn right onto Main Street". While the voice plays, music from other apps is lowered automatically by iOS and then returns to normal. The iPhone master volume is not changed, and the amount of lowering is decided by iOS (it cannot be set as a percentage). The voice comes out of the active audio output (speaker, headset, or the motorcycle Bluetooth).	Example: "In 100 meters, turn right onto Main Street". While the voice plays, music from other apps is lowered automatically by iOS and then returns to normal. The iPhone master volume is not changed, and the amount of lowering is decided by iOS (it cannot be set as a percentage). The voice comes out of the active audio output (speaker, headset, or the motorcycle Bluetooth).	Contoh: "Dalam 100 meter, belok kanan ke Jalan Utama". Saat suara berbunyi, musik dari app lain dikecilkan otomatis oleh iOS lalu kembali normal. Volume utama iPhone tidak diubah, dan besar pengecilannya diatur iOS (tidak bisa diatur persen). Suara keluar lewat output audio yang aktif (speaker, headset, atau Bluetooth motor).
 Experiment: extra ID subscriptions	Experiment: extra ID subscriptions	Eksperimen: langganan ID tambahan
 Experiments and log	Experiments and log	Eksperimen dan log
 Extra IDs subscribed to and received from the CCU.	Extra IDs subscribed to and received from the CCU.	ID tambahan yang dilanggan dan masuk dari CCU.
@@ -292,6 +307,8 @@ Fuel left is calculated from the average consumption reported by the motorcycle 
 Fuel left now (L)	Fuel left now (L)	Sisa bensin sekarang (L)
 Fuel range	Fuel range	Jarak tempuh BBM
 Fuel range (km)	Fuel range (km)	Jarak tempuh BBM (km)
+Fuel range amber below {0} km	Fuel range amber below {0} km	Jarak BBM kuning di bawah {0} km
+Fuel range red below {0} km	Fuel range red below {0} km	Jarak BBM merah di bawah {0} km
 Gas station	Gas station	SPBU
 Gas station, 	Gas station, 	SPBU, 
 Gear oil	Gear oil	Oli gardan
@@ -300,7 +317,6 @@ Get started	Get started	Mulai
 Google Maps (browser)	Google Maps (browser)	Google Maps (peramban)
 Google Maps (place ID)	Google Maps (place ID)	Google Maps (ID tempat)
 Green	Green	Hijau
-Greeting (e.g. Hello)	Greeting (e.g. Hello)	Sapaan (mis. Halo)
 Greeting on the dash	Greeting on the dash	Sapaan di dash
 Heading	Heading	Arah
 Heading (GPS compass)	Heading (GPS compass)	Arah (kompas GPS)
@@ -312,9 +328,10 @@ History ›	History ›	Riwayat ›
 Home	Home	Home
 Home is not set	Home is not set	Rumah belum diatur
 iAP session opened, waiting for ESN from the dash…	iAP session opened, waiting for ESN from the dash…	Sesi iAP dibuka, menunggu ESN dari dash…
+If a permission was denied, iOS only lets you change it in the iOS Settings app. "Allow Always" for Location is what lets the app connect when the phone is locked.	If a permission was denied, iOS only lets you change it in the iOS Settings app. "Allow Always" for Location is what lets the app connect when the phone is locked.	Jika izin ditolak, iOS hanya mengizinkan mengubahnya di app Pengaturan iOS. Lokasi "Selalu" yang membuat app bisa tersambung saat ponsel terkunci.
 Ignition	Ignition	Kunci kontak
 Ignition: 	Ignition: 	Kunci kontak: 
-In 100 meters, turn right onto Jalan Lingkar Luar Jakarta	In 100 meters, turn right onto Jalan Lingkar Luar Jakarta	Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta
+In 100 meters, turn right onto {0}	In 100 meters, turn right onto {0}	Dalam 100 meter, belok kanan ke {0}
 In {0}, 	In {0}, 	Dalam {0}, 
 inactive	inactive	tidak aktif
 Install update	Install update	Pasang update
@@ -337,26 +354,33 @@ language changed	language changed	bahasa aplikasi berubah
 Language code: from app language	Language code: from app language	Kode bahasa: ikut bahasa aplikasi
 Language code: {0}	Language code: {0}	Kode bahasa: {0}
 Large card	Large card	Kartu besar
-Last replaced at {0} km	Last replaced at {0} km	Diganti terakhir di {0} km
+Last replaced at (km)	Last replaced at (km)	Diganti terakhir pada (km)
+Last replaced on	Last replaced on	Terakhir diganti pada
+Last replaced {0}	Last replaced {0}	Terakhir diganti {0}
 Latest	Latest	Terbaru
 Layout	Layout	Tata letak
 leave the ferry	leave the ferry	turun dari feri
 Left corner	Left corner	Pojok kiri
 left the parking spot	left the parking spot	keluar dari titik parkir
-License plate	License plate	Plat nomor
 Light	Light	Terang
 Lighter frames reach the dash faster, so the map and numbers do not lag behind, but the picture is slightly coarser. "Keep phone data alive" plays silent audio (it does not interrupt music) so volume and other phone data keep updating while the app is in the background or the screen is locked.	Lighter frames reach the dash faster, so the map and numbers do not lag behind, but the picture is slightly coarser. "Keep phone data alive" plays silent audio (it does not interrupt music) so volume and other phone data keep updating while the app is in the background or the screen is locked.	Frame lebih ringan sampai lebih cepat ke dash, jadi peta dan angka tidak terasa tertinggal, tetapi gambarnya sedikit lebih kasar. "Jaga data HP" memutar audio senyap (tidak mengganggu musik) supaya volume dan data HP lain tetap berubah saat app di latar belakang atau layar terkunci.
 Link not recognized	Link not recognized	Tautan tidak dikenali
 Liters added	Liters added	Liter yang diisi
 Loading sample route…	Loading sample route…	Memuat contoh rute…
+Location	Location	Lokasi
 Location from Google Maps	Location from Google Maps	Lokasi dari Google Maps
 Location not available yet. Make sure location permission is on, or search a place.	Location not available yet. Make sure location permission is on, or search a place.	Lokasi belum tersedia. Pastikan izin lokasi aktif, atau cari tempat.
+Location, Bluetooth, music, notifications	Location, Bluetooth, music, notifications	Lokasi, Bluetooth, musik, notifikasi
 Log	Log	Log
 Lower the music volume while speaking	Lower the music volume while speaking	Kecilkan volume musik saat berbunyi
 Main roads	Main roads	Jalan utama
+Main Street	Main Street	Jalan Utama
 Main thread stalled %.1f s	Main thread stalled %.1f s	Thread utama tertahan %.1f dtk
 Maintenance	Maintenance	Perawatan
 Maintenance (km)	Maintenance (km)	Perawatan (km)
+Maintenance due	Maintenance due	Perawatan jatuh tempo
+Maintenance reminders	Maintenance reminders	Pengingat perawatan
+Maintenance reminders.	Maintenance reminders.	Pengingat perawatan.
 make a U-turn	make a U-turn	putar balik
 Map	Map	Peta
 Map is always on and always first. Tap Edit at the top right, then drag to reorder the other screens; this order is used by the handlebar buttons. The Photos screen can only be turned on once there are photos. The preview jumps to the screen you turn on or drag.	Map is always on and always first. Tap Edit at the top right, then drag to reorder the other screens; this order is used by the handlebar buttons. The Photos screen can only be turned on once there are photos. The preview jumps to the screen you turn on or drag.	Peta selalu aktif dan selalu di urutan pertama. Ketuk Edit di kanan atas lalu geser untuk mengurutkan layar lain; urutan ini dipakai tombol stang. Layar Foto hanya bisa diaktifkan bila sudah ada foto. Pratinjau pindah ke layar yang Anda aktifkan atau geser.
@@ -406,6 +430,8 @@ Name	Name	Nama
 Navigate	Navigate	Navigasi
 Navigation active	Navigation active	Navigasi aktif
 Navigation started	Navigation started	Navigasi dimulai
+Nearest street	Nearest street	Jalan terdekat
+Needed for the map, navigation and auto-connect. Choose "Always" so the app can connect when the motorcycle is switched on, even with the phone locked.	Needed for the map, navigation and auto-connect. Choose "Always" so the app can connect when the motorcycle is switched on, even with the phone locked.	Dibutuhkan untuk peta, navigasi, dan sambung otomatis. Pilih "Selalu" agar app bisa tersambung saat motor dinyalakan, bahkan saat ponsel terkunci.
 Network	Network	Jaringan
 Next	Next	Lanjut
 next track	next track	lagu berikutnya
@@ -428,28 +454,34 @@ No music	No music	Tidak ada musik
 No network, or the map server cannot be reached.	No network, or the map server cannot be reached.	Tidak ada jaringan, atau server peta tidak bisa dihubungi.
 No photos yet	No photos yet	Belum ada foto
 No photos yet, so it cannot be turned on. Add photos in the Photos section below.	No photos yet, so it cannot be turned on. Add photos in the Photos section below.	Belum ada foto, jadi belum bisa diaktifkan. Tambahkan foto di bagian Foto di bawah.
+No release notes for this version.	No release notes for this version.	Tidak ada catatan rilis untuk versi ini.
 No replacement records yet.	No replacement records yet.	Belum ada catatan penggantian.
 none	none	tidak ada
 None yet	None yet	Belum ada
 Not active yet	Not active yet	Belum aktif
+Not asked yet	Not asked yet	Belum diminta
 Not connected	Not connected	Tidak terhubung
 Not connected yet	Not connected yet	Belum terhubung
 Not set · tap to choose	Not set · tap to choose	Belum diatur · ketuk untuk memilih
+Notifications	Notifications	Notifikasi
+Notify me about maintenance	Notify me about maintenance	Beritahu saya soal perawatan
 ODO (km)	ODO (km)	ODO (km)
-ODO is calculated from GPS while riding and you can correct it. Battery, temperature, and ignition fill in automatically once the CCU link is up.	ODO is calculated from GPS while riding and you can correct it. Battery, temperature, and ignition fill in automatically once the CCU link is up.	ODO dihitung dari GPS selama perjalanan dan bisa Anda koreksi. Aki, suhu, dan kunci kontak terisi otomatis setelah link CCU selesai.
+ODO is read from the motorcycle CCU and cannot be edited. Battery, temperature, and ignition fill in automatically once the CCU link is up.	ODO is read from the motorcycle CCU and cannot be edited. Battery, temperature, and ignition fill in automatically once the CCU link is up.	ODO dibaca dari CCU motor dan tidak bisa diubah. Aki, suhu, dan kunci kontak terisi otomatis setelah koneksi CCU aktif.
+ODO when replaced (km)	ODO when replaced (km)	ODO saat diganti (km)
 ODO: 	ODO: 	ODO: 
 off	off	mati
 Off	Off	Mati
 Office	Office	Kantor
 Office is not set	Office is not set	Kantor belum diatur
 Offline maps	Offline maps	Peta offline
-Offline maps · day/night · route · bike marker	Offline maps · day/night · route · bike marker	Peta offline · siang/malam · rute · titik motor
+Offline maps · routes · voice · day/night · bike marker	Offline maps · routes · voice · day/night · bike marker	Peta offline · rute · suara · siang/malam · penanda motor
 On	On	Nyala
 on	on	nyala
 Only songs from the Music app (Apple Music) can be read. Spotify and other apps do not share their track info on iOS.	Only songs from the Music app (Apple Music) can be read. Spotify and other apps do not share their track info on iOS.	Hanya lagu dari app Musik (Apple Music) yang bisa dibaca. Spotify dan app lain tidak membagikan info lagunya di iOS.
 onto	onto	ke
 Open download page	Open download page	Buka halaman unduhan
 Open Google Maps	Open Google Maps	Buka Google Maps
+Open Settings	Open Settings	Buka Pengaturan
 Open this link / coordinates	Open this link / coordinates	Buka tautan / koordinat ini
 Opens the com.yconnect.data session and logs all incoming bytes, to learn how to read the odometer and motorcycle data on the iPhone.	Opens the com.yconnect.data session and logs all incoming bytes, to learn how to read the odometer and motorcycle data on the iPhone.	Membuka sesi com.yconnect.data dan mencatat semua byte yang masuk ke log, untuk mempelajari cara membaca odometer dan data motor di iPhone.
 Other data IDs	Other data IDs	ID data lain
@@ -460,8 +492,10 @@ Partly cloudy	Partly cloudy	Cerah berawan
 Paste link	Paste link	Tempel tautan
 Pause  ❚❚	Pause  ❚❚	Jeda  ❚❚
 paused	paused	jeda
+Permissions	Permissions	Perizinan
 PHONE BATT	PHONE BATT	BATERAI HP
 Phone battery	Phone battery	Baterai HP
+Phone battery red at {0}% or less	Phone battery red at {0}% or less	Baterai HP merah di {0}% atau kurang
 Phone volume	Phone volume	Volume HP
 Photos	Photos	Foto
 Picker: {0}	Picker: {0}	Picker: {0}
@@ -498,11 +532,13 @@ Reading now: {0}	Reading now: {0}	Terbaca sekarang: {0}
 Recalculating route	Recalculating route	Menghitung ulang rute
 Recalculating route…	Recalculating route…	Menghitung ulang rute…
 Recent	Recent	Terakhir
+Remind {0} km before service	Remind {0} km before service	Ingatkan {0} km sebelum servis
 Remove from favorites	Remove from favorites	Hapus dari favorit
 Rename	Rename	Ganti nama
 Rename favorite	Rename favorite	Ganti nama favorit
 Render stuck > 4 s, restarted	Render stuck > 4 s, restarted	Render macet > 4 dtk, diulang
 Replaced	Replaced	Diganti
+Replaced on	Replaced on	Diganti pada
 Repo/Release not found (the app cannot read private repos)	Repo/Release not found (the app cannot read private repos)	Repo/Release tidak ditemukan (repo private tidak bisa dibaca app)
 requested by CCU	requested by CCU	diminta CCU
 Reset font size	Reset font size	Atur ulang ukuran huruf
@@ -536,7 +572,6 @@ Save as	Save as	Simpan sebagai
 Save backup to a file	Save backup to a file	Simpan cadangan ke file
 Save the areas you pass most often so the dash still shows the map without a network.	Save the areas you pass most often so the dash still shows the map without a network.	Simpan area yang paling sering Anda lewati agar dasbor tetap menampilkan peta meskipun tanpa jaringan.
 Save this area	Save this area	Simpan area ini
-Save/restore all settings to a file	Save/restore all settings to a file	Simpan/pulihkan semua pengaturan ke file
 Saved maps	Saved maps	Peta tersimpan
 Saved places	Saved places	Tempat tersimpan
 Screens selectable with the handlebar buttons	Screens selectable with the handlebar buttons	Layar yang bisa dipilih dengan tombol stang
@@ -561,7 +596,8 @@ Shift photo (up ↔ down)	Shift photo (up ↔ down)	Geser foto (atas ↔ bawah)
 Shift up ↔ down	Shift up ↔ down	Geser atas ↔ bawah
 Shortest route (distance), not the fastest	Shortest route (distance), not the fastest	Rute terpendek (jarak), bukan tercepat
 Show Data Cards	Show Data Cards	Tampilkan Kartu Data
-Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in two quick steps.	Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in two quick steps.	Tampilkan peta, data motor, dan musik di dash Yamaha Anda. Mari atur aplikasi dalam dua langkah singkat.
+Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in a few quick steps.	Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in a few quick steps.	Tampilkan peta, data motor, dan musik di dash Yamaha Anda. Mari atur aplikasi dalam beberapa langkah singkat.
+Shows the playing song on the dash and lets the handlebar buttons control playback (Media & Apple Music).	Shows the playing song on the dash and lets the handlebar buttons control playback (Media & Apple Music).	Menampilkan lagu yang diputar di dash dan membiarkan tombol stang mengatur pemutaran (Media & Apple Music).
 Silent audio failed to play (phone data in the background may stall)	Silent audio failed to play (phone data in the background may stall)	Audio senyap gagal diputar (data HP di latar belakang bisa tertahan)
 Simulate	Simulate	Simulasi
 Simulation mode: artificial position along the route	Simulation mode: artificial position along the route	Mode simulasi: posisi buatan di sepanjang rute
@@ -611,11 +647,12 @@ Temp + battery	Temp + battery	Suhu + baterai
 Temp + phone battery	Temp + phone battery	Suhu + baterai HP
 Test in the preview	Test in the preview	Uji di pratinjau
 The app stays alive in the background (location 'Always') so it can connect when the motorcycle is switched on, even with the phone locked. Do not force-quit the app from the app switcher.	The app stays alive in the background (location 'Always') so it can connect when the motorcycle is switched on, even with the phone locked. Do not force-quit the app from the app switcher.	Aplikasi tetap hidup di latar belakang (lokasi 'Selalu') supaya bisa menyambung saat motor dinyalakan, bahkan saat ponsel terkunci. Jangan tutup paksa aplikasi dari daftar app.
-The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, plate, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size.	The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, plate, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size.	Cadangan berisi semua pengaturan app (tampilan, koneksi, layar dash, Kartu Data, peta, tombol, rute, update), tempat tersimpan (Rumah, Kantor, favorit; daftar Terakhir tidak ikut), data motor (nama, tipe, tahun, plat, foto, tangki), perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Foto slideshow dan peta offline tidak ikut karena ukurannya besar.
+The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size.	The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, year, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size.	Cadangan berisi semua pengaturan app (tampilan, koneksi, layar dash, Kartu Data, peta, tombol, rute, update), tempat tersimpan (Rumah, Kantor, favorit; daftar Terakhir tidak ikut), data motor (nama, tipe, tahun, foto, tangki), perawatan dan riwayatnya, catatan bensin, dan riwayat perjalanan. Foto slideshow dan peta offline tidak ikut karena ukurannya besar.
 The booster makes the guidance voice louder than full volume (+6 dB is roughly twice as loud, +12 dB four times). Start at +6 dB, then raise it if it is still too quiet. If it sounds distorted, lower it. Use Try voice to test.	The booster makes the guidance voice louder than full volume (+6 dB is roughly twice as loud, +12 dB four times). Start at +6 dB, then raise it if it is still too quiet. If it sounds distorted, lower it. Use Try voice to test.	Penguat menambah keras suara petunjuk melebihi volume penuh (+6 dB kira-kira dua kali lebih keras, +12 dB empat kali). Mulai dari +6 dB lalu naikkan bila masih kurang. Bila terdengar pecah, turunkan. Pakai Coba suara untuk menguji.
 The clipboard is empty. Copy a link from Google Maps first.	The clipboard is empty. Copy a link from Google Maps first.	Clipboard kosong. Salin tautan dari Google Maps dulu.
-The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd.	The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd.	Dash menanyakan bahasa ke app lewat CCU. Kode yang dikirim mengikuti bahasa yang dipilih di Pengaturan > Tampilan (lihat baris @dashLang di Translations.tsv); isi kode di sini untuk menimpanya, atau -1 untuk mengikuti bahasa aplikasi. Kode yang dikenal: 0 = Inggris, 15 = Vietnam. Coba satu kode, matikan lalu nyalakan kontak, dan lihat jam dan teks bawaan dash. Kode yang ditolak CCU tercatat di Log sebagai CCU: error. Kembalikan ke -1 bila tampilan dash menjadi aneh.
+The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 11 = Indonesian, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd.	The dash asks the app for its language through the CCU. The code sent follows the language chosen in Settings > Appearance (see Translations.tsv, row @dashLang); enter a code here to override it, or -1 to follow the app language. Known codes: 0 = English, 11 = Indonesian, 15 = Vietnamese. Try a code, switch the ignition off and on, and watch the dash clock and default texts. Codes rejected by the CCU are logged as CCU: error. Return to -1 if the dash looks odd.	Dash menanyakan bahasa ke app lewat CCU. Kode yang dikirim mengikuti bahasa yang dipilih di Pengaturan > Tampilan (lihat baris @dashLang di Translations.tsv); isi kode di sini untuk menimpanya, atau -1 untuk mengikuti bahasa aplikasi. Kode yang dikenal: 0 = Inggris, 11 = Indonesia, 15 = Vietnam. Coba satu kode, matikan lalu nyalakan kontak, dan lihat jam dan teks bawaan dash. Kode yang ditolak CCU tercatat di Log sebagai CCU: error. Kembalikan ke -1 bila tampilan dash menjadi aneh.
 The dash is not connected yet. Turn on the motorcycle, then pair using the Pair dash button.	The dash is not connected yet. Turn on the motorcycle, then pair using the Pair dash button.	Dash belum tersambung. Nyalakan motor, lalu pasangkan lewat tombol Pasangkan dash.
+The date defaults to today and the ODO to the current reading from the CCU.	The date defaults to today and the ODO to the current reading from the CCU.	Tanggal bawaan hari ini dan ODO bawaan pembacaan CCU sekarang.
 The language applies to the whole app: menus, voice guidance, navigation texts, and the texts drawn on or sent to the dash.	The language applies to the whole app: menus, voice guidance, navigation texts, and the texts drawn on or sent to the dash.	Bahasa berlaku untuk seluruh aplikasi: menu, suara petunjuk arah, teks navigasi, dan teks yang digambar atau dikirim ke dash.
 The latest release has no .ipa file	The latest release has no .ipa file	Release terbaru tidak berisi file .ipa
 The longest time between two presses to count as one quick-click sequence (2x/3x). Raise it if pressing that fast is hard, lower it if some normal presses are read as quick clicks. On the Music screen, a track only changes after a pause of this length, because a 3rd click means switch screen. Every press is logged with its time difference.	The longest time between two presses to count as one quick-click sequence (2x/3x). Raise it if pressing that fast is hard, lower it if some normal presses are read as quick clicks. On the Music screen, a track only changes after a pause of this length, because a 3rd click means switch screen. Every press is logged with its time difference.	Jarak waktu terlama antar dua tekan agar dihitung satu rangkaian klik cepat (2x/3x). Naikkan bila sulit menekan secepat itu, turunkan bila beberapa tekan biasa terbaca sebagai klik cepat. Di layar Musik, lagu baru berganti setelah jeda sebesar angka ini, karena klik ke-3 berarti ganti tampilan. Tiap tekan dicatat di Log beserta selisih waktunya.
@@ -693,14 +730,20 @@ Wake: location permission is not "Always", geofence not installed (iOS Settings 
 Wake: released (dash connected)	Wake: released (dash connected)	Wake: dilepas (dash tersambung)
 Wake: waiting for the motorcycle CCU to come in range (pending BLE connection)	Wake: waiting for the motorcycle CCU to come in range (pending BLE connection)	Wake: menunggu CCU motor terjangkau (sambungan BLE tertunda)
 Wake: {0} (app {1})	Wake: {0} (app {1})	Wake: {0} (app {1})
+Warning colors	Warning colors	Warna peringatan
 Weather	Weather	Cuaca
 Weather + greeting	Weather + greeting	Cuaca + sapaan
 Weather, fuel, and motorcycle data cards on the right side of the Map screen. Their contents and layout are set in Settings > Data Cards.	Weather, fuel, and motorcycle data cards on the right side of the Map screen. Their contents and layout are set in Settings > Data Cards.	Kartu cuaca, bensin, dan data motor di sisi kanan layar Peta. Isi dan tata letaknya diatur di Pengaturan > Kartu Data.
 Welcome to XConnect	Welcome to XConnect	Selamat datang di XConnect
+What's new	What's new	Yang baru
+What's new in this version	What's new in this version	Yang baru di versi ini
+What's new in {0}	What's new in {0}	Yang baru di {0}
 When the motorcycle is switched on	When the motorcycle is switched on	Saat motor dinyalakan
+While using the app only	While using the app only	Hanya saat app dipakai
 With the motorcycle on and connected, type the average fuel figure shown on the dash (km/L), then Search. If there are several candidates, repeat once the dash figure has changed: the correct byte changes too. If nothing matches, the average fuel figure may be in another data packet (see Raw CCU data in Settings > Connection).	With the motorcycle on and connected, type the average fuel figure shown on the dash (km/L), then Search. If there are several candidates, repeat once the dash figure has changed: the correct byte changes too. If nothing matches, the average fuel figure may be in another data packet (see Raw CCU data in Settings > Connection).	Saat motor menyala dan terhubung, ketik rata-rata BBM yang tampil di dash (km/L), lalu Cari. Bila ada beberapa kandidat, ulangi saat angka di dash sudah berubah: byte yang benar ikut berubah. Bila tidak ada yang cocok, rata-rata BBM mungkin ada di paket data lain (lihat Data mentah CCU di Pengaturan > Koneksi).
-XConnect {0} · app updates	XConnect {0} · app updates	XConnect {0} · update aplikasi
-XConnect-settings	XConnect-settings	XConnect-pengaturan
+XConnect needs these to work with your motorcycle. You can review them later in Settings > Permissions.	XConnect needs these to work with your motorcycle. You can review them later in Settings > Permissions.	XConnect membutuhkan ini untuk bekerja dengan motor Anda. Bisa ditinjau lagi nanti di Pengaturan > Perizinan.
+XConnect {0} · tap to open Settings > About	XConnect {0} · tap to open Settings > About	XConnect {0} · ketuk untuk membuka Pengaturan > Tentang
+XConnect {0} · what's new · backup · log	XConnect {0} · what's new · backup · log	XConnect {0} · yang baru · cadangan · log
 Year (e.g. 2023)	Year (e.g. 2023)	Tahun (mis. 2023)
 yes	yes	ya
 You are up to date ({0})	You are up to date ({0})	Sudah versi terbaru ({0})
@@ -732,7 +775,7 @@ Zoom: the bigger the number, the closer the view. When auto zoom is on, zoom fol
 {0} minutes ago	{0} minutes ago	{0} menit yang lalu
 {0} minutes riding	{0} minutes riding	{0} menit berkendara
 {0} of {1} screens	{0} of {1} screens	{0} dari {1} tampilan
-{0} offline areas · day/night · route · bike marker	{0} offline areas · day/night · route · bike marker	{0} area offline · siang/malam · rute · titik motor
+{0} offline areas · routes · voice · day/night · bike marker	{0} offline areas · routes · voice · day/night · bike marker	{0} area offline · rute · suara · siang/malam · penanda motor
 {0} press #{1} ignored{2}	{0} press #{1} ignored{2}	{0} tekan ke-{1} diabaikan{2}
 {0} screens	{0} screens	{0} layar
 {0} tiles not downloaded yet	{0} tiles not downloaded yet	{0} tile belum terunduh
@@ -740,7 +783,9 @@ Zoom: the bigger the number, the closer the view. When auto zoom is on, zoom fol
 {0} · tank · fuel consumption	{0} · tank · fuel consumption	{0} · tangki · konsumsi bensin
 {0} · {1} addresses	{0} · {1} addresses	{0} · {1} alamat
 {0} · {1} of {2}	{0} · {1} of {2}	{0} · {1} dari {2}
+{0}: overdue {1} km	{0}: overdue {1} km	{0}: terlambat {1} km
 {0}: raw {1}, ÷{2}, {3} → {4} km/L	{0}: raw {1}, ÷{2}, {3} → {4} km/L	{0}: mentah {1}, ÷{2}, {3} → {4} km/L
+{0}: {1} km left	{0}: {1} km left	{0}: sisa {1} km
 ← AUTH_ACK: authenticated	← AUTH_ACK: authenticated	← AUTH_ACK: terautentikasi
 ← AUTH_ACK: REJECTED	← AUTH_ACK: REJECTED	← AUTH_ACK: DITOLAK
 ← destination chosen from the dash: {0}	← destination chosen from the dash: {0}	← pilih tujuan dari dash: {0}

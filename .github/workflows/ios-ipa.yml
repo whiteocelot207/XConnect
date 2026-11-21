@@ -132,15 +132,22 @@ jobs:
           EOF
           cat source.json
 
+      # Release notes = the section of CHANGELOG.md for this version (newest section if there is none)
+      - name: Release notes
+        run: |
+          V="${{ steps.ver.outputs.version }}"
+          awk -v v="$V" '/^## /{ if (found) exit; t=$2; sub(/^v/,"",t); if (t==v) { found=1; next } } found' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then awk '/^## /{ n++; next } n==1' CHANGELOG.md > notes.md; fi
+          { echo "XConnect $V"; echo; cat notes.md; } > release-notes.md
+          cat release-notes.md
+
       # This Release is what the app reads to check for updates (tag: v<version>)
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
           name: XConnect ${{ steps.ver.outputs.version }}
-          body: |
-            XConnect ${{ steps.ver.outputs.version }}
-            ${{ github.event.head_commit.message }}
+          body_path: release-notes.md
           files: |
             XConnect.ipa
             source.json

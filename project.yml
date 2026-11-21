@@ -18,6 +18,10 @@ targets:
           - Resources/Translations.tsv
       - path: Sources/Resources/Translations.tsv
         buildPhase: resources
+      - path: CHANGELOG.md
+        buildPhase: resources
+      - path: CHANGELOG.id.md
+        buildPhase: resources
     dependencies:
       - package: MapLibre
     settings:

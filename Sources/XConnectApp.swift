@@ -39,14 +39,22 @@ struct RootView: View {
             .environmentObject(app.music)
             .environmentObject(app.slides)
             .environmentObject(app.updater)
+            .environmentObject(app.permissions)
             .environmentObject(app.bike.vehicleLive)
             .preferredColorScheme(scheme)
             .accentColor(AppTheme.theme(settings.colorTheme).color)
             .tint(AppTheme.theme(settings.colorTheme).color)
+            .overlay(alignment: .top) {
+                VStack(spacing: 0) {
+                    UpdateBanner(tab: $tab)
+                    MaintenanceBanner(tab: $tab)
+                }
+            }
             .fullScreenCover(isPresented: Binding(get: { !settings.setupDone }, set: { _ in })) {
                 OnboardingView()
                     .environmentObject(app.settings)
                     .environmentObject(app.vehicle)
+                    .environmentObject(app.permissions)
                     .preferredColorScheme(scheme)
                     .accentColor(AppTheme.theme(settings.colorTheme).color)
                     .interactiveDismissDisabled(true)
