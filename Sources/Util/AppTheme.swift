@@ -20,7 +20,7 @@ struct AppTheme: Identifiable {
 
     /// Gradasi penuh (untuk contoh warna dan kotak besar).
     var gradient: LinearGradient {
-        LinearGradient(colors: [color, color2], startPoint: .topLeading, endPoint: .bottomRight)
+        LinearGradient(colors: [color, color2], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     /// Gradasi lembut untuk latar kartu di aplikasi (tetap terbaca di mode terang maupun gelap).
