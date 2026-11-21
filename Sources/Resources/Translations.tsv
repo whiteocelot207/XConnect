@@ -839,3 +839,7 @@ One time: only a due date, for example the driver's license validity. The remind
 Remind before service (km)	Remind before service (km)	Ingatkan sebelum servis (km)
 The gas station server is busy or there is no connection. Try again in a moment.	The gas station server is busy or there is no connection. Try again in a moment.	Server SPBU sedang sibuk atau tidak ada koneksi. Coba lagi sebentar.
 No gas station found within 15 km	No gas station found within 15 km	Tidak ada SPBU dalam radius 15 km
+Light rain	Light rain	Hujan ringan
+Rain showers	Rain showers	Hujan lokal
+Snow	Snow	Salju
+Freezing rain	Freezing rain	Hujan beku

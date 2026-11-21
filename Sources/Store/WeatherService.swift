@@ -3,7 +3,14 @@ import CoreLocation
 
 final class WeatherService: ObservableObject {
     @Published var tempC: Int?
-    @Published var text = ""
+    /// kode cuaca WMO dari Open-Meteo (-1 = belum ada)
+    @Published var code = -1
+
+    /// Teks cuaca, diterjemahkan SAAT dibutuhkan (jadi mengikuti bahasa yang dipilih sekarang, bukan bahasa saat data diambil).
+    var text: String { code < 0 ? "" : WeatherService.describe(code) }
+
+    /// Nama simbol SF Symbols untuk ikon cuaca (malam hari: bulan untuk cerah/berawan sebagian).
+    func symbol(night: Bool) -> String { WeatherService.symbol(code, night: night) }
 
     private var lastFetch = Date.distantPast
 
@@ -20,7 +27,7 @@ final class WeatherService: ObservableObject {
             let code = (cur["weather_code"] as? Int) ?? -1
             DispatchQueue.main.async {
                 self?.tempC = Int(temp.rounded())
-                self?.text = WeatherService.describe(code)
+                self?.code = code
             }
         }
     }
@@ -31,11 +38,31 @@ final class WeatherService: ObservableObject {
         case 1, 2: return tr("Partly cloudy")
         case 3: return tr("Cloudy")
         case 45, 48: return tr("Foggy")
-        case 51...57: return tr("Drizzle")
-        case 61...67: return tr("Rain")
-        case 80...82: return tr("Heavy rain")
+        case 51...55: return tr("Drizzle")
+        case 56, 57, 66, 67: return tr("Freezing rain")
+        case 61: return tr("Light rain")
+        case 63: return tr("Rain")
+        case 65, 82: return tr("Heavy rain")
+        case 71...77, 85, 86: return tr("Snow")
+        case 80, 81: return tr("Rain showers")
         case 95...99: return tr("Thunderstorm")
         default: return tr("Weather")
+        }
+    }
+
+    static func symbol(_ code: Int, night: Bool) -> String {
+        switch code {
+        case 0: return night ? "moon.stars.fill" : "sun.max.fill"
+        case 1, 2: return night ? "cloud.moon.fill" : "cloud.sun.fill"
+        case 3: return "cloud.fill"
+        case 45, 48: return "cloud.fog.fill"
+        case 51...55: return "cloud.drizzle.fill"
+        case 56, 57, 66, 67: return "cloud.sleet.fill"
+        case 61, 63, 80, 81: return "cloud.rain.fill"
+        case 65, 82: return "cloud.heavyrain.fill"
+        case 71...77, 85, 86: return "cloud.snow.fill"
+        case 95...99: return "cloud.bolt.rain.fill"
+        default: return "cloud.fill"
         }
     }
 }

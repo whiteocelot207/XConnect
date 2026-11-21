@@ -7,6 +7,8 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 ## 0.1.3
 
 ### Diperbaiki
+- Cuaca di dash: keterangan kini mengikuti bahasa app walau datanya diambil lebih dulu (sebelumnya tampil "Heavy rain" bahasa Inggris), dan kode cuaca dipetakan lebih akurat (hujan ringan, hujan, hujan lebat, hujan lokal, salju).
+- Cuaca di dash: ikon cuaca (cerah, berawan, hujan, petir, kabut, salju; bulan di malam hari) tampil di samping suhu.
 - SPBU: pesan error kini tampil tepat di bawah tombol "Cari SPBU terdekat".
 - Navigasi: hasil pencarian tempat dan SPBU diurutkan dari yang terdekat.
 - Tombol stang (Rumah, Kantor, favorit) kini memilih rute tercepat dari rute yang tersedia.

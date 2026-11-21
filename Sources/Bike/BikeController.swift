@@ -662,6 +662,7 @@ final class BikeController: NSObject, ObservableObject {
         }
         c.tempC = m.weather.tempC
         c.weatherText = m.weather.text
+        c.weatherSymbol = m.weather.code < 0 ? "" : m.weather.symbol(night: c.night)
         c.nav = m.nav.hud
         if c.nav == nil, demoNav {
             refreshDemoStreet()

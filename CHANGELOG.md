@@ -7,6 +7,8 @@ newer than it is shown. The same section is used as the GitHub release notes.
 ## 0.1.3
 
 ### Fixed
+- Dash weather: the description now follows the app language even when it was fetched earlier (it showed English "Heavy rain"), and the weather codes are mapped more accurately (light rain, rain, heavy rain, showers, snow).
+- Dash weather: a weather icon (sun, clouds, rain, thunderstorm, fog, snow; moon at night) is shown next to the temperature.
 - Gas stations: the error message now appears right under the "Find nearest gas station" button.
 - Navigate: search results and gas stations are sorted by distance, nearest first.
 - Handlebar buttons (Home, Office, favorites) now pick the fastest of the available routes.

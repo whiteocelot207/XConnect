@@ -45,6 +45,8 @@ struct DashContent {
     var odoKm: Double?
     var tempC: Int?
     var weatherText = ""
+    /// nama simbol SF Symbols ikon cuaca ("" = tanpa ikon)
+    var weatherSymbol = ""
     var greeting = ""
     var warn = WarnThresholds()
     var clock = ""
@@ -297,17 +299,31 @@ enum DashComposer {
             let ke = min(k, (r.height - 8) / natural)
             let w = r.width - 20
             var y = r.minY + 4
-            func line(_ str: String, _ base: CGFloat, bold: Bool, alpha: CGFloat) {
-                let size = fitSize(str, bold: bold, maxSize: base * ke, width: w, minSize: 7)
+            // ikon cuaca di kanan baris suhu + keterangan
+            let icon: UIImage? = c.weatherSymbol.isEmpty ? nil : UIImage(
+                systemName: c.weatherSymbol,
+                withConfiguration: UIImage.SymbolConfiguration.preferringMulticolor())?.withRenderingMode(.alwaysOriginal)
+            let iconSide = icon == nil ? CGFloat(0) : min(34 * ke, r.width * 0.3)
+            func line(_ str: String, _ base: CGFloat, bold: Bool, alpha: CGFloat, width: CGFloat? = nil) {
+                let lw = width ?? w
+                let size = fitSize(str, bold: bold, maxSize: base * ke, width: lw, minSize: 7)
                 let h = ceil(size * 1.2)
-                text(str, CGRect(x: r.minX + 10, y: y, width: w, height: h), size: size, bold: bold,
+                text(str, CGRect(x: r.minX + 10, y: y, width: lw, height: h), size: size, bold: bold,
                      color: UIColor(white: 1, alpha: alpha))
                 y += h + gap
             }
             line(c.greetingWord, sizes[0], bold: false, alpha: 0.85)
             line(c.greeting.isEmpty ? tr("Rider") : c.greeting, sizes[1], bold: true, alpha: 1)
-            line(c.tempC.map { "\($0)°" } ?? "--°", sizes[2], bold: true, alpha: 1)
-            line(c.weatherText.isEmpty ? tr("Weather") : c.weatherText, sizes[3], bold: false, alpha: 0.9)
+            let iconTop = y
+            let tw = w - (iconSide > 0 ? iconSide * 1.3 + 4 : 0)
+            line(c.tempC.map { "\($0)°" } ?? "--°", sizes[2], bold: true, alpha: 1, width: tw)
+            line(c.weatherText.isEmpty ? tr("Weather") : c.weatherText, sizes[3], bold: false, alpha: 0.9, width: tw)
+            if let img = icon, iconSide > 0 {
+                let aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
+                let ih = iconSide, iw = min(iconSide * 1.3, iconSide * aspect)
+                let bandH = y - iconTop
+                img.draw(in: CGRect(x: r.maxX - 10 - iw, y: iconTop + max(0, (bandH - ih) / 2), width: iw, height: ih))
+            }
         } else {
             let (label, value, unit, color) = f.resolve(c)
             let labelSize = fitSize(label, bold: false, maxSize: 12 * k, width: r.width - 20, minSize: 7)
