@@ -90,7 +90,7 @@ final class NavigationController: ObservableObject {
             DispatchQueue.main.async {
                 self?.searchResults = res
                 self?.searching = false
-                if res.isEmpty { self?.message = "Tempat tidak ditemukan" }
+                if res.isEmpty { self?.message = tr("Place not found") }
             }
         }
     }
@@ -103,7 +103,7 @@ final class NavigationController: ObservableObject {
             DispatchQueue.main.async {
                 self?.searchResults = res
                 self?.searching = false
-                self?.message = res.isEmpty ? "SPBU tidak ditemukan atau server sibuk" : ""
+                self?.message = res.isEmpty ? tr("No gas station found or the server is busy") : ""
             }
         }
     }
@@ -126,7 +126,7 @@ final class NavigationController: ObservableObject {
     func resolveLink(_ text: String) {
         guard !linkBusy else { return }
         linkBusy = true
-        message = "Membaca tautan…"
+        message = tr("Reading link…")
         let near = location.coordinate
         Task { [weak self] in
             do {
@@ -147,7 +147,7 @@ final class NavigationController: ObservableObject {
 
     func beginSlot(_ slot: Int) {
         pendingSlot = slot
-        message = slot == 1 ? "Cari tempat untuk Rumah" : "Cari tempat untuk Kantor"
+        message = slot == 1 ? tr("Search a place for Home") : tr("Search a place for Office")
     }
 
     /// Ringkasan untuk banner di dash.
@@ -163,7 +163,7 @@ final class NavigationController: ObservableObject {
     }
 
     func pin(_ c: CLLocationCoordinate2D) {
-        let p = Place(name: "Titik dipilih",
+        let p = Place(name: tr("Point selected"),
                       subtitle: String(format: "%.5f, %.5f", c.latitude, c.longitude),
                       lat: c.latitude, lon: c.longitude)
         select(p)
@@ -177,17 +177,17 @@ final class NavigationController: ObservableObject {
     }
 
     func goHome() {
-        if let h = places.home { navigate(to: h, autoStart: true) } else { message = "Rumah belum diatur" }
+        if let h = places.home { navigate(to: h, autoStart: true) } else { message = tr("Home is not set") }
     }
 
     func goWork() {
-        if let w = places.work { navigate(to: w, autoStart: true) } else { message = "Kantor belum diatur" }
+        if let w = places.work { navigate(to: w, autoStart: true) } else { message = tr("Office is not set") }
     }
 
     func requestRoute(initial: Bool) {
         guard let dest = destination else { return }
         guard location.hasFix else {
-            message = "Menunggu sinyal GPS…"
+            message = tr("Waiting for GPS signal…")
             return
         }
         let from = location.coordinate
@@ -196,8 +196,8 @@ final class NavigationController: ObservableObject {
         let costing = settings.costing
         let profile = settings.routeProfile
         busy = true
-        message = initial ? "Menghitung rute…" : "Menghitung ulang rute…"
-        if !initial && phase == .navigating { voice?.speak("Menghitung ulang rute") }
+        message = initial ? tr("Calculating route…") : tr("Recalculating route…")
+        if !initial && phase == .navigating { voice?.speak(tr("Recalculating route")) }
         let alts = (initial && phase != .navigating) ? 2 : 0
         Task { [weak self] in
             do {
@@ -262,7 +262,7 @@ final class NavigationController: ObservableObject {
         announcedKey = -1
         announcedTier = 0
         voice?.setNavigating(true)
-        voice?.speak("Navigasi dimulai")
+        voice?.speak(tr("Navigation started"))
         if let l = location.lastLocation { locationUpdated(l) }
     }
 
@@ -400,8 +400,8 @@ final class NavigationController: ObservableObject {
             } else {
                 stop()
             }
-            message = "Anda sudah tiba di tujuan"
-            voice?.speak("Anda telah tiba di tujuan")
+            message = tr("You have arrived at your destination")
+            voice?.speak(tr("You have arrived at your destination"))
             return
         }
 
@@ -417,7 +417,7 @@ final class NavigationController: ObservableObject {
         var nextRoad = ""
         var instr = ""
         var symbol = "arrow.up"
-        var title = "Lurus"
+        var title = tr("Straight")
         if let k = nextIdx {
             let m = r.maneuvers[k]
             icon = DashIcon.forValhalla(m.type)

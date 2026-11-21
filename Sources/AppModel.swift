@@ -38,13 +38,13 @@ final class AppModel: ObservableObject {
         let pl = PlaceStore()
         let n = NavigationController(location: loc, settings: s, places: pl)
         let b = BikeController(location: loc, settings: s, places: pl, nav: n)
-        let tr = TripStore()
+        let tripStore = TripStore()
         let mt = MaintenanceStore()
         loc.onUpdate = { [weak n, weak b] l in
             n?.locationUpdated(l)
             b?.locationUpdated(l)
         }
-        tr.onTripEnded = { [weak mt, weak b] t in
+        tripStore.onTripEnded = { [weak mt, weak b] t in
             if b?.vehicleLive.odoKm == nil { mt?.addKm(t.distanceKm) }   // bila CCU memberi ODO, jangan dihitung ganda
         }
         settings = s
@@ -53,7 +53,7 @@ final class AppModel: ObservableObject {
         maint = mt
         fuel = FuelStore()
         vehicle = VehicleStore()
-        trips = tr
+        trips = tripStore
         weather = WeatherService()
         music = MusicService()
         slides = SlideshowStore()
@@ -61,7 +61,7 @@ final class AppModel: ObservableObject {
         bike = b
         b.model = self
         if Vault.restoredCount > 0 {
-            b.log("Data dipulihkan dari cadangan otomatis (\(Vault.restoredCount) item): UserDefaults sempat tidak terbaca (ponsel terkunci sejak restart?)")
+            b.log(tr("Data restored from automatic backup ({0} items): UserDefaults was unreadable (phone locked since restart?)", Vault.restoredCount))
         }
         Vault.start()
         // konsumsi BBM dari CCU (bila diaktifkan di Pengaturan): dipakai FuelStore menghitung sisa bensin
@@ -88,9 +88,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         let model = AppModel.shared
-        let state = application.applicationState == .background ? "latar belakang" : "depan"
+        let state = application.applicationState == .background ? tr("background") : tr("foreground")
         let reason = (launchOptions ?? [:]).keys.map { $0.rawValue.replacingOccurrences(of: "UIApplicationLaunchOptions", with: "") }
-        model.bike.log("Peluncuran app (\(state)\(reason.isEmpty ? "" : ", pemicu: " + reason.joined(separator: ", ")))")
+        model.bike.log(tr("App launch ({0}{1})", state, reason.isEmpty ? "" : ", pemicu: " + reason.joined(separator: ", ")))
         return true
     }
 }

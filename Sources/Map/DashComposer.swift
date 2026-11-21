@@ -8,10 +8,10 @@ enum DashScreen: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .mapData: return "Peta"
-        case .dashboard: return "Speedometer"
-        case .music: return "Musik"
-        case .slideshow: return "Foto"
+        case .mapData: return tr("Map")
+        case .dashboard: return tr("Speedometer")
+        case .music: return tr("Music")
+        case .slideshow: return tr("Photos")
         }
     }
 }
@@ -70,7 +70,7 @@ struct DashContent {
     var infoPhotoL = 10
     var infoPhotoR = 8
     var photoShift: CGFloat = 0
-    var greetingWord = "Halo"
+    var greetingWord = tr("Hello")
     var cardBgAlpha: CGFloat = 0.78
     var markerX: CGFloat = 0
     var navDX: CGFloat = 0
@@ -296,9 +296,9 @@ enum DashComposer {
                 y += h + gap
             }
             line(c.greetingWord, sizes[0], bold: false, alpha: 0.85)
-            line(c.greeting.isEmpty ? "Pengendara" : c.greeting, sizes[1], bold: true, alpha: 1)
+            line(c.greeting.isEmpty ? tr("Rider") : c.greeting, sizes[1], bold: true, alpha: 1)
             line(c.tempC.map { "\($0)°" } ?? "--°", sizes[2], bold: true, alpha: 1)
-            line(c.weatherText.isEmpty ? "Cuaca" : c.weatherText, sizes[3], bold: false, alpha: 0.9)
+            line(c.weatherText.isEmpty ? tr("Weather") : c.weatherText, sizes[3], bold: false, alpha: 0.9)
         } else {
             let (label, value, unit, color) = f.resolve(c)
             let labelSize = fitSize(label, bold: false, maxSize: 12 * k, width: r.width - 20, minSize: 7)
@@ -328,7 +328,7 @@ enum DashComposer {
         b.lineWidth = 1
         b.stroke()
         let k = max(0.5, min(1.5, c.card.smallScale))
-        let (label, value, unit, color) = f == .weather ? ("Suhu", c.tempC.map { "\($0)" } ?? "--", "°C", UIColor.white) : f.resolve(c)
+        let (label, value, unit, color) = f == .weather ? (tr("Temp"), c.tempC.map { "\($0)" } ?? "--", "°C", UIColor.white) : f.resolve(c)
         let labelSize = fitSize(label, bold: false, maxSize: 9 * min(k, 1.3), width: r.width - 8, minSize: 6)
         let labelH = ceil(labelSize * 1.2)
         text(label, CGRect(x: r.minX + 4, y: r.minY + 4, width: r.width - 8, height: labelH), size: labelSize,
@@ -419,7 +419,7 @@ enum DashComposer {
             color.setFill()
             cg.fill(CGRect(x: barX + CGFloat(i) * (segW + gap), y: barY, width: segW, height: barH))
         }
-        text(c.speedFromBike ? "km/h · MOTOR" : "km/h · GPS",
+        text(c.speedFromBike ? tr("km/h · BIKE") : "km/h · GPS",
              CGRect(x: 200, y: barY + barH + 2, width: 138, height: 12), size: 8,
              color: UIColor(white: 0.7, alpha: 1), align: .right)
 
@@ -431,9 +431,9 @@ enum DashComposer {
         let cardY = vis.minY + 124
         let cardH: CGFloat = 48
         let items: [(String, String)] = [
-            ("BATERAI HP", c.phoneBattery >= 0 ? "\(c.phoneBattery)%" : "—"),
-            ("SISA BENSIN", c.fuelL.map { Fmt.liters($0) } ?? "—"),
-            ("AKI", c.batteryV.map { String(format: "%.1f V", $0) } ?? "—")
+            (tr("PHONE BATT"), c.phoneBattery >= 0 ? "\(c.phoneBattery)%" : "—"),
+            (tr("FUEL LEFT"), c.fuelL.map { Fmt.liters($0) } ?? "—"),
+            (tr("12V BATT"), c.batteryV.map { String(format: "%.1f V", $0) } ?? "—")
         ]
         for (i, it) in items.enumerated() {
             let r = CGRect(x: 8 + CGFloat(i) * 112, y: cardY, width: 106, height: cardH)
@@ -534,9 +534,9 @@ enum DashComposer {
             }
         }
         guard let m = c.music, !m.title.isEmpty else {
-            text("Tidak ada musik", CGRect(x: 0, y: vis.minY + 58, width: hud.size.width, height: 28), size: 21,
+            text(tr("No music"), CGRect(x: 0, y: vis.minY + 58, width: hud.size.width, height: 28), size: 21,
                  bold: true, align: .center)
-            text("Putar lagu lewat app Musik di iPhone", CGRect(x: 0, y: vis.minY + 92, width: hud.size.width, height: 18),
+            text(tr("Play a song in the Music app on the iPhone"), CGRect(x: 0, y: vis.minY + 92, width: hud.size.width, height: 18),
                  size: 12, color: UIColor(white: 0.7, alpha: 1), align: .center)
             return
         }
@@ -568,7 +568,7 @@ enum DashComposer {
              color: UIColor(white: 0.7, alpha: 1))
         text(mmss(m.duration), CGRect(x: x + w - 80, y: vis.minY + 124, width: 80, height: 14), size: 11,
              color: UIColor(white: 0.7, alpha: 1), align: .right)
-        text(m.playing ? "▶  Diputar" : "❚❚  Jeda", CGRect(x: x, y: vis.minY + 144, width: w, height: 16), size: 12,
+        text(m.playing ? tr("▶  Playing") : tr("❚❚  Paused"), CGRect(x: x, y: vis.minY + 144, width: w, height: 16), size: 12,
              bold: true, color: UIColor(white: 0.85, alpha: 1))
     }
 
@@ -584,9 +584,9 @@ enum DashComposer {
             drawFill(img, in: vis.offsetBy(dx: 0, dy: c.photoShift))
             cg.restoreGState()
         } else {
-            text("Belum ada foto", CGRect(x: 0, y: vis.minY + 62, width: hud.size.width, height: 26), size: 20, bold: true,
+            text(tr("No photos yet"), CGRect(x: 0, y: vis.minY + 62, width: hud.size.width, height: 26), size: 20, bold: true,
                  align: .center)
-            text("Tambahkan di Pengaturan > Foto slideshow", CGRect(x: 0, y: vis.minY + 94, width: hud.size.width, height: 16),
+            text(tr("Add them in Settings > Dash screens > Photos"), CGRect(x: 0, y: vis.minY + 94, width: hud.size.width, height: 16),
                  size: 12, color: UIColor(white: 0.7, alpha: 1), align: .center)
         }
         let left = slotText(c.infoPhotoL, c)

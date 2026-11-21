@@ -36,9 +36,9 @@ struct MotorView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     Picker("", selection: $tab) {
-                        Text("Ringkasan").tag(0)
-                        Text("Perawatan").tag(1)
-                        Text("Riwayat perjalanan").tag(2)
+                        Text(tr("Summary")).tag(0)
+                        Text(tr("Maintenance")).tag(1)
+                        Text(tr("Trip history")).tag(2)
                     }
                     .pickerStyle(.segmented)
 
@@ -48,7 +48,7 @@ struct MotorView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Motor")
+            .navigationTitle(tr("Bike"))
             .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $sheet) { s in sheetView(s) }
         }
@@ -66,13 +66,13 @@ struct MotorView: View {
                     if let img = vehicle.photo {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
-                        Image(systemName: "bicycle").font(.largeTitle).foregroundColor(.blue)
+                        Image(systemName: "bicycle").font(.largeTitle).foregroundColor(.accentColor)
                     }
                 }
                 .frame(width: 72, height: 72)
-                .background(Color.blue.opacity(0.12))
+                .background(Color.accentColor.opacity(0.12))
                 .clipShape(Circle())
-                .overlay(Circle().stroke(Color.blue, lineWidth: 2))
+                .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(vehicle.name).font(.title2).bold()
                     let sub = [vehicle.model, vehicle.year].filter { !$0.isEmpty }.joined(separator: " · ")
@@ -91,11 +91,11 @@ struct MotorView: View {
             .cornerRadius(14)
 
             HStack {
-                stat(Fmt.km(maint.odometerKm, decimals: 0), "ODO (km)")
+                stat(Fmt.km(maint.odometerKm, decimals: 0), tr("ODO (km)"))
                 Divider().frame(height: 36)
-                stat(fuel.levelL > 0 ? "\(rangeKm)" : "—", "Jarak tempuh BBM (km)")
+                stat(fuel.levelL > 0 ? "\(rangeKm)" : "—", tr("Fuel range (km)"))
                 Divider().frame(height: 36)
-                stat(maint.nearestRemainingKm.map { "\($0)" } ?? "—", "Perawatan (km)")
+                stat(maint.nearestRemainingKm.map { "\($0)" } ?? "—", tr("Maintenance (km)"))
             }
             .padding()
             .background(cardBG)
@@ -105,11 +105,11 @@ struct MotorView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 Button { sheet = .odometer } label: { infoTile("ODO", Fmt.km(maint.odometerKm) + " km", "road.lanes") }
-                infoTile("Aki", "— V", "bolt.fill")
-                infoTile("Cairan pendingin", "— °C", "thermometer")
-                infoTile("Kunci kontak", "—", "key.fill")
+                infoTile(tr("12V battery"), "— V", "bolt.fill")
+                infoTile(tr("Coolant"), "— °C", "thermometer")
+                infoTile(tr("Ignition"), "—", "key.fill")
             }
-            Text("ODO dihitung dari GPS selama perjalanan dan bisa Anda koreksi. Aki, suhu, dan kunci kontak terisi otomatis setelah link CCU selesai.")
+            Text(tr("ODO is calculated from GPS while riding and you can correct it. Battery, temperature, and ignition fill in automatically once the CCU link is up."))
                 .font(.footnote)
                 .foregroundColor(.secondary)
         }
@@ -130,7 +130,7 @@ struct MotorView: View {
     private func infoTile(_ title: String, _ value: String, _ icon: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: icon).foregroundColor(.blue)
+                Image(systemName: icon).foregroundColor(.accentColor)
                 Text(title).font(.caption).foregroundColor(.secondary)
             }
             Text(value).font(.title3).bold().foregroundColor(.primary)
@@ -147,34 +147,34 @@ struct MotorView: View {
         let kmplInfo = fuel.kmPerLSource(default: settings.defaultKmPerL)
         let kmpl = kmplInfo.value
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Sisa bahan bakar (perkiraan)").font(.headline)
+            Text(tr("Fuel left (estimate)")).font(.headline)
             HStack(alignment: .firstTextBaseline) {
                 Text(fuel.levelL > 0 ? "≈ \(rangeKm) km" : "— km").font(.largeTitle).bold()
                 Spacer()
-                Text(fuel.levelL > 0 ? "≈ \(Fmt.km(remaining)) / \(Fmt.km(vehicle.tankL)) L" : "Belum ada data")
+                Text(fuel.levelL > 0 ? "≈ \(Fmt.km(remaining)) / \(Fmt.km(vehicle.tankL)) L" : tr("No data yet"))
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }
             ProgressView(value: fuel.levelL > 0 ? frac : 0).tint(frac < 0.2 ? .red : .green)
-            Text("Konsumsi dihitung ≈ \(Fmt.km(kmpl)) km/L (\(kmplInfo.source)).\(kmplInfo.measured || kmplInfo.source != "nilai bawaan" ? " Sisa bensin berkurang menurut konsumsi saat itu tiap motor berjalan." : " Isi byte rata-rata BBM dari dash di Pengaturan > Motor dan BBM supaya konsumsi mengikuti cara berkendara Anda.")")
+            Text(tr("Consumption calculated ≈ {0} km/L ({1}).{2}", Fmt.km(kmpl), kmplInfo.source, kmplInfo.measured || kmplInfo.source != tr("default value") ? " " + tr("Fuel left decreases with the consumption at that moment each time the motorcycle runs.") : " " + tr("Enter the average fuel byte from the dash in Settings > Motorcycle and fuel so consumption follows your riding style.")))
                 .font(.footnote)
                 .foregroundColor(.secondary)
             if fuel.mayBeOff {
-                Text("Motor menempuh lebih dari satu tangki tanpa app terhubung, jadi angka ini mungkin salah. Saat isi penuh berikutnya, ketuk \"Baru diisi\" untuk memulai lagi.")
+                Text(tr("The motorcycle has covered more than one tank without the app connected, so this figure may be wrong. At your next full fill-up, tap \"Just filled\" to start again."))
                     .font(.footnote)
                     .foregroundColor(.orange)
             }
             HStack {
                 Button {
                     fuel.markFull(odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)
-                } label: { Label("Baru diisi", systemImage: "fuelpump.fill").frame(maxWidth: .infinity) }
+                } label: { Label(tr("Just filled"), systemImage: "fuelpump.fill").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
-                Button { sheet = .addLiters } label: { Label("Masukkan liter", systemImage: "drop.fill").frame(maxWidth: .infinity) }
+                Button { sheet = .addLiters } label: { Label(tr("Enter liters"), systemImage: "drop.fill").frame(maxWidth: .infinity) }
                     .buttonStyle(.bordered)
             }
-            Button { sheet = .setLevel } label: { Label("Atur sisa bensin manual", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity) }
+            Button { sheet = .setLevel } label: { Label(tr("Set fuel left manually"), systemImage: "slider.horizontal.3").frame(maxWidth: .infinity) }
                 .buttonStyle(.bordered)
-            Text("Ini hanya perkiraan: motor tidak melaporkan level tangki. Setiap kali tangki penuh, ketuk \"Baru diisi\". Pengisian sebagian membuat angka melenceng kecuali Anda memasukkan liternya.")
+            Text(tr("This is only an estimate: the motorcycle does not report the tank level. Every time the tank is full, tap \"Just filled\". Partial fill-ups throw the figure off unless you enter the liters."))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -191,7 +191,7 @@ struct MotorView: View {
             Button { sheet = .addMaint } label: {
                 VStack(spacing: 8) {
                     Image(systemName: "plus").font(.title)
-                    Text("Tambah item").bold()
+                    Text(tr("Add item")).bold()
                 }
                 .frame(maxWidth: .infinity, minHeight: 190)
                 .background(cardBG)
@@ -204,7 +204,7 @@ struct MotorView: View {
         let remaining = maint.remainingKm(item)
         let used = max(0, maint.odometerKm - item.lastServiceKm)
         let frac = min(1, used / Double(max(1, item.intervalKm)))
-        let color: Color = remaining < 0 ? .red : (remaining < 500 ? .orange : .blue)
+        let color: Color = remaining < 0 ? .red : (remaining < 500 ? .orange : .accentColor)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 ZStack {
@@ -217,14 +217,14 @@ struct MotorView: View {
                 .frame(width: 40, height: 40)
                 Text(item.name).font(.headline).lineLimit(2)
             }
-            Text(remaining < 0 ? "Terlambat \(-remaining) km" : "Sisa \(remaining) km")
+            Text(remaining < 0 ? tr("Overdue {0} km", -remaining) : tr("{0} km left", remaining))
                 .font(.footnote).bold().foregroundColor(color)
-            Text("Setiap \(item.intervalKm) km").font(.footnote).foregroundColor(.secondary)
-            Button { sheet = .history(item.id) } label: { Text("Riwayat ›").font(.footnote) }
+            Text(tr("Every {0} km", item.intervalKm)).font(.footnote).foregroundColor(.secondary)
+            Button { sheet = .history(item.id) } label: { Text(tr("History ›")).font(.footnote) }
             Spacer(minLength: 0)
             HStack {
                 Button { maint.markServiced(item.id) } label: {
-                    Label("Diganti", systemImage: "checkmark").font(.footnote).frame(maxWidth: .infinity)
+                    Label(tr("Replaced"), systemImage: "checkmark").font(.footnote).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 Button { sheet = .editMaint(item.id) } label: { Image(systemName: "slider.horizontal.3") }
@@ -258,7 +258,7 @@ struct MotorView: View {
 
         var days = [(String, Double, Bool)]()
         let f = DateFormatter()
-        f.locale = Locale(identifier: "id_ID")
+        f.locale = Loc.shared.locale
         f.dateFormat = "E"
         for i in stride(from: 6, through: 0, by: -1) {
             let d0 = cal.date(byAdding: .day, value: -i, to: today) ?? today
@@ -270,19 +270,19 @@ struct MotorView: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             Picker("", selection: $range) {
-                Text("Hari ini").tag(0)
-                Text("7 hari").tag(1)
-                Text("Bulan ini").tag(2)
+                Text(tr("Today")).tag(0)
+                Text(tr("7 days")).tag(1)
+                Text(tr("This month")).tag(2)
             }
             .pickerStyle(.segmented)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Jarak").font(.subheadline).foregroundColor(.secondary)
+                Text(tr("Distance")).font(.subheadline).foregroundColor(.secondary)
                 HStack(alignment: .firstTextBaseline) {
                     Text(Fmt.km(km)).font(.system(size: 44, weight: .bold))
                     Text("km").font(.title3).foregroundColor(.secondary)
                 }
-                Text("\(Int((sec / 60).rounded())) menit berkendara").font(.footnote).foregroundColor(.secondary)
+                Text(tr("{0} minutes riding", Int((sec / 60).rounded()))).font(.footnote).foregroundColor(.secondary)
             }
 
             HStack(alignment: .bottom, spacing: 8) {
@@ -290,9 +290,9 @@ struct MotorView: View {
                     VStack(spacing: 4) {
                         Text(days[i].1 > 0 ? "\(Int(days[i].1.rounded()))" : "").font(.caption2)
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(days[i].2 ? Color.blue : Color.blue.opacity(0.35))
+                            .fill(days[i].2 ? Color.accentColor : Color.accentColor.opacity(0.35))
                             .frame(height: max(4, CGFloat(days[i].1 / peak) * 110))
-                        Text(days[i].0).font(.caption2).foregroundColor(days[i].2 ? .blue : .secondary)
+                        Text(days[i].0).font(.caption2).foregroundColor(days[i].2 ? .accentColor : .secondary)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -300,12 +300,12 @@ struct MotorView: View {
             .frame(height: 150, alignment: .bottom)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                infoTile("Kecepatan tertinggi", "\(Int(maxKmh.rounded())) km/j", "speedometer")
-                infoTile("Kecepatan rata-rata", "\(Int(avg.rounded())) km/j", "chart.line.uptrend.xyaxis")
-                infoTile("Waktu berkendara", "\(Int((sec / 60).rounded())) menit", "clock.fill")
-                infoTile("Rata-rata BBM", Fmt.km(kmpl) + " km/L", "fuelpump.fill")
+                infoTile(tr("Top speed"), "\(Int(maxKmh.rounded())) km/j", "speedometer")
+                infoTile(tr("Average speed"), "\(Int(avg.rounded())) km/j", "chart.line.uptrend.xyaxis")
+                infoTile(tr("Riding time"), tr("{0} minutes", Int((sec / 60).rounded())), "clock.fill")
+                infoTile(tr("Average fuel use"), Fmt.km(kmpl) + " km/L", "fuelpump.fill")
             }
-            Text("Perjalanan dicatat otomatis selama dash tersambung (jarak dari GPS). Perjalanan di bawah 200 m diabaikan.")
+            Text(tr("Trips are recorded automatically while the dash is connected (distance from GPS). Trips under 200 m are ignored."))
                 .font(.footnote)
                 .foregroundColor(.secondary)
         }
@@ -317,13 +317,13 @@ struct MotorView: View {
     private func sheetView(_ s: MotorSheet) -> some View {
         switch s {
         case .odometer:
-            NumberSheet(title: "ODO (km)", initial: maint.odometerKm) { maint.odometerKm = $0 }
+            NumberSheet(title: tr("ODO (km)"), initial: maint.odometerKm) { maint.odometerKm = $0 }
         case .setLevel:
-            NumberSheet(title: "Sisa bensin sekarang (L)", initial: fuel.remainingL(odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)) {
+            NumberSheet(title: tr("Fuel left now (L)"), initial: fuel.remainingL(odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)) {
                 fuel.setLevel($0, odo: maint.odometerKm, tank: vehicle.tankL)
             }
         case .addLiters:
-            NumberSheet(title: "Liter yang diisi", initial: 0) {
+            NumberSheet(title: tr("Liters added"), initial: 0) {
                 fuel.addLiters($0, odo: maint.odometerKm, tank: vehicle.tankL, def: settings.defaultKmPerL)
             }
         case .addMaint:
@@ -353,10 +353,10 @@ struct NumberSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Batal") { presentation.wrappedValue.dismiss() }
+                    Button(tr("Cancel")) { presentation.wrappedValue.dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Simpan") {
+                    Button(tr("Save")) {
                         let v = Double(text.replacingOccurrences(of: ",", with: ".")) ?? 0
                         onSave(v)
                         presentation.wrappedValue.dismiss()
@@ -377,17 +377,17 @@ struct AddMaintSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                TextField("Nama item (mis. Ban depan)", text: $name)
-                Stepper("Setiap \(interval) km", value: $interval, in: 500...60000, step: 500)
+                TextField(tr("Item name (e.g. Front tire)"), text: $name)
+                Stepper(tr("Every {0} km", interval), value: $interval, in: 500...60000, step: 500)
             }
-            .navigationTitle("Tambah item")
+            .navigationTitle(tr("Add item"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Batal") { presentation.wrappedValue.dismiss() }
+                    Button(tr("Cancel")) { presentation.wrappedValue.dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Tambah") {
+                    Button(tr("Add")) {
                         let n = name.trimmingCharacters(in: .whitespaces)
                         if !n.isEmpty { maint.addItem(name: n, intervalKm: interval) }
                         presentation.wrappedValue.dismiss()
@@ -416,14 +416,14 @@ struct MaintHistorySheet: View {
                         }
                     }
                 } else {
-                    Text("Belum ada catatan penggantian.").foregroundColor(.secondary)
+                    Text(tr("No replacement records yet.")).foregroundColor(.secondary)
                 }
             }
-            .navigationTitle(maint.items.first(where: { $0.id == itemID })?.name ?? "Riwayat")
+            .navigationTitle(maint.items.first(where: { $0.id == itemID })?.name ?? tr("History"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Selesai") { presentation.wrappedValue.dismiss() }
+                    Button(tr("Done")) { presentation.wrappedValue.dismiss() }
                 }
             }
         }
@@ -431,7 +431,7 @@ struct MaintHistorySheet: View {
 
     static func dateString(_ d: Date) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "id_ID")
+        f.locale = Loc.shared.locale
         f.dateFormat = "d MMM yyyy"
         return f.string(from: d)
     }
@@ -447,25 +447,25 @@ struct MaintEditSheet: View {
             Form {
                 if let i = maint.items.firstIndex(where: { $0.id == itemID }) {
                     Section {
-                        TextField("Nama", text: $maint.items[i].name)
-                        Stepper("Setiap \(maint.items[i].intervalKm) km", value: $maint.items[i].intervalKm,
+                        TextField(tr("Name"), text: $maint.items[i].name)
+                        Stepper(tr("Every {0} km", maint.items[i].intervalKm), value: $maint.items[i].intervalKm,
                                 in: 500...60000, step: 500)
-                        Stepper("Diganti terakhir di \(Int(maint.items[i].lastServiceKm)) km",
+                        Stepper(tr("Last replaced at {0} km", Int(maint.items[i].lastServiceKm)),
                                 value: $maint.items[i].lastServiceKm, in: 0...999999, step: 100)
                     }
                     Section {
-                        Button("Hapus item", role: .destructive) {
+                        Button(tr("Delete item"), role: .destructive) {
                             maint.remove(itemID)
                             presentation.wrappedValue.dismiss()
                         }
                     }
                 }
             }
-            .navigationTitle("Atur item")
+            .navigationTitle(tr("Edit items"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Selesai") { presentation.wrappedValue.dismiss() }
+                    Button(tr("Done")) { presentation.wrappedValue.dismiss() }
                 }
             }
         }

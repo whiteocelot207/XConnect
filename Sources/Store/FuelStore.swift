@@ -90,9 +90,9 @@ final class FuelStore: ObservableObject {
 
     /// Konsumsi beserta asalnya (untuk keterangan di layar Motor). `measured` = berasal dari rata-rata dash.
     func kmPerLSource(default def: Double) -> (value: Double, source: String, measured: Bool) {
-        if let c = ccuKmPerL() { return (min(80, max(5, c)), "rata-rata di dash (CCU)", true) }
-        if let o = ownKmPerL() { return (o, "konsumsi Anda 30 hari terakhir", false) }
-        return (def, "nilai bawaan", false)
+        if let c = ccuKmPerL() { return (min(80, max(5, c)), tr("average on the dash (CCU)"), true) }
+        if let o = ownKmPerL() { return (o, tr("your consumption over the last 30 days"), false) }
+        return (def, tr("default value"), false)
     }
 
     private func record(km: Double, liters: Double) {

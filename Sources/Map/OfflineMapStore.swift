@@ -190,7 +190,7 @@ final class OfflineMapStore: ObservableObject {
 
     private func run(name: String, center: CLLocationCoordinate2D, radiusKm: Int, tiles: [TileID]) async {
         guard let tpl = await template() else {
-            await finish { $0.message = "Tidak ada jaringan, atau server peta tidak bisa dihubungi." }
+            await finish { $0.message = tr("No network, or the map server cannot be reached.") }
             return
         }
         var done = 0, failed = 0
@@ -225,7 +225,7 @@ final class OfflineMapStore: ObservableObject {
             let probe = OfflineArea(id: "", name: name, lat: center.latitude, lon: center.longitude,
                                     radiusKm: radiusKm, tileCount: total, bytes: 0, failed: 0, date: Date())
             removeFiles(of: probe, tiles: tiles, keeping: areas)
-            await finish { $0.message = "Pengunduhan dibatalkan." }
+            await finish { $0.message = tr("Download cancelled.") }
             return
         }
 
@@ -235,8 +235,8 @@ final class OfflineMapStore: ObservableObject {
             $0.areas.append(area)
             $0.saveAreas()
             $0.message = failed == 0
-                ? "Area \"\(name)\" tersimpan (\(Self.mbText(bytes)))."
-                : "Area \"\(name)\" tersimpan, tetapi \(failed) tile gagal diunduh. Simpan ulang area yang sama untuk melengkapi."
+                ? tr("Area \"{0}\" saved ({1}).", name, Self.mbText(bytes))
+                : tr("Area \"{0}\" saved, but {1} tiles failed to download. Save the same area again to complete it.", name, failed)
         }
     }
 

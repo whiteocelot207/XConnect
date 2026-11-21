@@ -1,0 +1,5 @@
+"NSBluetoothAlwaysUsageDescription" = "XConnect connects to the Yamaha motorcycle dash over Bluetooth to show the map.";
+"NSLocationWhenInUseUsageDescription" = "XConnect uses your location to draw the map on the motorcycle dash.";
+"NSBluetoothPeripheralUsageDescription" = "XConnect reads motorcycle data (battery, ODO, temperature) from the motorcycle ECU over Bluetooth.";
+"NSAppleMusicUsageDescription" = "XConnect shows the song that is playing on the motorcycle dash.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "XConnect uses your location so the map on the dash keeps working while the screen is locked.";

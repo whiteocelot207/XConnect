@@ -17,13 +17,13 @@ final class CcuProbe {
         rx.removeAll()
         link.onData = { [weak self] d in self?.receive(d) }
         link.onLog = { [weak self] s in self?.onLog(s) }
-        link.onClosed = { [weak self] in self?.onLog("sesi ditutup") }
+        link.onClosed = { [weak self] in self?.onLog(tr("session closed")) }
         if link.isOpen { link.close(notify: false) }
         guard link.open(accessory) else {
-            onLog("gagal membuka sesi \(CcuProbe.protocolName)")
+            onLog(tr("failed to open session {0}", CcuProbe.protocolName))
             return
         }
-        onLog("sesi dibuka, mengirim cmd 313 (minta ID CCU)")
+        onLog(tr("session opened, sending cmd 313 (request CCU ID)"))
         // bingkai SPP: 01 | panjang u32 BE | [cmd u16 BE] | 04
         link.send(Data([0x01, 0x00, 0x00, 0x00, 0x02, 0x01, 0x39, 0x04]))
     }
@@ -49,7 +49,7 @@ final class CcuProbe {
             let end = rx[5 + len]
             rx.removeFirst(6 + len)
             if end != 0x04 {
-                onLog("bingkai tanpa 0x04 di akhir")
+                onLog(tr("frame without 0x04 at the end"))
                 continue
             }
             handle(payload)
@@ -61,7 +61,7 @@ final class CcuProbe {
         if cmd == 314 && payload.count >= 22 {
             let id = String(bytes: payload[2..<16], encoding: .ascii) ?? "?"
             let pass = String(bytes: payload[16..<22], encoding: .ascii) ?? ""
-            onLog("cmd 314: ID CCU = \(id), passkey diterima (6 karakter, disembunyikan)")
+            onLog(tr("cmd 314: CCU ID = {0}, passkey received (6 characters, hidden)", id))
             onInfo(id, pass)
         } else {
             onLog("cmd \(cmd), \(payload.count) B")

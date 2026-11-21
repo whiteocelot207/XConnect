@@ -15,30 +15,30 @@ enum DashField: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .weather: return "Cuaca + sapaan"
-        case .phoneBattery: return "Baterai HP"
-        case .fuel: return "Sisa bensin"
-        case .range: return "Jarak tempuh BBM"
-        case .batteryV: return "Aki (V)"
+        case .weather: return tr("Weather + greeting")
+        case .phoneBattery: return tr("Phone battery")
+        case .fuel: return tr("Fuel left")
+        case .range: return tr("Fuel range")
+        case .batteryV: return tr("12V battery (V)")
         case .odo: return "ODO"
-        case .coolant: return "Suhu mesin (CCU)"
-        case .airTemp: return "Suhu udara (CCU)"
-        case .speed: return "Kecepatan"
+        case .coolant: return tr("Engine temp (CCU)")
+        case .airTemp: return tr("Air temp (CCU)")
+        case .speed: return tr("Speed")
         case .rpm: return "RPM"
-        case .clock: return "Jam"
-        case .ignition: return "Kunci kontak"
-        case .none: return "Kosong"
-        case .tempBat: return "Suhu + baterai HP"
-        case .dtc: return "Kode gangguan mesin (CCU)"
-        case .ccuSpeed: return "Kecepatan dari CCU"
-        case .phoneVolume: return "Volume HP"
-        case .audioOut: return "Output audio"
-        case .network: return "Jaringan seluler (4G/5G)"
-        case .date: return "Tanggal"
-        case .heading: return "Arah (kompas GPS)"
-        case .altitude: return "Ketinggian (GPS)"
+        case .clock: return tr("Clock")
+        case .ignition: return tr("Ignition")
+        case .none: return tr("Empty")
+        case .tempBat: return tr("Temp + phone battery")
+        case .dtc: return tr("Engine fault codes (CCU)")
+        case .ccuSpeed: return tr("Speed from CCU")
+        case .phoneVolume: return tr("Phone volume")
+        case .audioOut: return tr("Audio output")
+        case .network: return tr("Mobile network (4G/5G)")
+        case .date: return tr("Date")
+        case .heading: return tr("Heading (GPS compass)")
+        case .altitude: return tr("Altitude (GPS)")
         default:
-            if let i = rawByteIndex { return "CCU byte \(i) (data mentah)" }
+            if let i = rawByteIndex { return tr("CCU byte {0} (raw data)", i) }
             return "?"
         }
     }
@@ -58,69 +58,69 @@ enum DashField: Int, CaseIterable {
         let red = UIColor(red: 1.0, green: 0.38, blue: 0.36, alpha: 1)
         switch self {
         case .weather:
-            return ("Cuaca", c.tempC.map { "\($0)°" } ?? "--°", "", white)
+            return (tr("Weather"), c.tempC.map { "\($0)°" } ?? "--°", "", white)
         case .phoneBattery:
             let v = c.phoneBattery
-            return ("Baterai HP", v >= 0 ? "\(v)" : "—", v >= 0 ? "%" : "", v >= 0 && v <= 20 ? red : white)
+            return (tr("Phone battery"), v >= 0 ? "\(v)" : "—", v >= 0 ? "%" : "", v >= 0 && v <= 20 ? red : white)
         case .fuel:
-            guard let f = c.fuelL else { return ("Sisa bensin", "—", "", white) }
-            return ("Sisa bensin", Fmt.liters(f).replacingOccurrences(of: " L", with: ""), "L", f < 2.5 ? red : (f < 4 ? amber : white))
+            guard let f = c.fuelL else { return (tr("Fuel left"), "—", "", white) }
+            return (tr("Fuel left"), Fmt.liters(f).replacingOccurrences(of: " L", with: ""), "L", f < 2.5 ? red : (f < 4 ? amber : white))
         case .range:
-            guard let r = c.rangeKm else { return ("Jarak tempuh", "—", "", white) }
-            return ("Jarak tempuh", "\(r)", "km", r < 35 ? red : (r < 60 ? amber : white))
+            guard let r = c.rangeKm else { return (tr("Range"), "—", "", white) }
+            return (tr("Range"), "\(r)", "km", r < 35 ? red : (r < 60 ? amber : white))
         case .batteryV:
-            guard let v = c.batteryV else { return ("Aki", "—", "", white) }
-            return ("Aki", String(format: "%.1f", v), "V", v >= 12.6 ? green : (v >= 11.8 ? amber : red))
+            guard let v = c.batteryV else { return (tr("12V battery"), "—", "", white) }
+            return (tr("12V battery"), String(format: "%.1f", v), "V", v >= 12.6 ? green : (v >= 11.8 ? amber : red))
         case .odo:
             guard let o = c.odoKm else { return ("ODO", "—", "", white) }
             return ("ODO", "\(Int(o))", "km", white)
         case .coolant:
-            guard let t = c.coolantC else { return ("Suhu mesin", "—", "", white) }
-            return ("Suhu mesin", "\(t)", "°C", t >= 105 ? red : (t >= 95 ? amber : white))
+            guard let t = c.coolantC else { return (tr("Engine temp"), "—", "", white) }
+            return (tr("Engine temp"), "\(t)", "°C", t >= 105 ? red : (t >= 95 ? amber : white))
         case .airTemp:
-            guard let t = c.airC else { return ("Suhu udara", "—", "", white) }
-            return ("Suhu udara", "\(t)", "°C", white)
+            guard let t = c.airC else { return (tr("Air temp"), "—", "", white) }
+            return (tr("Air temp"), "\(t)", "°C", white)
         case .speed:
-            return ("Kecepatan", "\(c.speedKmh)", "km/h", white)
+            return (tr("Speed"), "\(c.speedKmh)", "km/h", white)
         case .rpm:
             guard let r = c.rpm else { return ("RPM", "—", "", white) }
             return ("RPM", "\(r)", "", white)
         case .clock:
-            return ("Jam", c.clock, "", white)
+            return (tr("Clock"), c.clock, "", white)
         case .ignition:
-            guard let on = c.ignitionOn else { return ("Kunci kontak", "—", "", white) }
-            return ("Kunci kontak", on ? "ON" : "OFF", "", on ? green : white)
+            guard let on = c.ignitionOn else { return (tr("Ignition"), "—", "", white) }
+            return (tr("Ignition"), on ? "ON" : "OFF", "", on ? green : white)
         case .none:
             return ("", "", "", white)
         case .tempBat:
             var parts = [String]()
             if let t = c.tempC { parts.append("\(t)°") }
             if c.phoneBattery >= 0 { parts.append("\(c.phoneBattery)%") }
-            return ("Suhu + baterai", parts.isEmpty ? "—" : parts.joined(separator: " · "), "", white)
+            return (tr("Temp + battery"), parts.isEmpty ? "—" : parts.joined(separator: " · "), "", white)
         case .dtc:
-            guard let n = c.dtcCount else { return ("Gangguan", "—", "", white) }
-            return ("Gangguan", n == 0 ? "OK" : "\(n)", n == 0 ? "" : "kode", n == 0 ? green : red)
+            guard let n = c.dtcCount else { return (tr("Faults"), "—", "", white) }
+            return (tr("Faults"), n == 0 ? "OK" : "\(n)", n == 0 ? "" : tr("codes"), n == 0 ? green : red)
         case .ccuSpeed:
-            guard let v = c.ccuSpeedKmh else { return ("Kecepatan CCU", "—", "", white) }
-            return ("Kecepatan CCU", "\(v)", "km/h", white)
+            guard let v = c.ccuSpeedKmh else { return (tr("CCU speed"), "—", "", white) }
+            return (tr("CCU speed"), "\(v)", "km/h", white)
         case .phoneVolume:
             let v = c.phoneVolume
-            return ("Volume HP", v >= 0 ? "\(v)" : "—", v >= 0 ? "%" : "", white)
+            return (tr("Phone volume"), v >= 0 ? "\(v)" : "—", v >= 0 ? "%" : "", white)
         case .audioOut:
-            return ("Audio", c.audioOut.isEmpty ? "—" : c.audioOut, "", white)
+            return (tr("Audio"), c.audioOut.isEmpty ? "—" : c.audioOut, "", white)
         case .network:
-            return ("Jaringan", c.network.isEmpty ? "—" : c.network, "", white)
+            return (tr("Network"), c.network.isEmpty ? "—" : c.network, "", white)
         case .date:
-            return ("Tanggal", c.dateText, "", white)
+            return (tr("Date"), c.dateText, "", white)
         case .heading:
-            return ("Arah", c.headingText.isEmpty ? "—" : c.headingText, "", white)
+            return (tr("Heading"), c.headingText.isEmpty ? "—" : c.headingText, "", white)
         case .altitude:
-            guard let a = c.altitudeM else { return ("Ketinggian", "—", "", white) }
-            return ("Ketinggian", "\(a)", "m", white)
+            guard let a = c.altitudeM else { return (tr("Altitude"), "—", "", white) }
+            return (tr("Altitude"), "\(a)", "m", white)
         default:
             if let i = rawByteIndex {
-                guard i < c.ccuRaw.count else { return ("CCU byte \(i)", "—", "", white) }
-                return ("CCU byte \(i)", "\(c.ccuRaw[i])", "", white)
+                guard i < c.ccuRaw.count else { return (tr("CCU byte {0}", i), "—", "", white) }
+                return (tr("CCU byte {0}", i), "\(c.ccuRaw[i])", "", white)
             }
             return ("", "", "", white)
         }

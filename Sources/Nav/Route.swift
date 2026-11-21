@@ -22,7 +22,7 @@ extension Maneuver {
             // tiba dan putar balik: hanya teks pendek ("Putar balik"), tanpa nama jalan
             return DashIcon.shortText(DashIcon.forValhalla(type))
         case 26:
-            return exitCount > 0 ? "Ambil jalan keluar ke \(exitCount)" : "Masuk bundaran"
+            return exitCount > 0 ? tr("Take exit {0}", exitCount) : tr("Enter roundabout")
         default:
             return street.isEmpty ? DashIcon.shortText(DashIcon.forValhalla(type)) : street
         }
@@ -32,41 +32,41 @@ extension Maneuver {
     /// "belok kanan ke Jalan Lingkar Luar Jakarta", "di bundaran, ambil jalan keluar ke 3".
     var spokenBody: String {
         if type == 26 {
-            return exitCount > 0 ? "di bundaran, ambil jalan keluar ke \(exitCount)" : "masuk bundaran"
+            return exitCount > 0 ? tr("at the roundabout, take exit {0}", exitCount) : tr("enter the roundabout")
         }
         // Kalimat dibuat sendiri (Valhalla tidak punya bahasa Indonesia, teksnya jatuh ke bahasa Inggris).
         let verb: String
         switch type {
-        case 4: return "tujuan Anda ada di depan"
-        case 5: return "tujuan Anda ada di sebelah kanan"
-        case 6: return "tujuan Anda ada di sebelah kiri"
-        case 9: verb = "serong kanan"
-        case 10: verb = "belok kanan"
-        case 11: verb = "belok kanan tajam"
-        case 12, 13: return "putar balik"       // tanpa "ke <jalan>"
-        case 14: verb = "belok kiri tajam"
-        case 15: verb = "belok kiri"
-        case 16: verb = "serong kiri"
-        case 18: verb = "ambil jalur kanan"
-        case 19: verb = "ambil jalur kiri"
-        case 20: verb = "ambil jalan keluar di kanan"
-        case 21: verb = "ambil jalan keluar di kiri"
-        case 22: verb = "tetap lurus"
-        case 23: verb = "tetap di kanan"
-        case 24: verb = "tetap di kiri"
+        case 4: return tr("your destination is ahead")
+        case 5: return tr("your destination is on the right")
+        case 6: return tr("your destination is on the left")
+        case 9: verb = tr("bear right")
+        case 10: verb = tr("turn right")
+        case 11: verb = tr("turn sharp right")
+        case 12, 13: return tr("make a U-turn")       // tanpa "ke <jalan>"
+        case 14: verb = tr("turn sharp left")
+        case 15: verb = tr("turn left")
+        case 16: verb = tr("bear left")
+        case 18: verb = tr("take the right lane")
+        case 19: verb = tr("take the left lane")
+        case 20: verb = tr("take the exit on the right")
+        case 21: verb = tr("take the exit on the left")
+        case 22: verb = tr("keep straight")
+        case 23: verb = tr("keep right")
+        case 24: verb = tr("keep left")
         case 25: verb = "bergabung"
-        case 37: verb = "bergabung ke kanan"
-        case 38: verb = "bergabung ke kiri"
-        case 28: verb = "naik feri"
-        case 29: verb = "turun dari feri"
-        default: verb = "lanjutkan lurus"
+        case 37: verb = tr("merge right")
+        case 38: verb = tr("merge left")
+        case 28: verb = tr("take the ferry")
+        case 29: verb = tr("leave the ferry")
+        default: verb = tr("continue straight")
         }
-        return street.isEmpty ? verb : verb + " ke " + street
+        return street.isEmpty ? verb : verb + " " + tr("onto") + " " + street
     }
 
     /// Kalimat lengkap dengan jarak: "Dalam 65 meter, belok kanan ke Jalan Lingkar Luar Jakarta".
     func sentence(distanceM: Double) -> String {
-        "Dalam \(Maneuver.spokenDistance(distanceM)), " + spokenBody
+        tr("In {0}, ", Maneuver.spokenDistance(distanceM)) + spokenBody
     }
 
     /// Kalimat tanpa jarak: "Belok kanan ke Jalan Lingkar Luar Jakarta".
@@ -78,12 +78,12 @@ extension Maneuver {
     static func spokenDistance(_ m: Double) -> String {
         if m >= 950 {
             let km = (m / 100).rounded() / 10
-            let t = km == km.rounded() ? String(Int(km)) : String(format: "%.1f", km).replacingOccurrences(of: ".", with: ",")
-            return t + " kilometer"
+            let t = km == km.rounded() ? String(Int(km)) : String(format: "%.1f", km).localizedDecimal
+            return km == 1 ? tr("1 kilometer") : tr("{0} kilometers", t)
         }
         let step = m >= 200 ? 50.0 : 10.0
         let r = max(10, Int((m / step).rounded() * step))
-        return "\(r) meter"
+        return tr("{0} meters", r)
     }
 }
 
@@ -104,9 +104,9 @@ enum RouteError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .badURL: return "Alamat server routing tidak valid"
-        case .server(let m): return "Server routing: \(m)"
-        case .empty: return "Rute tidak ditemukan"
+        case .badURL: return tr("Invalid routing server address")
+        case .server(let m): return tr("Routing server: {0}", m)
+        case .empty: return tr("Route not found")
         }
     }
 }
@@ -134,18 +134,18 @@ enum DashIcon {
     /// Teks pendek untuk banner belok di dash.
     static func shortText(_ code: UInt8) -> String {
         switch code {
-        case 0: return "Tiba di tujuan"
-        case 1: return "Tujuan di kiri"
-        case 2: return "Tujuan di kanan"
-        case 6: return "Serong kiri"
-        case 7: return "Serong kanan"
-        case 32: return "Belok kiri tajam"
-        case 33: return "Belok kanan tajam"
-        case 34: return "Belok kiri"
-        case 35: return "Belok kanan"
-        case 36, 37: return "Putar balik"
-        case 14: return "Bundaran"
-        default: return "Lurus"
+        case 0: return tr("Arrived")
+        case 1: return tr("Destination on the left")
+        case 2: return tr("Destination on the right")
+        case 6: return tr("Bear left")
+        case 7: return tr("Bear right")
+        case 32: return tr("Sharp left")
+        case 33: return tr("Sharp right")
+        case 34: return tr("Turn left")
+        case 35: return tr("Turn right")
+        case 36, 37: return tr("U-turn")
+        case 14: return tr("Roundabout")
+        default: return tr("Straight")
         }
     }
 
@@ -262,7 +262,7 @@ enum ValhallaClient {
         }
         let end: [String: Any] = ["lat": to.latitude, "lon": to.longitude, "type": "break"]
         let locations: [[String: Any]] = [start, end]
-        let opts: [String: Any] = ["units": "kilometers", "language": "id-ID"]
+        let opts: [String: Any] = ["units": "kilometers", "language": Loc.shared.routingLanguage]
         var body: [String: Any] = ["locations": locations, "costing": costing, "directions_options": opts]
         if alternatives > 0 { body["alternates"] = alternatives }
         body["costing_options"] = profile.costingOptions(for: costing)

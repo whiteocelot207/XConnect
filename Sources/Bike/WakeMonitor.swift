@@ -48,11 +48,11 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
         lastArm = Date()
         armBle()
         guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else {
-            onLog("Wake: geofence tidak tersedia di perangkat ini")
+            onLog(tr("Wake: geofence is not available on this device"))
             return
         }
         guard manager.authorizationStatus == .authorizedAlways else {
-            onLog("Wake: izin lokasi bukan \"Selalu\", geofence tidak dipasang (Pengaturan iOS > XConnect > Lokasi > Selalu)")
+            onLog(tr("Wake: location permission is not \"Always\", geofence not installed (iOS Settings > XConnect > Location > Always)"))
             return
         }
         removeRegions()
@@ -61,7 +61,7 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
         r.notifyOnEntry = false
         manager.startMonitoring(for: r)
         armed = true
-        onLog(String(format: "Wake: geofence dipasang di titik parkir (%.5f, %.5f), radius %d m",
+        onLog(String(format: tr("Wake: geofence installed at the parking spot (%.5f, %.5f), radius %d m"),
                      loc.coordinate.latitude, loc.coordinate.longitude, Int(WakeMonitor.radius)))
     }
 
@@ -71,7 +71,7 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
         removeRegions()
         armed = false
         disarmBle()
-        onLog("Wake: dilepas (dash tersambung)")
+        onLog(tr("Wake: released (dash connected)"))
     }
 
     private func removeRegions() {
@@ -84,12 +84,12 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
         guard region.identifier == WakeMonitor.regionID else { return }
         armed = false
         removeRegions()
-        wake("keluar dari titik parkir")
+        wake(tr("left the parking spot"))
     }
 
     func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
         armed = false
-        onLog("Wake: geofence gagal: \(error.localizedDescription)")
+        onLog(tr("Wake: geofence failed: {0}", error.localizedDescription))
     }
 
     private func wake(_ reason: String) {
@@ -111,20 +111,20 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
     /// Sambungan tertunda ke CCU: tidak punya batas waktu, dan iOS membangunkan/meluncurkan app saat CCU terjangkau.
     func armBle() {
         guard let s = UserDefaults.standard.string(forKey: WakeMonitor.peripheralKey), let id = UUID(uuidString: s) else {
-            onLog("Wake: ID Bluetooth CCU belum diketahui (dicatat otomatis setelah dash tersambung sekali)")
+            onLog(tr("Wake: CCU Bluetooth ID not known yet (recorded automatically after the dash connects once)"))
             return
         }
         bleWanted = true
         ensureCentral()
         guard let c = central, c.state == .poweredOn else { return }   // dilanjutkan di centralManagerDidUpdateState
         guard let p = c.retrievePeripherals(withIdentifiers: [id]).first else {
-            onLog("Wake: perangkat CCU tidak dikenal iOS (belum pernah tersambung lewat app ini)")
+            onLog(tr("Wake: CCU device unknown to iOS (never connected through this app)"))
             return
         }
         blePeripheral = p
         if p.state == .disconnected {
             c.connect(p, options: nil)
-            onLog("Wake: menunggu CCU motor terjangkau (sambungan BLE tertunda)")
+            onLog(tr("Wake: waiting for the motorcycle CCU to come in range (pending BLE connection)"))
         }
     }
 
@@ -139,7 +139,7 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
 
     func centralManager(_ c: CBCentralManager, willRestoreState dict: [String: Any]) {
         let list = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]) ?? []
-        onLog("Wake: app dipulihkan iOS lewat Bluetooth (\(list.count) perangkat)")
+        onLog(tr("Wake: app restored by iOS through Bluetooth ({0} devices)", list.count))
         guard let p = list.first else { return }
         blePeripheral = p
         if p.state == .connected {
@@ -158,7 +158,7 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
     private func connectedAndWake(_ p: CBPeripheral, _ c: CBCentralManager) {
         bleWanted = false
         c.cancelPeripheralConnection(p)
-        wake("CCU motor terdeteksi (Bluetooth)")
+        wake(tr("Motorcycle CCU detected (Bluetooth)"))
     }
 
     func centralManager(_ c: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {

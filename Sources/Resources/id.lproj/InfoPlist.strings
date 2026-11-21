@@ -1,0 +1,5 @@
+"NSBluetoothAlwaysUsageDescription" = "XConnect terhubung ke dash motor Yamaha lewat Bluetooth untuk menampilkan peta.";
+"NSLocationWhenInUseUsageDescription" = "XConnect memakai lokasi untuk menggambar peta di dash motor.";
+"NSBluetoothPeripheralUsageDescription" = "XConnect membaca data motor (aki, ODO, suhu) dari ECU motor lewat Bluetooth.";
+"NSAppleMusicUsageDescription" = "XConnect menampilkan lagu yang sedang diputar di layar dash motor.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "XConnect memakai lokasi agar peta di dash tetap jalan saat layar terkunci.";

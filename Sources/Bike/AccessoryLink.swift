@@ -94,10 +94,10 @@ final class AccessoryLink: NSObject, StreamDelegate {
         case .hasBytesAvailable: readAvailable()
         case .hasSpaceAvailable: pump()
         case .errorOccurred:
-            onLog?("Stream error: \(aStream.streamError?.localizedDescription ?? "?")")
+            onLog?(tr("Stream error: {0}", aStream.streamError?.localizedDescription ?? "?"))
             close()
         case .endEncountered:
-            onLog?("Stream ditutup oleh dash")
+            onLog?(tr("Stream closed by the dash"))
             close()
         default: break
         }

@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write   # perlu untuk membuat Release
+  contents: write   # needed to create the Release
 
 jobs:
   build:
@@ -21,14 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Hitung versi (digit terakhir naik tiap build)
+      - name: Compute version (last digit rises on every build)
         id: ver
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           BASE=$(grep 'MARKETING_VERSION' project.yml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          MM="${BASE%.*}"          # x.y dari project.yml
-          P0="${BASE##*.}"         # z dasar dari project.yml
+          MM="${BASE%.*}"          # x.y from project.yml
+          P0="${BASE##*.}"         # base z from project.yml
           PREV=$(gh release view --repo "${{ github.repository }}" --json name -q .name 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
           PATCH="$P0"
           if [ -n "$PREV" ] && [ "${PREV%.*}" = "$MM" ]; then
@@ -36,32 +36,32 @@ jobs:
             if [ "$N" -gt "$PATCH" ]; then PATCH="$N"; fi
           fi
           V="$MM.$PATCH"
-          echo "Rilis sebelumnya: ${PREV:-tidak ada}; versi baru: $V"
+          echo "Previous release: ${PREV:-none}; new version: $V"
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
       - name: Versi Xcode
         run: xcodebuild -version
 
-      - name: Pasang XcodeGen
+      - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Buat project Xcode dari project.yml
+      - name: Generate the Xcode project from project.yml
         run: xcodegen generate
 
-      - name: Cache paket Swift (MapLibre)
+      - name: Cache Swift packages (MapLibre)
         uses: actions/cache@v4
         with:
           path: SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
 
-      - name: Resolve paket
+      - name: Resolve packages
         run: |
           xcodebuild -resolvePackageDependencies \
             -project XConnect.xcodeproj \
             -scheme XConnect \
             -clonedSourcePackagesDirPath SourcePackages
 
-      - name: Build (tanpa tanda tangan)
+      - name: Build (unsigned)
         run: |
           set -o pipefail
           xcodebuild \
@@ -79,7 +79,7 @@ jobs:
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             build 2>&1 | tee build.log
 
-      - name: Setel versi di Info.plist
+      - name: Set the version in Info.plist
         run: |
           APP="build/Build/Products/Release-iphoneos/XConnect.app"
           V="${{ steps.ver.outputs.version }}"
@@ -87,19 +87,19 @@ jobs:
           PB=/usr/libexec/PlistBuddy
           $PB -c "Set :CFBundleShortVersionString $V" "$APP/Info.plist" || $PB -c "Add :CFBundleShortVersionString string $V" "$APP/Info.plist"
           $PB -c "Set :CFBundleVersion $B" "$APP/Info.plist" || $PB -c "Add :CFBundleVersion string $B" "$APP/Info.plist"
-          echo "Versi di IPA: $($PB -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") ($($PB -c 'Print :CFBundleVersion' "$APP/Info.plist"))"
+          echo "Version in IPA: $($PB -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") ($($PB -c 'Print :CFBundleVersion' "$APP/Info.plist"))"
 
-      - name: Bungkus jadi .ipa
+      - name: Package as .ipa
         run: |
           APP="build/Build/Products/Release-iphoneos/XConnect.app"
-          test -d "$APP" || { echo "XConnect.app tidak ditemukan"; ls -R build/Build/Products | head -50; exit 1; }
+          test -d "$APP" || { echo "XConnect.app not found"; ls -R build/Build/Products | head -50; exit 1; }
           rm -rf Payload XConnect.ipa
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qry XConnect.ipa Payload
           ls -lh XConnect.ipa
 
-      # Sumber SideStore/AltStore: bundle ID di sini yang dipakai saat pemasangan
+      # SideStore/AltStore source: the bundle ID here is the one used when installing
       - name: Buat source.json (SideStore/AltStore)
         run: |
           REPO="${{ github.repository }}"
@@ -117,12 +117,12 @@ jobs:
                 "name": "XConnect",
                 "bundleIdentifier": "id.xconnect.app",
                 "developerName": "$OWNER",
-                "subtitle": "Peta, data motor, musik di dash Yamaha",
+                "subtitle": "Map, motorcycle data and music on the Yamaha dash",
                 "version": "$V",
                 "versionDate": "$DATE",
-                "versionDescription": "Versi $V",
-                "downloadURL": "https://github.com/$REPO/releases/download/build-$B/XConnect.ipa",
-                "localizedDescription": "XConnect untuk dash TFT Yamaha.",
+                "versionDescription": "Version $V",
+                "downloadURL": "https://github.com/$REPO/releases/download/v$V/XConnect.ipa",
+                "localizedDescription": "XConnect for the Yamaha TFT dash.",
                 "iconURL": "https://raw.githubusercontent.com/$REPO/main/Sources/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
                 "size": $SIZE
               }
@@ -132,11 +132,11 @@ jobs:
           EOF
           cat source.json
 
-      # Release inilah yang dibaca app untuk cek update (tag: build-<nomor>)
-      - name: Terbitkan Release
+      # This Release is what the app reads to check for updates (tag: v<version>)
+      - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
+          tag_name: v${{ steps.ver.outputs.version }}
           name: XConnect ${{ steps.ver.outputs.version }}
           body: |
             XConnect ${{ steps.ver.outputs.version }}
@@ -146,14 +146,14 @@ jobs:
             source.json
           make_latest: true
 
-      - name: Unggah IPA
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: XConnect-ipa
           path: XConnect.ipa
           retention-days: 30
 
-      - name: Unggah log build
+      - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:

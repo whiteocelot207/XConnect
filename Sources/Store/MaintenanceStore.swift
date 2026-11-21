@@ -19,11 +19,11 @@ final class MaintenanceStore: ObservableObject {
     /// Interval bawaan hanya perkiraan umum. Sesuaikan dengan buku manual motor Anda.
     static func defaults() -> [MaintItem] {
         [
-            MaintItem(id: "oli-mesin", name: "Oli mesin", icon: "drop.fill", intervalKm: 4000, lastServiceKm: 0, history: []),
-            MaintItem(id: "oli-gardan", name: "Oli gardan", icon: "gearshape.fill", intervalKm: 8000, lastServiceKm: 0, history: []),
-            MaintItem(id: "filter-udara", name: "Filter udara", icon: "wind", intervalKm: 12000, lastServiceKm: 0, history: []),
-            MaintItem(id: "busi", name: "Busi", icon: "bolt.fill", intervalKm: 12000, lastServiceKm: 0, history: []),
-            MaintItem(id: "v-belt", name: "V-belt", icon: "arrow.triangle.2.circlepath", intervalKm: 24000, lastServiceKm: 0, history: [])
+            MaintItem(id: "oli-mesin", name: tr("Engine oil"), icon: "drop.fill", intervalKm: 4000, lastServiceKm: 0, history: []),
+            MaintItem(id: "oli-gardan", name: tr("Gear oil"), icon: "gearshape.fill", intervalKm: 8000, lastServiceKm: 0, history: []),
+            MaintItem(id: "filter-udara", name: tr("Air filter"), icon: "wind", intervalKm: 12000, lastServiceKm: 0, history: []),
+            MaintItem(id: "busi", name: tr("Spark plug"), icon: "bolt.fill", intervalKm: 12000, lastServiceKm: 0, history: []),
+            MaintItem(id: "v-belt", name: tr("V-belt"), icon: "arrow.triangle.2.circlepath", intervalKm: 24000, lastServiceKm: 0, history: [])
         ]
     }
 

@@ -8,7 +8,7 @@ import CoreTelephony
 import CallKit
 
 final class BikeController: NSObject, ObservableObject {
-    @Published var status = "Belum terhubung"
+    @Published var status = tr("Not connected yet")
     @Published var isConnected = false {
         didSet {
             updateIdleTimer()
@@ -67,7 +67,7 @@ final class BikeController: NSObject, ObservableObject {
     let vehicleLive = VehicleLive()
     private lazy var ccu: CcuLink = {
         let c = CcuLink(live: vehicleLive)
-        c.languageProvider = { [weak self] in self?.settings.dashLang ?? -1 }
+        c.languageProvider = { [weak self] in self?.settings.effectiveDashLang ?? -1 }
         return c
     }()
     private var ccuStarted = false
@@ -121,18 +121,22 @@ final class BikeController: NSObject, ObservableObject {
         settingsWatch = settings.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.renderLocalPreview() }
         }
+        // bahasa aplikasi berubah: kirim ulang bahasa ke dash
+        settings.$language.dropFirst().removeDuplicates()
+            .sink { [weak self] _ in DispatchQueue.main.async { self?.ccu.resendLanguage() } }
+            .store(in: &bag)
         EAAccessoryManager.shared().registerForLocalNotifications()
         let nc = NotificationCenter.default
         nc.addObserver(forName: .EAAccessoryDidConnect, object: nil, queue: .main) { [weak self] n in
             let a = n.userInfo?[EAAccessoryKey] as? EAAccessory
-            self?.log("Aksesori tersambung: \(a?.name ?? "?")")
+            self?.log(tr("Accessory connected: {0}", a?.name ?? "?"))
             self?.accessoryPresent = self?.findDash() != nil
             self?.manualStop = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self?.autoConnectIfNeeded() }
         }
         nc.addObserver(forName: .EAAccessoryDidDisconnect, object: nil, queue: .main) { [weak self] n in
             let a = n.userInfo?[EAAccessoryKey] as? EAAccessory
-            self?.log("Aksesori terputus: \(a?.name ?? "?") (app \(self?.appStateText ?? "?"))")
+            self?.log(tr("Accessory disconnected: {0} (app {1})", a?.name ?? "?", self?.appStateText ?? "?"))
             self?.accessoryPresent = self?.findDash() != nil
             // Jangan langsung menutup sesi: saat app berpindah latar/depan, daftar aksesori kadang kosong sesaat padahal
             // dash masih tersambung. Bila dash benar-benar putus, stream iAP sendiri akan error/berakhir dan sesi ditutup.
@@ -140,7 +144,7 @@ final class BikeController: NSObject, ObservableObject {
                 guard let self = self else { return }
                 self.accessoryPresent = self.findDash() != nil
                 if self.findDash() == nil {
-                    self.log("Aksesori masih tidak ada setelah 2,5 dtk, sesi ditutup")
+                    self.log(tr("Accessory still missing after 2.5 s, session closed"))
                     self.session?.stop()
                 }
             }
@@ -151,7 +155,7 @@ final class BikeController: NSObject, ObservableObject {
             self.previewHoldoffUntil = Date().addingTimeInterval(2.5)
             self.endBackgroundTask()
             self.accessoryPresent = self.findDash() != nil
-            self.log("App aktif (sesi dash: \(self.session == nil ? "tidak ada" : "ada"), aksesori: \(self.accessoryPresent ? "ada" : "tidak ada"))")
+            self.log(tr("App active (dash session: {0}, accessory: {1})", self.session == nil ? tr("none") : tr("present"), self.accessoryPresent ? tr("present") : tr("none")))
             self.updateIdleTimer()
             // bila sesi sempat tertutup selama di latar belakang, sambung SEKARANG (tidak menunggu jadwal sambung ulang)
             if self.session == nil, self.reconnectWork != nil {
@@ -164,12 +168,12 @@ final class BikeController: NSObject, ObservableObject {
             guard let self = self else { return }
             self.lifecycleGraceUntil = Date().addingTimeInterval(10)
             self.beginBackgroundTask()
-            self.log("App ke latar belakang (sesi dash: \(self.session == nil ? "tidak ada" : "ada"))")
+            self.log(tr("App moved to background (dash session: {0})", self.session == nil ? tr("none") : tr("present")))
         }
         nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
             self.lifecycleGraceUntil = Date().addingTimeInterval(10)
-            self.log("App kembali ke depan (sesi dash: \(self.session == nil ? "tidak ada" : "ada"))")
+            self.log(tr("App back in foreground (dash session: {0})", self.session == nil ? tr("none") : tr("present")))
         }
         startSysInfoPolling()
         startMainThreadWatch()
@@ -218,9 +222,9 @@ final class BikeController: NSObject, ObservableObject {
 
     private var appStateText: String {
         switch UIApplication.shared.applicationState {
-        case .active: return "aktif"
-        case .inactive: return "tidak aktif"
-        default: return "latar belakang"
+        case .active: return tr("active")
+        case .inactive: return tr("inactive")
+        default: return tr("background")
         }
     }
 
@@ -316,7 +320,7 @@ final class BikeController: NSObject, ObservableObject {
             let sent = Date()
             DispatchQueue.main.async {
                 let d = Date().timeIntervalSince(sent)
-                if d > 1.0 { self?.log(String(format: "Thread utama tertahan %.1f dtk", d)) }
+                if d > 1.0 { self?.log(String(format: tr("Main thread stalled %.1f s"), d)) }
             }
         }
         t.resume()
@@ -336,7 +340,7 @@ final class BikeController: NSObject, ObservableObject {
 
     /// Catat peristiwa tombol ke Log.
     func buttonEvent(_ s: String) {
-        log("Tombol: " + s)
+        log(tr("Button: ") + s)
     }
 
     private func updateIdleTimer() {
@@ -352,15 +356,15 @@ final class BikeController: NSObject, ObservableObject {
 
     func showPairingPicker() {
         EAAccessoryManager.shared().showBluetoothAccessoryPicker(withNameFilter: nil) { [weak self] error in
-            if let error = error { self?.log("Picker: \(error.localizedDescription)") }
+            if let error = error { self?.log(tr("Picker: {0}", error.localizedDescription)) }
         }
     }
 
     func listAccessories() {
         let list = EAAccessoryManager.shared().connectedAccessories
-        if list.isEmpty { log("Tidak ada aksesori iAP tersambung ke iPhone") }
+        if list.isEmpty { log(tr("No iAP accessory is connected to the iPhone")) }
         for a in list {
-            log("Aksesori: \(a.name) | \(a.manufacturer) | \(a.modelNumber) | protokol=\(a.protocolStrings)")
+            log(tr("Accessory: {0} | {1} | {2} | protocol={3}", a.name, a.manufacturer, a.modelNumber, a.protocolStrings))
         }
     }
 
@@ -369,7 +373,7 @@ final class BikeController: NSObject, ObservableObject {
     /// App dibangunkan iOS (keluar dari titik parkir, atau CCU motor terjangkau): sambungkan dash, dan coba lagi beberapa
     /// kali karena Bluetooth dash butuh beberapa detik setelah motor dinyalakan.
     private func handleWake(_ reason: String) {
-        log("Wake: \(reason) (app \(appStateText))")
+        log(tr("Wake: {0} (app {1})", reason, appStateText))
         wakeCooldownUntil = Date().addingTimeInterval(40)
         if UIApplication.shared.applicationState != .active { beginBackgroundTask() }
         accessoryPresent = findDash() != nil
@@ -397,17 +401,17 @@ final class BikeController: NSObject, ObservableObject {
         reconnectWork = nil
         if session != nil { return }
         guard let acc = findDash() else {
-            setStatus("Dash tidak ditemukan")
+            setStatus(tr("Dash not found"))
             if manual {
                 listAccessories()
-                log("Dash belum tersambung. Nyalakan motor, lalu pasangkan lewat tombol Pasangkan dash.")
+                log(tr("The dash is not connected yet. Turn on the motorcycle, then pair using the Pair dash button."))
             }
             return
         }
         let s = TftSession(location: location)
         wire(s)
         session = s
-        setStatus("Menghubungkan…")
+        setStatus(tr("Connecting…"))
         if !s.start(accessory: acc) {
             session = nil
             scheduleReconnect()
@@ -421,7 +425,7 @@ final class BikeController: NSObject, ObservableObject {
         session?.stop()
         session = nil
         isConnected = false
-        setStatus("Terputus (manual)")
+        setStatus(tr("Disconnected (manual)"))
     }
 
     private func scheduleReconnect() {
@@ -454,8 +458,8 @@ final class BikeController: NSObject, ObservableObject {
         bikeSpeedKmh = nil
         fps = 0
         stopCcuProbe()
-        setStatus("Terputus")
-        log("Sesi dash tertutup (app \(appStateText)), menyambung ulang")
+        setStatus(tr("Disconnected"))
+        log(tr("Dash session closed (app {0}), reconnecting", appStateText))
         scheduleReconnect()
         // motor mati/diparkir: pasang geofence di sini supaya app terbangun sendiri saat berangkat lagi
         if settings.autoConnect, let l = location.lastLocation { wake.arm(at: l) }
@@ -495,7 +499,7 @@ final class BikeController: NSObject, ObservableObject {
         guard Date().timeIntervalSince(lastGeocode) > 6, !geocoder.isGeocoding else { return }
         lastGeocode = Date()
         lastGeocodeLoc = loc
-        geocoder.reverseGeocodeLocation(loc, preferredLocale: Locale(identifier: "id_ID")) { [weak self] marks, _ in
+        geocoder.reverseGeocodeLocation(loc, preferredLocale: Loc.shared.locale) { [weak self] marks, _ in
             // hanya `thoroughfare` (nama jalan). `name`/`subLocality` bisa berupa nomor rumah, tempat, atau kelurahan.
             let raw = marks?.first?.thoroughfare ?? ""
             let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -530,7 +534,7 @@ final class BikeController: NSObject, ObservableObject {
         } else {
             screenIndex = 0
         }
-        log("Layar awal: \(currentScreen.title)")
+        log(tr("Start screen: {0}", currentScreen.title))
     }
 
     /// Pindah ke layar tertentu bila aktif (dipakai halaman pengaturan supaya pratinjau menampilkan layar yang relevan).
@@ -542,7 +546,7 @@ final class BikeController: NSObject, ObservableObject {
     func stepScreen(forward: Bool) {
         let n = max(1, screens().count)
         screenIndex = (min(screenIndex, n - 1) + (forward ? 1 : n - 1)) % n
-        log("Tampilan dash: \(currentScreen.title)")
+        log(tr("Dash screen: {0}", currentScreen.title))
         renderLocalPreview()
     }
 
@@ -580,7 +584,7 @@ final class BikeController: NSObject, ObservableObject {
         c.infoPhotoL = settings.infoPhotoL
         c.infoPhotoR = settings.infoPhotoR
         c.photoShift = CGFloat(settings.photoShift)
-        c.greetingWord = settings.greetingWord.isEmpty ? "Halo" : settings.greetingWord
+        c.greetingWord = settings.greeting
         c.cardBgAlpha = CGFloat(settings.cardBgAlpha)
         c.markerX = CGFloat(settings.markerX)
         c.navDX = CGFloat(settings.navDX)
@@ -741,7 +745,7 @@ final class BikeController: NSObject, ObservableObject {
         let costing = settings.costing
         let profile = settings.routeProfile
         demoRouteLoading = true
-        demoRouteStatus = "Memuat contoh rute…"
+        demoRouteStatus = tr("Loading sample route…")
         Task { [weak self] in
             do {
                 let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from, to: to,
@@ -758,7 +762,7 @@ final class BikeController: NSObject, ObservableObject {
                     guard let self = self else { return }
                     self.demoRouteLoading = false
                     self.demoRouteNextTry = Date().addingTimeInterval(15)
-                    self.demoRouteStatus = "Contoh rute belum bisa dimuat (perlu internet): \(error.localizedDescription)"
+                    self.demoRouteStatus = tr("Sample route could not be loaded (internet needed): {0}", error.localizedDescription)
                 }
             }
         }
@@ -795,7 +799,7 @@ final class BikeController: NSObject, ObservableObject {
             // render sebelumnya belum selesai: beri waktu 2 dtk, lalu anggap macet dan jalankan yang baru
             let stuck = Date().timeIntervalSince(localBusySince)
             guard stuck > 2.0 else { return }
-            log("Pratinjau: render \(currentScreen.title) macet \(Int(stuck)) dtk, dicoba ulang")
+            log(tr("Preview: render {0} stuck for {1} s, retrying", currentScreen.title, Int(stuck)))
             localBusy = false
         }
         localBusy = true
@@ -819,7 +823,7 @@ final class BikeController: NSObject, ObservableObject {
         DashRenderer.render(hud) { [weak self] img in
             guard let self = self else { return }
             let took = Date().timeIntervalSince(started)
-            if took > 1.0 { self.log("Pratinjau: render \(screen.title) selesai \(String(format: "%.1f", took)) dtk") }
+            if took > 1.0 { self.log(tr("Preview: render {0} finished in {1} s", screen.title, String(format: "%.1f", took))) }
             // hasil render lama (yang sudah dianggap macet) tidak boleh menimpa render yang lebih baru,
             // tetapi gambarnya tetap dipakai bila belum ada yang lebih baru
             if id == self.localRenderID { self.localBusy = false }
@@ -871,7 +875,7 @@ final class BikeController: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 let v = self?.model?.music.adjustVolume(up: up)
                 if let v = v { self?.setCachedVolume(v) }
-                self?.log(v.map { "Volume \(up ? "naik" : "turun") → \(Int(($0 * 100).rounded()))%" } ?? "Volume: slider sistem belum siap")
+                self?.log(v.map { tr("Volume {0} → {1}%", up ? "naik" : "turun", Int(($0 * 100).rounded())) } ?? tr("Volume: system slider not ready"))
             }
         }
         s.contentProvider = { [weak self] in self?.dashContent() ?? DashContent() }
@@ -927,7 +931,7 @@ final class BikeController: NSObject, ObservableObject {
     func runCcuProbe() {
         guard let acc = EAAccessoryManager.shared().connectedAccessories
             .first(where: { $0.protocolStrings.contains(CcuProbe.protocolName) }) else {
-            log("CCU: aksesori dengan protokol \(CcuProbe.protocolName) tidak ditemukan")
+            log(tr("CCU: accessory with protocol {0} not found", CcuProbe.protocolName))
             return
         }
         ccuProbe.stop()

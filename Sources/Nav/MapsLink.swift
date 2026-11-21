@@ -8,8 +8,8 @@ enum LinkError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noURL: return "Tautan tidak dikenali"
-        case .noPlace: return "Lokasi tidak ditemukan di tautan itu" + (MapsLink.debug.isEmpty ? "" : " (\(MapsLink.debug))")
+        case .noURL: return tr("Link not recognized")
+        case .noPlace: return tr("No location found in that link") + (MapsLink.debug.isEmpty ? "" : " (\(MapsLink.debug))")
         }
     }
 }
@@ -29,11 +29,11 @@ enum MapsLink {
     static func resolve(_ input: String, near: CLLocationCoordinate2D) async throws -> Place {
         let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if let c = parseCoordinatePair(raw) {
-            return Place(name: "Titik dari tautan", subtitle: String(format: "%.5f, %.5f", c.latitude, c.longitude),
+            return Place(name: tr("Point from link"), subtitle: String(format: "%.5f, %.5f", c.latitude, c.longitude),
                          lat: c.latitude, lon: c.longitude)
         }
         if raw.lowercased().hasPrefix("geo:"), let c = parseCoordinatePair(String(raw.dropFirst(4))) {
-            return Place(name: "Titik dari tautan", subtitle: String(format: "%.5f, %.5f", c.latitude, c.longitude),
+            return Place(name: tr("Point from link"), subtitle: String(format: "%.5f, %.5f", c.latitude, c.longitude),
                          lat: c.latitude, lon: c.longitude)
         }
         guard let url = firstURL(in: raw) else { throw LinkError.noURL }
@@ -58,7 +58,7 @@ enum MapsLink {
         func updateDebug(_ extra: String = "") {
             let last = chainURLs.last.flatMap { URL(string: $0) }
             let lastHost = last.map { "\($0.host ?? "?")\($0.path.prefix(40))" } ?? (url.host ?? "?")
-            debug = "\(lastHost) · \(hops) alamat" + (failure.isEmpty ? "" : " · \(failure)") + extra
+            debug = tr("{0} · {1} addresses", lastHost, hops) + (failure.isEmpty ? "" : " · \(failure)") + extra
         }
 
         // TAHAP CEPAT (seperti NConnect): ikuti pengalihan tautan pendek satu per satu dengan membaca header
@@ -75,8 +75,8 @@ enum MapsLink {
             ?? chainURLs.reversed().compactMap { queryText($0) }.first      // alamat akhir (q=…) paling dipercaya
 
         func made(_ method: String, _ c: CLLocationCoordinate2D, _ title: String? = nil) -> Place {
-            Place(name: title ?? name ?? "Lokasi dari Google Maps",
-                  subtitle: "\(method) · garis lurus \(Fmt.distance(Geo.distance(near, c)))",
+            Place(name: title ?? name ?? tr("Location from Google Maps"),
+                  subtitle: tr("{0} · straight line {1}", method, Fmt.distance(Geo.distance(near, c))),
                   lat: c.latitude, lon: c.longitude)
         }
 
@@ -89,7 +89,7 @@ enum MapsLink {
         //    dan terima bila namanya cocok hampir seluruhnya. Ini yang membuat tautan "Bagikan" dari app Google Maps cepat.
         if isGoogle, let n = name, let hit = await geocodeText(n, near: near, fast: true) {
             return Place(name: hit.name,
-                         subtitle: "\(hit.source) (dari nama) · garis lurus \(Fmt.distance(Geo.distance(near, hit.coord)))",
+                         subtitle: tr("{0} (from name) · straight line {1}", hit.source, Fmt.distance(Geo.distance(near, hit.coord))),
                          lat: hit.coord.latitude, lon: hit.coord.longitude)
         }
 
@@ -128,10 +128,10 @@ enum MapsLink {
             let wurls = web.urls.map { unwrapConsent(URL(string: $0) ?? url).absoluteString.removingPercentEncoding ?? $0 }
             chainURLs += web.urls + wurls
             bodies.append(web.html)
-            updateDebug(" · web \(web.urls.count) alamat")
+            updateDebug(tr(" · web {0} addresses", web.urls.count))
             if let n = web.urls.compactMap({ placeName(from: $0) }).first { name = n }
-            if let c = web.urls.compactMap({ pinCoordinate(from: $0) }).first { return made("Google Maps (peramban)", c) }
-            if let c = web.urls.compactMap({ placeCenter(from: $0) }).first { return made("Google Maps (peramban)", c) }
+            if let c = web.urls.compactMap({ pinCoordinate(from: $0) }).first { return made(tr("Google Maps (browser)"), c) }
+            if let c = web.urls.compactMap({ placeCenter(from: $0) }).first { return made(tr("Google Maps (browser)"), c) }
         }
         // 6) ID tempat (ftid / cid) dibuka lewat maps.google.com/?cid=
         if let cid = cidDecimal(in: chainURLs + bodyLinks + bodies),
@@ -139,18 +139,18 @@ enum MapsLink {
            let r = try? await follow(u, ua: desktopUA) {
             let urls = r.chain.map { unwrapConsent($0) }.map { $0.absoluteString.removingPercentEncoding ?? $0.absoluteString }
             if let c = urls.compactMap({ pinCoordinate(from: $0) }).first ?? urls.compactMap({ placeCenter(from: $0) }).first {
-                return made("Google Maps (ID tempat)", c)
+                return made(tr("Google Maps (place ID)"), c)
             }
         }
         // 7) Pencarian nama dengan syarat lebih longgar (skor ≥ 0,5) dan cadangan geocoder alamat.
         if let n = name, let hit = await geocodeText(n, near: near, fast: false) {
-            return Place(name: hit.name, subtitle: "\(hit.source) · garis lurus \(Fmt.distance(Geo.distance(near, hit.coord)))",
+            return Place(name: hit.name, subtitle: tr("{0} · straight line {1}", hit.source, Fmt.distance(Geo.distance(near, hit.coord))),
                          lat: hit.coord.latitude, lon: hit.coord.longitude)
         }
         // 8) Terakhir: tebakan dari isi halaman (hanya pusat tampilan peta, bisa jauh). Diberi tanda.
         let weak = bodyLinks.compactMap { pinCoordinate(from: $0) ?? placeCenter(from: $0) }.first
             ?? bodies.compactMap { coordinates(fromBody: $0) }.first
-        if let c = weak { return made("Perkiraan, periksa lokasinya", c) }
+        if let c = weak { return made(tr("Approximate, check the location"), c) }
         throw LinkError.noPlace
     }
 
@@ -278,7 +278,7 @@ enum MapsLink {
         // alamat jalan lengkap → geocoder Apple (setidaknya dekat, bukan puluhan km)
         if segs.count >= 3, let marks = try? await CLGeocoder().geocodeAddressString(text),
            let m = marks.first, let loc = m.location {
-            return Hit(name: head, coord: loc.coordinate, source: "Alamat (Apple)", score: 0.4)
+            return Hit(name: head, coord: loc.coordinate, source: tr("Address (Apple)"), score: 0.4)
         }
         return nil
     }

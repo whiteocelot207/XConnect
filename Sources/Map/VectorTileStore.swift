@@ -176,7 +176,7 @@ final class VectorTileStore {
             guard let data = data,
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let tiles = obj["tiles"] as? [String], let t = tiles.first else {
-                self.log("Peta: TileJSON gagal diambil")
+                self.log(tr("Map: failed to fetch TileJSON"))
                 self.lock.lock(); self.templateTime = Date.distantPast; self.lock.unlock()
                 return
             }

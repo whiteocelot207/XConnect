@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: id.xconnect
   deploymentTarget:
     iOS: "15.0"
+  developmentLanguage: en
 packages:
   MapLibre:
     url: https://github.com/maplibre/maplibre-gl-native-distribution
@@ -12,7 +13,11 @@ targets:
     type: application
     platform: iOS
     sources:
-      - Sources
+      - path: Sources
+        excludes:
+          - Resources/Translations.tsv
+      - path: Sources/Resources/Translations.tsv
+        buildPhase: resources
     dependencies:
       - package: MapLibre
     settings:
@@ -21,9 +26,9 @@ targets:
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        # Versi dasar x.y.z: x.y dan angka z terkecil. Workflow menaikkan z otomatis tiap build (0.8.0 -> 0.8.1 -> ...).
-        # Untuk naik ke 0.9, ubah jadi "0.9.0" lalu push.
-        MARKETING_VERSION: "0.8.0"
+        # Base version x.y.z: x.y and the smallest z. The workflow raises z automatically on every build
+        # (0.1.1 -> 0.1.2 -> ...). To move to 0.2, change this to "0.2.1" and push.
+        MARKETING_VERSION: "0.1.1"
         CURRENT_PROJECT_VERSION: "1"
     info:
       path: Sources/Info.plist
@@ -31,6 +36,10 @@ targets:
         CFBundleDisplayName: XConnect
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations:
+          - en
+          - id
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -42,8 +51,8 @@ targets:
           - bluetooth-central
           - location
           - audio
-        NSBluetoothAlwaysUsageDescription: XConnect terhubung ke dash motor Yamaha lewat Bluetooth untuk menampilkan peta.
-        NSLocationWhenInUseUsageDescription: XConnect memakai lokasi untuk menggambar peta di dash motor.
-        NSBluetoothPeripheralUsageDescription: XConnect membaca data motor (aki, ODO, suhu) dari ECU motor lewat Bluetooth.
-        NSAppleMusicUsageDescription: XConnect menampilkan lagu yang sedang diputar di layar dash motor.
-        NSLocationAlwaysAndWhenInUseUsageDescription: XConnect memakai lokasi agar peta di dash tetap jalan saat layar terkunci.
+        NSBluetoothAlwaysUsageDescription: XConnect connects to the Yamaha motorcycle dash over Bluetooth to show the map.
+        NSLocationWhenInUseUsageDescription: XConnect uses your location to draw the map on the motorcycle dash.
+        NSBluetoothPeripheralUsageDescription: XConnect reads motorcycle data (battery, ODO, temperature) from the motorcycle ECU over Bluetooth.
+        NSAppleMusicUsageDescription: XConnect shows the song that is playing on the motorcycle dash.
+        NSLocationAlwaysAndWhenInUseUsageDescription: XConnect uses your location so the map on the dash keeps working while the screen is locked.

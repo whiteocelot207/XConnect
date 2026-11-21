@@ -38,12 +38,12 @@ final class MusicService: ObservableObject {
 
     private static func stateName(_ s: MPMusicPlaybackState) -> String {
         switch s {
-        case .playing: return "diputar"
-        case .paused: return "jeda"
-        case .stopped: return "berhenti"
-        case .interrupted: return "terputus"
-        case .seekingForward: return "maju cepat"
-        case .seekingBackward: return "mundur cepat"
+        case .playing: return tr("playing")
+        case .paused: return tr("paused")
+        case .stopped: return tr("stopped")
+        case .interrupted: return tr("interrupted")
+        case .seekingForward: return tr("fast forward")
+        case .seekingBackward: return tr("rewind")
         @unknown default: return "?"
         }
     }
@@ -59,11 +59,11 @@ final class MusicService: ObservableObject {
         p.beginGeneratingPlaybackNotifications()
         let nc = NotificationCenter.default
         nc.addObserver(forName: .MPMusicPlayerControllerPlaybackStateDidChange, object: p, queue: .main) { [weak self] _ in
-            self?.onLog("Musik: status \(MusicService.stateName(p.playbackState))")
+            self?.onLog(tr("Music: state {0}", MusicService.stateName(p.playbackState)))
             self?.resumeIfInterruptedByGuidance()
         }
         nc.addObserver(forName: .MPMusicPlayerControllerNowPlayingItemDidChange, object: p, queue: .main) { [weak self] _ in
-            self?.onLog("Musik: lagu berganti → \(p.nowPlayingItem?.title ?? "-")")
+            self?.onLog(tr("Music: track changed → {0}", p.nowPlayingItem?.title ?? "-"))
         }
         volObs = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let v = change.newValue else { return }
@@ -82,7 +82,7 @@ final class MusicService: ObservableObject {
         }
         nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] n in
             let t = (n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap(AVAudioSession.InterruptionType.init)
-            self?.onLog("Audio: interupsi \(t == .began ? "mulai" : "selesai")")
+            self?.onLog(tr("Audio: interruption {0}", t == .began ? tr("started") : tr("ended")))
             if t == .ended { self?.updateKeepAlive() }
         }
         nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
@@ -92,11 +92,11 @@ final class MusicService: ObservableObject {
         // catatan di Log untuk menelusuri bila musik berhenti saat suara petunjuk arah berbunyi
         nc.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] n in
             let r = (n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt) ?? 0
-            self?.onLog("Audio: rute berubah (alasan \(r))")
+            self?.onLog(tr("Audio: route changed (reason {0})", r))
         }
         nc.addObserver(forName: AVAudioSession.silenceSecondaryAudioHintNotification, object: nil, queue: .main) { [weak self] n in
             let t = (n.userInfo?[AVAudioSessionSilenceSecondaryAudioHintTypeKey] as? UInt) ?? 99
-            self?.onLog("Audio: app lain meminta audio lain diam (tipe \(t))")
+            self?.onLog(tr("Audio: another app asked other audio to stay silent (type {0})", t))
         }
         if remoteCommandsEnabled { registerRemoteCommands() }
     }
@@ -122,7 +122,7 @@ final class MusicService: ObservableObject {
             }
             try s.setActive(true)
         } catch {
-            onLog("Sesi audio gagal aktif: \(error.localizedDescription)")
+            onLog(tr("Audio session failed to activate: {0}", error.localizedDescription))
         }
     }
 
@@ -138,7 +138,7 @@ final class MusicService: ObservableObject {
                 keepAlivePlayer?.prepareToPlay()
             }
             if let p = keepAlivePlayer, !p.isPlaying {
-                if !p.play() { onLog("Audio senyap gagal diputar (data HP di latar belakang bisa tertahan)") }
+                if !p.play() { onLog(tr("Silent audio failed to play (phone data in the background may stall)")) }
             }
         } else if let p = keepAlivePlayer {
             p.stop()
@@ -166,7 +166,7 @@ final class MusicService: ObservableObject {
             musicWasPlaying = p.playbackState == .playing
             autoResumeCount = 0
             // keadaan SEBELUM sesi suara diubah, untuk membedakan "terputus oleh sesi suara" dari "sudah terputus sebelumnya"
-            onLog("Suara: sebelum sesi: musik=\(MusicService.stateName(p.playbackState)) audioLain=\(s.isOtherAudioPlaying) opsi=\(s.categoryOptions.rawValue) mode=\(s.mode.rawValue) senyap=\(keepAlivePlayer?.isPlaying == true ? "jalan" : "mati")")
+            onLog(tr("Voice: before session: music={0} otherAudio={1} options={2} mode={3} silent={4}", MusicService.stateName(p.playbackState), s.isOtherAudioPlaying, s.categoryOptions.rawValue, s.mode.rawValue, keepAlivePlayer?.isPlaying == true ? tr("running") : tr("off")))
         }
         autoResumeUntil = .distantFuture
         // ucapan baru datang saat sesi sedang dilepas: batalkan pelepasan itu, sesi dipakai lagi
@@ -187,17 +187,17 @@ final class MusicService: ObservableObject {
         if !guidanceActive {
             if let kp = keepAlivePlayer { kp.stop(); keepAlivePlayer = nil }
             do { try s.setActive(false, options: .notifyOthersOnDeactivation) }
-            catch { onLog("Suara: sesi lama gagal dilepas: \(error.localizedDescription)") }
+            catch { onLog(tr("Voice: old session failed to release: {0}", error.localizedDescription)) }
         }
         guidanceActive = true
         guidanceDuck = duck
         do {
             try s.setCategory(.playback, mode: .voicePrompt, options: opts)
             try s.setActive(true)
-            onLog("Suara: sesi aktif (duck \(duck ? "ya" : "tidak"), volume sistem \(Int((s.outputVolume * 100).rounded()))%)")
-            onLog("Suara: opsi=\(s.categoryOptions.rawValue) mode=\(s.mode.rawValue) audioLain=\(s.isOtherAudioPlaying) diamkanAudioLain=\(s.secondaryAudioShouldBeSilencedHint) musik=\(MusicService.stateName(p.playbackState))")
+            onLog(tr("Voice: session active (duck {0}, system volume {1}%)", duck ? tr("yes") : tr("no"), Int((s.outputVolume * 100).rounded())))
+            onLog(tr("Voice: options={0} mode={1} otherAudio={2} silenceOtherAudio={3} music={4}", s.categoryOptions.rawValue, s.mode.rawValue, s.isOtherAudioPlaying, s.secondaryAudioShouldBeSilencedHint, MusicService.stateName(p.playbackState)))
         } catch {
-            onLog("Suara: sesi gagal aktif: \(error.localizedDescription)")
+            onLog(tr("Voice: session failed to activate: {0}", error.localizedDescription))
         }
     }
 
@@ -222,7 +222,7 @@ final class MusicService: ObservableObject {
             let p = MPMusicPlayerController.systemMusicPlayer
             guard p.playbackState == .interrupted || p.playbackState == .paused else { return }   // sudah pulih sendiri
             self.autoResumeCount += 1
-            self.onLog("Musik: masih \(MusicService.stateName(p.playbackState)) setelah \(self.resumeDelay) dtk, dilanjutkan (1)")
+            self.onLog(tr("Music: still {0} after {1} s, resumed (1)", MusicService.stateName(p.playbackState), self.resumeDelay))
             p.play()
         }
         resumeWork = w
@@ -253,10 +253,10 @@ final class MusicService: ObservableObject {
         let s = AVAudioSession.sharedInstance()
         do {
             try s.setActive(false, options: .notifyOthersOnDeactivation)
-            if n > 0 { onLog("Suara: sesi berhasil dilepas pada percobaan ke-\(n + 1)") }
+            if n > 0 { onLog(tr("Voice: session released on attempt #{0}", n + 1)) }
         } catch {
             if n < 12 {
-                if n == 0 { onLog("Suara: sesi belum bisa dilepas (\(error.localizedDescription)), dicoba lagi") }
+                if n == 0 { onLog(tr("Voice: session cannot be released yet ({0}), retrying", error.localizedDescription)) }
                 let w = DispatchWorkItem { [weak self] in
                     self?.releaseWork = nil
                     self?.releaseAttempt(n + 1)
@@ -265,7 +265,7 @@ final class MusicService: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: w)
                 return
             }
-            onLog("Suara: sesi gagal dilepas setelah \(n + 1) percobaan: \(error.localizedDescription)")
+            onLog(tr("Voice: session failed to release after {0} attempts: {1}", n + 1, error.localizedDescription))
         }
         finishRelease()
     }
@@ -275,7 +275,7 @@ final class MusicService: ObservableObject {
         // Kembalikan kategori ke konfigurasi dasar (tanpa duckOthers) selagi sesi nonaktif, supaya sesi berikutnya
         // (audio senyap / pemberitahuan berikutnya) tidak mewarisi duckOthers + voicePrompt dari suara sebelumnya.
         do { try s.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
-        catch { onLog("Suara: kategori dasar gagal dipulihkan: \(error.localizedDescription)") }
+        catch { onLog(tr("Voice: base category failed to restore: {0}", error.localizedDescription)) }
         pauseGuardUntil = Date().addingTimeInterval(2.0)
         autoResumeUntil = Date().addingTimeInterval(4.0)
         autoResumeCount = 0          // jatah baru untuk interupsi yang muncul setelah suara selesai
@@ -290,7 +290,7 @@ final class MusicService: ObservableObject {
         restartWork = w
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: w)
         resumeIfInterruptedByGuidance()
-        onLog("Suara: selesai (sesi dilepas), volume sistem \(Int((s.outputVolume * 100).rounded()))%")
+        onLog(tr("Voice: done (session released), system volume {0}%", Int((s.outputVolume * 100).rounded())))
     }
 
     private var restartWork: DispatchWorkItem?
@@ -321,47 +321,47 @@ final class MusicService: ObservableObject {
         let c = MPRemoteCommandCenter.shared()
         let p = MPMusicPlayerController.systemMusicPlayer
         c.playCommand.addTarget { [weak self] _ in
-            self?.onLog("Perintah media: putar")
+            self?.onLog(tr("Media command: play"))
             p.play()
             return .success
         }
         c.pauseCommand.addTarget { [weak self] _ in
             if self?.shouldIgnorePause == true {
-                self?.onLog("Perintah media: jeda DIABAIKAN (bersamaan dengan suara petunjuk)")
+                self?.onLog(tr("Media command: pause IGNORED (during a voice prompt)"))
                 return .success
             }
-            self?.onLog("Perintah media: jeda")
+            self?.onLog(tr("Media command: pause"))
             p.pause()
             return .success
         }
         c.togglePlayPauseCommand.addTarget { [weak self] _ in
             if self?.shouldIgnorePause == true {
-                self?.onLog("Perintah media: putar/jeda DIABAIKAN (bersamaan dengan suara petunjuk)")
+                self?.onLog(tr("Media command: play/pause IGNORED (during a voice prompt)"))
                 return .success
             }
-            self?.onLog("Perintah media: putar/jeda (OK)")
+            self?.onLog(tr("Media command: play/pause (OK)"))
             if p.playbackState == .playing { p.pause() } else { p.play() }
             return .success
         }
         c.nextTrackCommand.addTarget { [weak self] _ in
-            self?.onLog("Perintah media: lagu berikutnya")
+            self?.onLog(tr("Media command: next track"))
             p.skipToNextItem()
             return .success
         }
         c.previousTrackCommand.addTarget { [weak self] _ in
-            self?.onLog("Perintah media: lagu sebelumnya")
+            self?.onLog(tr("Media command: previous track"))
             p.skipToPreviousItem()
             return .success
         }
         c.seekForwardCommand.addTarget { [weak self] ev in
             let begin = (ev as? MPSeekCommandEvent)?.type == .beginSeeking
-            self?.onLog("Perintah media: tahan next (\(begin ? "mulai" : "selesai"))")
+            self?.onLog(tr("Media command: hold next ({0})", begin ? tr("started") : tr("ended")))
             if begin { p.beginSeekingForward() } else { p.endSeeking() }
             return .success
         }
         c.seekBackwardCommand.addTarget { [weak self] ev in
             let begin = (ev as? MPSeekCommandEvent)?.type == .beginSeeking
-            self?.onLog("Perintah media: tahan previous (\(begin ? "mulai" : "selesai"))")
+            self?.onLog(tr("Media command: hold previous ({0})", begin ? tr("started") : tr("ended")))
             if begin { p.beginSeekingBackward() } else { p.endSeeking() }
             return .success
         }
@@ -439,7 +439,7 @@ final class MusicService: ObservableObject {
         let echo = abs(v - lastVolumeTarget) < 0.02 && Date().timeIntervalSince(lastVolumeSet) < 1.5
         if !echo {
             lastVolumeSet = .distantPast
-            onLog("Volume sistem berubah dari luar → \(Int((v * 100).rounded()))% (\(source))")
+            onLog(tr("System volume changed externally → {0}% ({1})", Int((v * 100).rounded()), source))
         }
         onSystemVolume(v)
     }
@@ -490,13 +490,13 @@ final class MusicService: ObservableObject {
     /// Tekan tahan di stang: lagu berikutnya / sebelumnya.
     func skip(next forward: Bool) {
         guard authorized else {
-            onLog("Musik: izin Media & Apple Music belum diberikan, tidak bisa ganti lagu")
+            onLog(tr("Music: Media & Apple Music permission not granted, cannot change track"))
             return
         }
         if forward { next() } else { previous() }
-        toastText = forward ? "Lagu berikutnya  ▶▶" : "◀◀  Lagu sebelumnya"
+        toastText = forward ? tr("Next track  ▶▶") : tr("◀◀  Previous track")
         toastUntil = Date().addingTimeInterval(1.5)
-        onLog("Musik: \(forward ? "lagu berikutnya" : "lagu sebelumnya") (tekan tahan di stang)")
+        onLog(tr("Music: {0} (hold on the handlebar)", forward ? tr("next track") : tr("previous track")))
         // perbarui info lagu secepatnya (judul baru), tidak menunggu timer 1 dtk
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.refresh() }
     }
@@ -508,14 +508,14 @@ final class MusicService: ObservableObject {
     /// Putar/jeda dari stang (atas lalu bawah cepat): sama dengan togglePlay, ditambah pesan di dash dan catatan Log.
     func wheelTogglePlay() {
         guard authorized else {
-            onLog("Musik: izin Media & Apple Music belum diberikan, tidak bisa putar/jeda")
+            onLog(tr("Music: Media & Apple Music permission not granted, cannot play/pause"))
             return
         }
         let wasPlaying = MPMusicPlayerController.systemMusicPlayer.playbackState == .playing
         togglePlay()
-        toastText = wasPlaying ? "Jeda  ❚❚" : "Putar  ▶"
+        toastText = wasPlaying ? tr("Pause  ❚❚") : tr("Play  ▶")
         toastUntil = Date().addingTimeInterval(1.5)
-        onLog("Musik: \(wasPlaying ? "jeda" : "putar") (atas-bawah cepat di stang)")
+        onLog(tr("Music: {0} (quick up-down on the handlebar)", wasPlaying ? tr("paused") : tr("play")))
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.refresh() }
     }
 }

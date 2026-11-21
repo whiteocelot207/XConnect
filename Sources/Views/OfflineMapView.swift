@@ -21,16 +21,16 @@ struct OfflineMapView: View {
     var body: some View {
         List {
             Section {
-                Text("Simpan area yang paling sering Anda lewati agar dasbor tetap menampilkan peta meskipun tanpa jaringan.")
+                Text(tr("Save the areas you pass most often so the dash still shows the map without a network."))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
             }
 
-            Section(header: Text("Tambah area").font(.headline).textCase(nil)) {
+            Section(header: Text(tr("Add area")).font(.headline).textCase(nil)) {
                 areaPicker
-                Picker("Radius", selection: $radius) {
+                Picker(tr("Radius"), selection: $radius) {
                     ForEach(radii, id: \.self) { Text("\($0) km").tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -38,7 +38,7 @@ struct OfflineMapView: View {
                 .onChange(of: radius) { _ in updateEstimate() }
 
                 if center != nil {
-                    Text("Sekitar \(estimate) MB. Lebih baik menggunakan Wi-Fi, dengan aplikasi tetap terbuka hingga selesai.")
+                    Text(tr("About {0} MB. Wi-Fi is better, with the app kept open until it finishes.", estimate))
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -47,10 +47,10 @@ struct OfflineMapView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ProgressView(value: store.progress)
                         HStack {
-                            Text("Mengunduh \(store.downloadName)… \(Int(store.progress * 100))%")
+                            Text(tr("Downloading {0}… {1}%", store.downloadName, Int(store.progress * 100)))
                                 .font(.footnote)
                             Spacer()
-                            Button("Batal") { store.cancel() }
+                            Button(tr("Cancel")) { store.cancel() }
                                 .buttonStyle(.bordered)
                                 .tint(.red)
                         }
@@ -60,7 +60,7 @@ struct OfflineMapView: View {
                     Button { save() } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.down.circle")
-                            Text("Simpan area ini")
+                            Text(tr("Save this area"))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
@@ -77,21 +77,21 @@ struct OfflineMapView: View {
                 }
             }
 
-            Section(header: Text("Peta tersimpan").font(.headline).textCase(nil),
-                    footer: Text(store.areas.isEmpty ? "" : "Total \(OfflineMapStore.mbText(store.totalBytes)) di ponsel.")) {
+            Section(header: Text(tr("Saved maps")).font(.headline).textCase(nil),
+                    footer: Text(store.areas.isEmpty ? "" : tr("Total {0} on the phone.", OfflineMapStore.mbText(store.totalBytes)))) {
                 if store.areas.isEmpty {
-                    Text("Belum ada area yang diunduh.").font(.footnote).foregroundColor(.secondary)
+                    Text(tr("No areas downloaded yet.")).font(.footnote).foregroundColor(.secondary)
                 }
                 ForEach(store.areas) { a in
                     HStack(spacing: 12) {
-                        Image(systemName: "map.fill").foregroundColor(.blue).frame(width: 26)
+                        Image(systemName: "map.fill").foregroundColor(.accentColor).frame(width: 26)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(a.name).font(.headline).lineLimit(2)
-                            Text("Radius \(a.radiusKm) km · \(OfflineMapStore.mbText(a.bytes)) · \(Self.dateText(a.date))")
+                            Text(tr("Radius {0} km · {1} · {2}", a.radiusKm, OfflineMapStore.mbText(a.bytes), Self.dateText(a.date)))
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
                             if a.failed > 0 {
-                                Text("\(a.failed) tile belum terunduh").font(.caption).foregroundColor(.orange)
+                                Text(tr("{0} tiles not downloaded yet", a.failed)).font(.caption).foregroundColor(.orange)
                             }
                         }
                         Spacer(minLength: 0)
@@ -100,18 +100,18 @@ struct OfflineMapView: View {
                             .foregroundColor(.red)
                     }
                     .swipeActions {
-                        Button(role: .destructive) { toDelete = a } label: { Label("Hapus", systemImage: "trash") }
+                        Button(role: .destructive) { toDelete = a } label: { Label(tr("Delete"), systemImage: "trash") }
                     }
                 }
             }
         }
-        .navigationTitle("Peta offline")
+        .navigationTitle(tr("Offline maps"))
         .navigationBarTitleDisplayMode(.large)
         .alert(item: $toDelete) { a in
-            Alert(title: Text("Hapus area \"\(a.name)\"?"),
-                  message: Text("Peta offline sekitar \(OfflineMapStore.mbText(a.bytes)) akan dihapus dari ponsel."),
-                  primaryButton: .destructive(Text("Hapus")) { store.delete(a) },
-                  secondaryButton: .cancel(Text("Batal")))
+            Alert(title: Text(tr("Delete area \"{0}\"?", a.name)),
+                  message: Text(tr("About {0} of offline map will be removed from the phone.", OfflineMapStore.mbText(a.bytes))),
+                  primaryButton: .destructive(Text(tr("Delete"))) { store.delete(a) },
+                  secondaryButton: .cancel(Text(tr("Cancel"))))
         }
     }
 
@@ -121,29 +121,29 @@ struct OfflineMapView: View {
         if let name = areaName {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Area").font(.caption).foregroundColor(.secondary)
+                    Text(tr("Area")).font(.caption).foregroundColor(.secondary)
                     Text(name).font(.title3).lineLimit(2)
                 }
                 Spacer()
-                Button("Ubah") {
+                Button(tr("Change")) {
                     guard !store.downloading else { return }
                     areaName = nil
                     center = nil
                     info = ""
                 }
-                .foregroundColor(.blue)
+                .foregroundColor(.accentColor)
             }
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    TextField("Pencarian tempat", text: $query)
+                    TextField(tr("Place search"), text: $query)
                         .disableAutocorrection(true)
                         .onChange(of: query) { q in search(q) }
                     if searching { ProgressView() }
-                    else { Image(systemName: "magnifyingglass").foregroundColor(.blue) }
+                    else { Image(systemName: "magnifyingglass").foregroundColor(.accentColor) }
                 }
                 Button { useCurrentLocation() } label: {
-                    Label("Gunakan lokasi saat ini", systemImage: "location.fill")
+                    Label(tr("Use current location"), systemImage: "location.fill")
                 }
                 .buttonStyle(.borderless)
             }
@@ -174,16 +174,16 @@ struct OfflineMapView: View {
     private func useCurrentLocation() {
         let loc = AppModel.shared.location
         guard loc.hasFix else {
-            info = "Lokasi belum tersedia. Pastikan izin lokasi aktif, atau cari tempat."
+            info = tr("Location not available yet. Make sure location permission is on, or search a place.")
             return
         }
         let c = loc.coordinate
-        choose("Lokasi saya", c)
+        choose(tr("My location"), c)
         CLGeocoder().reverseGeocodeLocation(CLLocation(latitude: c.latitude, longitude: c.longitude)) { marks, _ in
             guard let m = marks?.first else { return }
             let part = m.subLocality ?? m.locality ?? m.subAdministrativeArea
             DispatchQueue.main.async {
-                if let part = part, areaName == "Lokasi saya" { areaName = "Lokasi saya · \(part)" }
+                if let part = part, areaName == tr("My location") { areaName = tr("My location · {0}", part) }
             }
         }
     }
@@ -214,7 +214,7 @@ struct OfflineMapView: View {
 
     private static func dateText(_ d: Date) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "id_ID")
+        f.locale = Loc.shared.locale
         f.dateFormat = "d MMM yyyy"
         return f.string(from: d)
     }

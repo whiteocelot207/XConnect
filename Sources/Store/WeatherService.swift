@@ -27,15 +27,15 @@ final class WeatherService: ObservableObject {
 
     static func describe(_ code: Int) -> String {
         switch code {
-        case 0: return "Cerah"
-        case 1, 2: return "Cerah berawan"
-        case 3: return "Berawan"
-        case 45, 48: return "Berkabut"
-        case 51...57: return "Gerimis"
-        case 61...67: return "Hujan"
-        case 80...82: return "Hujan lebat"
-        case 95...99: return "Petir"
-        default: return "Cuaca"
+        case 0: return tr("Clear")
+        case 1, 2: return tr("Partly cloudy")
+        case 3: return tr("Cloudy")
+        case 45, 48: return tr("Foggy")
+        case 51...57: return tr("Drizzle")
+        case 61...67: return tr("Rain")
+        case 80...82: return tr("Heavy rain")
+        case 95...99: return tr("Thunderstorm")
+        default: return tr("Weather")
         }
     }
 }

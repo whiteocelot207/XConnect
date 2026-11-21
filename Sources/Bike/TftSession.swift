@@ -119,12 +119,12 @@ final class TftSession {
         authenticated = false
         streaming = false
         if link.open(accessory) {
-            onLog("Sesi iAP dibuka, menunggu ESN dari dash…")
-            onStatus("Menunggu dash…")
+            onLog(tr("iAP session opened, waiting for ESN from the dash…"))
+            onStatus(tr("Waiting for the dash…"))
             return true
         }
-        onLog("Gagal membuka sesi iAP (app lain mungkin sedang memakai dash)")
-        onStatus("Gagal membuka sesi")
+        onLog(tr("Failed to open iAP session (another app may be using the dash)"))
+        onStatus(tr("Failed to open session"))
         return false
     }
 
@@ -191,7 +191,7 @@ final class TftSession {
         if dropped > 0, Date().timeIntervalSince(lastDropLog) > 1 {
             lastDropLog = Date()
             let sample = parser.takeDropSample().map { String(format: "%02x", $0) }.joined(separator: " ")
-            onLog("← \(dropped) B dari dash dibuang (bukan paket NaviLite sah): \(sample)")
+            onLog(tr("← {0} B from the dash discarded (not a valid NaviLite packet): {1}", dropped, sample))
         }
         for p in packets { handle(p) }
     }
@@ -207,7 +207,7 @@ final class TftSession {
 
         case NaviService.authSecData:
             let d = p.payload.map { $0 ^ 0x0A }
-            guard d.count >= 12 else { onLog("SEC_DATA terlalu pendek"); return }
+            guard d.count >= 12 else { onLog(tr("SEC_DATA too short")); return }
             partNo = String(bytes: d[0..<12], encoding: .ascii) ?? ""
             let key = Array(d[12...])
             if partNo.contains("006-B4160") || partNo.contains("006-B4920") {
@@ -221,13 +221,13 @@ final class TftSession {
         case NaviService.authAck:
             if p.intValue == 1 {
                 authenticated = true
-                onLog("← AUTH_ACK: terautentikasi")
-                onStatus("Terhubung, menunggu dash minta peta")
+                onLog(tr("← AUTH_ACK: authenticated"))
+                onStatus(tr("Connected, waiting for the dash to request the map"))
                 sendInitialState()
                 onAuthenticated(partNo)
             } else {
-                onLog("← AUTH_ACK: DITOLAK")
-                onStatus("Autentikasi ditolak")
+                onLog(tr("← AUTH_ACK: REJECTED"))
+                onStatus(tr("Authentication rejected"))
             }
 
         case NaviService.startContent:
@@ -241,7 +241,7 @@ final class TftSession {
                     DispatchQueue.main.async { self?.sendPOIList(kind: t, places: places) }
                 }
             default:
-                onLog("START_CONTENT \(t) belum didukung")
+                onLog(tr("START_CONTENT {0} not supported yet", t))
             }
 
         case NaviService.stopContent:
@@ -271,23 +271,23 @@ final class TftSession {
                 let item = Bytes.i16(b, 0)
                 let lst = Bytes.i16(b, 2)
                 if let places = lists[lst], item >= 0, item < places.count {
-                    onLog("← pilih tujuan dari dash: \(places[item].name)")
+                    onLog(tr("← destination chosen from the dash: {0}", places[item].name))
                     onStartRoute(places[item])
                 } else {
-                    onLog("← START_ROUTE item=\(item) list=\(lst) tidak dikenal")
+                    onLog(tr("← START_ROUTE item={0} list={1} unknown", item, lst))
                 }
             }
 
         case NaviService.stopRoute:
-            onLog("← STOP_ROUTE dari dash")
+            onLog(tr("← STOP_ROUTE from the dash"))
             onStopRoute()
 
         case NaviService.goHome:
-            onLog("← GO_HOME dari dash")
+            onLog(tr("← GO_HOME from the dash"))
             onGoHome()
 
         case NaviService.goOffice:
-            onLog("← GO_OFFICE dari dash")
+            onLog(tr("← GO_OFFICE from the dash"))
             onGoWork()
 
         case NaviService.vehicleSpeed:
@@ -299,10 +299,10 @@ final class TftSession {
             }
 
         case NaviService.sysInfo, NaviService.dialog:
-            onLog("← layanan \(p.service) (\(p.payload.count) B)")
+            onLog(tr("← service {0} ({1} B)", p.service, p.payload.count))
 
         default:
-            onLog("← layanan \(p.service) frameType=\(p.frameType) (\(p.payload.count) B)")
+            onLog(tr("← service {0} frameType={1} ({2} B)", p.service, p.frameType, p.payload.count))
         }
     }
 
@@ -333,13 +333,13 @@ final class TftSession {
         let now = Date()
         let gap = lastBtn.map { " (+\(Int(now.timeIntervalSince($0) * 1000)) ms)" } ?? ""
         lastBtn = now
-        let dir = up ? "atas" : "bawah"
+        let dir = up ? tr("up") : tr("down")
 
         // Musik: arah BERLAWANAN tepat setelah tekan pertama = putar/jeda
         if gestures, chainCount == 1, chainUp != up, now.timeIntervalSince(chainLast) <= window {
             onVolume(!chainUp)                              // batalkan volume dari tekan pertama
             chainCount = 0
-            onButtonEvent("\(dir) setelah \(chainUp ? "atas" : "bawah") cepat\(gap) → putar/jeda")
+            onButtonEvent(tr("{0} after {1} quick{2} → play/pause", dir, chainUp ? tr("up") : tr("down"), gap))
             onTogglePlay()
             return
         }
@@ -364,7 +364,7 @@ final class TftSession {
                 onVolume(!up)                               // batalkan volume dari klik pertama
                 let work = DispatchWorkItem { [weak self] in
                     self?.pendingSkip = nil
-                    self?.onButtonEvent("\(dir) 2x → lagu \(up ? "berikutnya" : "sebelumnya")")
+                    self?.onButtonEvent(tr("{0} 2x → track {1}", dir, up ? "berikutnya" : "sebelumnya"))
                     self?.onMusicSkip(up)
                 }
                 pendingSkip = work
@@ -376,7 +376,7 @@ final class TftSession {
             }
         case 3:
             cancelPendingSkip()
-            onButtonEvent("\(dir) 3x\(gap) → ganti tampilan")
+            onButtonEvent(tr("{0} 3x{1} → switch screen", dir, gap))
             if music {
                 if !gestures { onVolume(!up); onVolume(!up) }   // batalkan dua langkah volume
             } else {
@@ -385,7 +385,7 @@ final class TftSession {
             onStepScreen(up)
         default:
             // tombol ditahan (dash mengulang paket) atau klik berlebih: abaikan sampai ada jeda
-            onButtonEvent("\(dir) tekan ke-\(chainCount) diabaikan\(gap)")
+            onButtonEvent(tr("{0} press #{1} ignored{2}", dir, chainCount, gap))
         }
     }
 
@@ -490,7 +490,7 @@ final class TftSession {
             b += name
             send(.pointer(itemSvc, b))
         }
-        onLog("→ daftar \(kind == 3 ? "favorit" : "SPBU"): \(list.count) item")
+        onLog(tr("→ list {0}: {1} items", kind == 3 ? "favorit" : tr("Gas station"), list.count))
     }
 
     // MARK: - Streaming layar (pipeline: gambar frame berikutnya selagi menunggu ACK)
@@ -506,7 +506,7 @@ final class TftSession {
         seq = 0
         fpsStart = Date()
         fpsCount = 0
-        onStatus("Streaming peta")
+        onStatus(tr("Streaming map"))
         startWatchdog()
         pump()
     }
@@ -519,7 +519,7 @@ final class TftSession {
         readyJPEG = nil
         ackTimer?.invalidate()
         watchTimer?.invalidate()
-        onStatus("Streaming berhenti")
+        onStatus(tr("Streaming stopped"))
     }
 
     private func pump() {
@@ -617,11 +617,11 @@ final class TftSession {
             // saat app berpindah latar/depan thread utama bisa tertahan beberapa detik; beri kesempatan lebih lama
             let maxRetries = self.inLifecycleGrace() ? 8 : 3
             if self.ackRetries > maxRetries {
-                self.onLog("Dash tidak membalas ACK frame (\(self.ackRetries * 3) dtk), menutup sesi")
+                self.onLog(tr("Dash did not acknowledge the frame ({0} s), closing session", self.ackRetries * 3))
                 self.stop()
                 return
             }
-            self.onLog("ACK frame belum datang, kirim ulang (\(self.ackRetries)/\(maxRetries))")
+            self.onLog(tr("Frame ACK not received, resending ({0}/{1})", self.ackRetries, maxRetries))
             self.send(.pointer(NaviService.imageFrame, self.lastPayload))
             self.armAckTimer()
         }
@@ -633,7 +633,7 @@ final class TftSession {
         watchTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             guard let self = self, self.streaming else { return }
             if self.renderBusy, Date().timeIntervalSince(self.lastRenderStart) > 4 {
-                self.onLog("Render macet > 4 dtk, diulang")
+                self.onLog(tr("Render stuck > 4 s, restarted"))
                 self.generation += 1
                 self.renderBusy = false
             }
@@ -652,8 +652,8 @@ final class TftSession {
         ackTimer?.invalidate()
         cancelPendingSkip()
         chainCount = 0
-        onStatus("Terputus")
-        onLog("Sesi ditutup")
+        onStatus(tr("Disconnected"))
+        onLog(tr("Session closed"))
         onClosed()
     }
 }

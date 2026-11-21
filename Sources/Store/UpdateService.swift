@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// Cek versi terbaru di GitHub Releases. Workflow GitHub Actions menerbitkan Release bertag
-/// `build-<nomor>` berisi XConnect.ipa, dengan nama "XConnect x.y.z". App membandingkan versi (x.y.z)
+/// `v<x.y.z>` berisi XConnect.ipa, dengan nama "XConnect x.y.z". App membandingkan versi (x.y.z)
 /// pada nama Release dengan versi yang terpasang; nomor build hanya cadangan bila nama tidak memuat versi.
 ///
 /// Catatan iOS: app tidak bisa memasang IPA sendiri (tidak ada API untuk itu, dan IPA ini tidak
@@ -42,11 +42,11 @@ final class UpdateService: ObservableObject {
         let r = repo.trimmingCharacters(in: .whitespacesAndNewlines)
         guard r.split(separator: "/").count == 2,
               let url = URL(string: "https://api.github.com/repos/\(r)/releases/latest") else {
-            if !silent { message = "Isi repo GitHub dengan format pemilik/nama-repo" }
+            if !silent { message = tr("Enter the GitHub repo as owner/repo-name") }
             return
         }
         checking = true
-        if !silent { message = "Memeriksa…" }
+        if !silent { message = tr("Checking…") }
         var req = URLRequest(url: url)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("XConnect", forHTTPHeaderField: "User-Agent")
@@ -56,32 +56,34 @@ final class UpdateService: ObservableObject {
                 guard let self = self else { return }
                 self.checking = false
                 self.lastChecked = Date()
-                if let err = err { if !silent { self.message = "Gagal: \(err.localizedDescription)" }; return }
+                if let err = err { if !silent { self.message = tr("Failed: {0}", err.localizedDescription) }; return }
                 let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
                 guard code == 200, let data = data,
                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    if !silent { self.message = code == 404 ? "Repo/Release tidak ditemukan (repo private tidak bisa dibaca app)" : "Gagal membaca info update (HTTP \(code))" }
+                    if !silent { self.message = code == 404 ? tr("Repo/Release not found (the app cannot read private repos)") : tr("Failed to read update info (HTTP {0})", code) }
                     return
                 }
                 let tag = obj["tag_name"] as? String ?? ""
                 let digits = tag.filter { $0.isNumber }
                 let assets = obj["assets"] as? [[String: Any]] ?? []
                 let ipa = assets.first(where: { ($0["name"] as? String ?? "").hasSuffix(".ipa") })
-                guard let build = Int(digits), let s = ipa?["browser_download_url"] as? String,
+                let build = Int(digits) ?? 0
+                guard let s = ipa?["browser_download_url"] as? String,
                       let ipaURL = URL(string: s) else {
-                    if !silent { self.message = "Release terbaru tidak berisi file .ipa" }
+                    if !silent { self.message = tr("The latest release has no .ipa file") }
                     return
                 }
                 let page = URL(string: obj["html_url"] as? String ?? "https://github.com/\(r)/releases") ?? url
                 let relName = obj["name"] as? String ?? tag
                 var ver = ""
                 if let r = relName.range(of: "[0-9]+(\\.[0-9]+)+", options: .regularExpression) { ver = String(relName[r]) }
+                else if let r = tag.range(of: "[0-9]+(\\.[0-9]+)+", options: .regularExpression) { ver = String(tag[r]) }
                 self.latest = Release(version: ver, build: build, name: relName,
                                       notes: obj["body"] as? String ?? "", ipaURL: ipaURL, pageURL: page)
                 if self.updateAvailable {
-                    self.message = "Tersedia: \(self.latest?.name ?? tag)"
+                    self.message = tr("Available: {0}", self.latest?.name ?? tag)
                 } else if !silent {
-                    self.message = "Sudah versi terbaru (\(UpdateService.currentVersion))"
+                    self.message = tr("You are up to date ({0})", UpdateService.currentVersion)
                 }
             }
         }.resume()
@@ -116,7 +118,7 @@ final class UpdateService: ObservableObject {
         let name = UpdateService.storeName(app)
         UIApplication.shared.open(u, options: [:]) { [weak self] ok in
             if !ok {
-                self?.message = "App \(name) tidak terpasang. Membuka halaman unduhan…"
+                self?.message = tr("The {0} app is not installed. Opening the download page…", name)
                 UIApplication.shared.open(l.pageURL)
             }
         }
@@ -127,7 +129,7 @@ final class UpdateService: ObservableObject {
     /// Di LiveContainer sumber masuk ke tab Sources (fitur sumber ada di LiveContainer 3.7 ke atas).
     func addSource(repo: String, using app: Int) {
         let r = repo.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard r.split(separator: "/").count == 2 else { message = "Isi repo GitHub dulu (pemilik/nama-repo)"; return }
+        guard r.split(separator: "/").count == 2 else { message = tr("Enter the GitHub repo first (owner/repo-name)"); return }
         let src = "https://github.com/\(r)/releases/latest/download/source.json"
         let enc = src.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         let scheme: String
@@ -139,7 +141,7 @@ final class UpdateService: ObservableObject {
         let name = UpdateService.storeName(app)
         guard let u = URL(string: "\(scheme)://source?url=\(enc)") else { return }
         UIApplication.shared.open(u, options: [:]) { [weak self] ok in
-            if !ok { self?.message = "App \(name) tidak terbuka. Tambahkan manual: \(src)" }
+            if !ok { self?.message = tr("The {0} app did not open. Add it manually: {1}", name, src) }
         }
     }
 

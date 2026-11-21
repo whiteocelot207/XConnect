@@ -26,7 +26,7 @@ enum PlaceSearch {
                   let coords = geom["coordinates"] as? [Double], coords.count >= 2,
                   let props = f["properties"] as? [String: Any] else { continue }
             let street = props["street"] as? String
-            let name = (props["name"] as? String) ?? street ?? "Tanpa nama"
+            let name = (props["name"] as? String) ?? street ?? tr("Unnamed")
             var parts = [String]()
             if let st = street, st != name { parts.append(st) }
             for key in ["district", "city", "state"] {
@@ -66,10 +66,10 @@ enum PlaceSearch {
             guard let la = plat, let lo = plon else { continue }
             let tags = (e["tags"] as? [String: Any]) ?? [:]
             let name = (tags["name"] as? String) ?? (tags["brand"] as? String)
-                ?? (tags["operator"] as? String) ?? "SPBU"
+                ?? (tags["operator"] as? String) ?? tr("Gas station")
             let street = (tags["addr:street"] as? String) ?? ""
             let d = Geo.distance(near, CLLocationCoordinate2D(latitude: la, longitude: lo))
-            let sub = street.isEmpty ? "SPBU" : "SPBU, " + street
+            let sub = street.isEmpty ? tr("Gas station") : tr("Gas station, ") + street
             items.append((Place(name: name, subtitle: sub, lat: la, lon: lo), d))
         }
         items.sort { $0.1 < $1.1 }

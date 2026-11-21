@@ -67,7 +67,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func test() {
-        speak("Dalam 100 meter, belok kanan ke Jalan Lingkar Luar Jakarta", force: true)
+        speak(tr("In 100 meters, turn right onto Jalan Lingkar Luar Jakarta"), force: true)
     }
 
     /// Hentikan suara sekarang (navigasi dihentikan).
@@ -89,7 +89,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
 
     private func makeUtterance(_ text: String) -> AVSpeechUtterance {
         let u = AVSpeechUtterance(string: VoiceGuide.normalize(text))
-        u.voice = AVSpeechSynthesisVoice(language: "id-ID")
+        u.voice = AVSpeechSynthesisVoice(language: Loc.shared.voiceLanguage)
         u.rate = AVSpeechUtteranceDefaultSpeechRate
         return u
     }
@@ -182,7 +182,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
         // cadangan: tidak ada buffer sama sekali dalam 1,5 dtk -> ucapkan langsung tanpa penguat
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self = self, self.boostToken == token, self.boostActive, !self.boostGotBuffer else { return }
-            self.fallbackToPlain(token: token, reason: "tidak ada buffer suara")
+            self.fallbackToPlain(token: token, reason: tr("no audio buffer"))
         }
     }
 
@@ -195,7 +195,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
             return
         }
         guard let fb = floatBuffer(pcm), prepareEngine(fb.format) else {
-            fallbackToPlain(token: token, reason: "mesin audio gagal")
+            fallbackToPlain(token: token, reason: tr("audio engine failed"))
             return
         }
         boostPending += 1
@@ -227,7 +227,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
 
     private func fallbackToPlain(token: Int, reason: String) {
         guard token == boostToken, boostActive else { return }
-        music?.onLog("Suara: penguat dilewati (\(reason)), diucapkan langsung")
+        music?.onLog(tr("Voice: booster skipped ({0}), spoken directly", reason))
         stopBoostPlayback()                            // menaikkan boostToken: callback boost yang tersisa diabaikan
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         speakPlain(currentText)
@@ -264,7 +264,7 @@ final class VoiceGuide: NSObject, AVSpeechSynthesizerDelegate {
                 engine.prepare()
                 try engine.start()
             } catch {
-                music?.onLog("Suara: mesin audio gagal start: \(error.localizedDescription)")
+                music?.onLog(tr("Voice: audio engine failed to start: {0}", error.localizedDescription))
                 return false
             }
         }

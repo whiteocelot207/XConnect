@@ -14,6 +14,7 @@ struct XConnectApp: App {
 struct RootView: View {
     private let app = AppModel.shared
     @ObservedObject private var settings = AppModel.shared.settings
+    @State private var tab = 0
 
     private var scheme: ColorScheme? {
         switch settings.theme {
@@ -24,7 +25,8 @@ struct RootView: View {
     }
 
     var body: some View {
-        ContentView()
+        ContentView(tab: $tab)
+            .id(settings.language)        // bahasa berubah: bangun ulang tampilan dengan teks baru
             .environmentObject(app.settings)
             .environmentObject(app.bike)
             .environmentObject(app.nav)
@@ -39,6 +41,8 @@ struct RootView: View {
             .environmentObject(app.updater)
             .environmentObject(app.bike.vehicleLive)
             .preferredColorScheme(scheme)
+            .accentColor(AppTheme.theme(settings.colorTheme).color)
+            .tint(AppTheme.theme(settings.colorTheme).color)
             .onAppear {
                 if app.settings.autoCheckUpdate, !app.settings.updateRepo.isEmpty {
                     app.updater.check(repo: app.settings.updateRepo, silent: true)

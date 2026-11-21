@@ -9,6 +9,12 @@ final class AppSettings: ObservableObject {
     @Published var keepScreenOn: Bool { didSet { put("keepScreenOn", keepScreenOn) } }
     /// 0 = ikuti ponsel, 1 = gelap, 2 = terang
     @Published var theme: Int { didSet { put("theme", theme) } }
+    /// tema warna aplikasi (AppTheme.id)
+    @Published var colorTheme: Int { didSet { put("colorTheme", colorTheme) } }
+    /// kode bahasa aplikasi (kolom di Translations.tsv): "en" (bawaan), "id"
+    @Published var language: String { didSet { put("language", language); Loc.shared.setLanguage(language) } }
+    /// kirim bahasa aplikasi ke dash (cmd 12) memakai kode dari baris @dashLang di Translations.tsv
+    @Published var dashLangSync: Bool { didSet { put("dashLangSync", dashLangSync) } }
     @Published var userName: String { didSet { put("userName", userName) } }
     /// bit 0 = Peta, 2 = Speedometer, 3 = Musik, 4 = Foto (bit 1 Peta saja dan bit 5 Tes tombol sudah dihapus)
     @Published var screenMask: Int { didSet { put("screenMask", screenMask) } }
@@ -148,7 +154,7 @@ final class AppSettings: ObservableObject {
     static let defaultValues: [String: Any] = [
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
-            "theme": 0, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
+            "theme": 0, "colorTheme": 0, "language": "en", "dashLangSync": true, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
             "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0,
             "updateRepo": "whiteocelot207/XConnect", "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
             "routeWidth": 5.0, "routeBorder": 0.0, "markerSize": 0.6, "markerRing": true, "markerY": 0.78,
@@ -156,7 +162,7 @@ final class AppSettings: ObservableObject {
             "cardLayout": 1, "cardBig": 0, "cardS1": 1, "cardS2": 2, "cardS3": 3, "cardS4": 4,
             "etaScale": 0.9, "infoDashL": 4, "infoDashR": 2, "infoMusicL": 1, "infoMusicR": 16,
             "infoPhotoL": 12, "infoPhotoR": 12, "photoShift": 0.0,
-            "greetingWord": "Halo", "cardBgAlpha": 0.78, "markerX": -6.0,
+            "greetingWord": "", "cardBgAlpha": 0.78, "markerX": -6.0,
             "navDX": -4.0, "navDY": -4.0, "etaDX": -50.0, "etaDY": 4.0,
             "startScreen": 0, "doubleClickMs": 450, "holdSkip": true, "holdMs": 1000, "ccuFuelByte": -1, "ccuFuelWide": false, "ccuFuelUnit": 0, "ccuFuelDiv": 1.0, "dashLang": -1, "clock24": true, "ccuExtraIds": "",
             "showRoadName": true,
@@ -177,6 +183,9 @@ final class AppSettings: ObservableObject {
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
         keepScreenOn = d.bool(forKey: "keepScreenOn")
         theme = d.integer(forKey: "theme")
+        colorTheme = min(max(0, d.integer(forKey: "colorTheme")), AppTheme.all.count - 1)
+        language = d.string(forKey: "language") ?? "en"
+        dashLangSync = d.bool(forKey: "dashLangSync")
         userName = d.string(forKey: "userName") ?? ""
         screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
         screenOrder = d.string(forKey: "screenOrder") ?? "0,2,3,4"
@@ -216,7 +225,7 @@ final class AppSettings: ObservableObject {
         infoPhotoL = d.integer(forKey: "infoPhotoL")
         infoPhotoR = d.integer(forKey: "infoPhotoR")
         photoShift = d.double(forKey: "photoShift")
-        greetingWord = d.string(forKey: "greetingWord") ?? "Halo"
+        greetingWord = d.string(forKey: "greetingWord") ?? ""
         cardBgAlpha = d.double(forKey: "cardBgAlpha")
         markerX = d.double(forKey: "markerX")
         navDX = d.double(forKey: "navDX")
@@ -267,6 +276,9 @@ final class AppSettings: ObservableObject {
         routingBase = d.string(forKey: "routingBase") ?? "https://valhalla1.openstreetmap.de"
         keepScreenOn = d.bool(forKey: "keepScreenOn")
         theme = d.integer(forKey: "theme")
+        colorTheme = min(max(0, d.integer(forKey: "colorTheme")), AppTheme.all.count - 1)
+        language = d.string(forKey: "language") ?? "en"
+        dashLangSync = d.bool(forKey: "dashLangSync")
         userName = d.string(forKey: "userName") ?? ""
         screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
         screenOrder = d.string(forKey: "screenOrder") ?? "0,2,3,4"
@@ -306,7 +318,7 @@ final class AppSettings: ObservableObject {
         infoPhotoL = d.integer(forKey: "infoPhotoL")
         infoPhotoR = d.integer(forKey: "infoPhotoR")
         photoShift = d.double(forKey: "photoShift")
-        greetingWord = d.string(forKey: "greetingWord") ?? "Halo"
+        greetingWord = d.string(forKey: "greetingWord") ?? ""
         cardBgAlpha = d.double(forKey: "cardBgAlpha")
         markerX = d.double(forKey: "markerX")
         navDX = d.double(forKey: "navDX")
@@ -347,6 +359,16 @@ final class AppSettings: ObservableObject {
         routeAvoidTolls = d.bool(forKey: "routeAvoidTolls")
         routeHighways = d.double(forKey: "routeHighways")
         routeShortest = d.bool(forKey: "routeShortest")
+    }
+
+    /// Kata sapaan di dash dan Home: isian sendiri, atau kata bawaan bahasa aplikasi bila kosong.
+    var greeting: String { greetingWord.isEmpty ? tr("Hello") : greetingWord }
+
+    /// Kode bahasa yang dikirim ke dash: isian manual (Eksperimen) bila diisi, kalau tidak kode bahasa aplikasi
+    /// (kolom @dashLang di Translations.tsv). -1 = tidak dikirim.
+    var effectiveDashLang: Int {
+        if dashLang >= 0 { return dashLang }
+        return dashLangSync ? Loc.shared.dashLangCode : -1
     }
 
     /// Jenis rute selalu skuter (NMAX/XMAX); pilihan kendaraan sudah dihapus dari Pengaturan.

@@ -2,21 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var nav: NavigationController
-    @State private var tab = 0
+    @Binding var tab: Int
 
     var body: some View {
         TabView(selection: $tab) {
             HomeView(openSettings: { tab = 3 })
-                .tabItem { Label("Home", systemImage: "house") }
+                .tabItem { Label(tr("Home"), systemImage: "house") }
                 .tag(0)
             NavigateView()
-                .tabItem { Label("Navigasi", systemImage: "location.fill") }
+                .tabItem { Label(tr("Navigate"), systemImage: "location.fill") }
                 .tag(1)
             MotorView()
-                .tabItem { Label("Motor", systemImage: "gauge") }
+                .tabItem { Label(tr("Bike"), systemImage: "gauge") }
                 .tag(2)
             SettingsView()
-                .tabItem { Label("Pengaturan", systemImage: "gearshape") }
+                .tabItem { Label(tr("Settings"), systemImage: "gearshape") }
                 .tag(3)
         }
         .onChange(of: nav.destination?.id) { id in

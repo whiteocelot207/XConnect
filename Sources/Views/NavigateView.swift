@@ -24,7 +24,7 @@ struct NavigateView: View {
                 Section {
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                        TextField("Cari tempat, alamat, atau tempel tautan", text: $nav.query)
+                        TextField(tr("Search a place, address, or paste a link"), text: $nav.query)
                             .disableAutocorrection(true)
                             .onChange(of: nav.query) { q in queryEdited(q) }
                         if nav.searching || nav.linkBusy { ProgressView() }
@@ -37,13 +37,13 @@ struct NavigateView: View {
                     }
                     if MapsLink.isLikely(nav.query) {
                         Button { nav.resolveLink(nav.query) } label: {
-                            Label("Buka tautan / koordinat ini", systemImage: "link")
+                            Label(tr("Open this link / coordinates"), systemImage: "link")
                         }
                     }
                 }
 
                 if !nav.searchResults.isEmpty {
-                    Section(header: Text("Hasil")) {
+                    Section(header: Text(tr("Results"))) {
                         ForEach(nav.searchResults) { p in placeRow(p, icon: "mappin.circle.fill") }
                     }
                 }
@@ -56,58 +56,58 @@ struct NavigateView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Button {
                             if let u = URL(string: "https://www.google.com/maps") { UIApplication.shared.open(u) }
-                        } label: { leftLabel("Buka Google Maps", icon: "map").padding(.vertical, 10) }
+                        } label: { leftLabel(tr("Open Google Maps"), icon: "map").padding(.vertical, 10) }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
-                        Button { pasteLink() } label: { leftLabel("Tempel tautan", icon: "doc.on.clipboard").padding(.vertical, 10) }
+                        Button { pasteLink() } label: { leftLabel(tr("Paste link"), icon: "doc.on.clipboard").padding(.vertical, 10) }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.large)
                         if !nav.message.isEmpty {
                             Text(nav.message).font(.footnote).foregroundColor(.orange)
                         }
-                        Text("Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.")
+                        Text(tr("Find a place in Google Maps, copy its link, then paste it here. Links such as maps.app.goo.gl/… are recognized right away."))
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 6)
                 }
 
-                Section(header: Text("Tempat tersimpan")) {
-                    savedRow("Rumah", icon: "house.fill", place: places.home, slot: 1)
-                    savedRow("Kantor", icon: "briefcase.fill", place: places.work, slot: 2)
+                Section(header: Text(tr("Saved places"))) {
+                    savedRow(tr("place_home"), icon: "house.fill", place: places.home, slot: 1)
+                    savedRow(tr("Office"), icon: "briefcase.fill", place: places.work, slot: 2)
                 }
 
-                Section(header: Text("Favorit")) {
+                Section(header: Text(tr("Favorites"))) {
                     if places.favorites.isEmpty {
-                        Text("Belum ada favorit. Pilih tempat lalu ketuk bintang.")
+                        Text(tr("No favorites yet. Pick a place, then tap the star."))
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
                     ForEach(places.favorites) { p in
                         placeRow(p, icon: "star.fill")
                             .contextMenu {
-                                Button { renameTarget = p; renameText = p.name } label: { Label("Ganti nama", systemImage: "pencil") }
-                                Button { places.toggleFavorite(p) } label: { Label("Hapus dari favorit", systemImage: "star.slash") }
+                                Button { renameTarget = p; renameText = p.name } label: { Label(tr("Rename"), systemImage: "pencil") }
+                                Button { places.toggleFavorite(p) } label: { Label(tr("Remove from favorites"), systemImage: "star.slash") }
                             }
                             .swipeActions(edge: .leading) {
-                                Button { renameTarget = p; renameText = p.name } label: { Label("Ganti nama", systemImage: "pencil") }.tint(.blue)
+                                Button { renameTarget = p; renameText = p.name } label: { Label(tr("Rename"), systemImage: "pencil") }.tint(.accentColor)
                             }
                     }
                     .onDelete { places.favorites.remove(atOffsets: $0) }
                 }
 
                 if !places.recents.isEmpty {
-                    Section(header: Text("Terakhir")) {
+                    Section(header: Text(tr("Recent"))) {
                         ForEach(places.recents) { p in placeRow(p, icon: "clock") }
                     }
                 }
             }
-            .navigationTitle("Navigasi")
+            .navigationTitle(tr("Navigate"))
             .navigationBarTitleDisplayMode(.inline)
         }
         .navigationViewStyle(.stack)
         .sheet(item: $renameTarget) { p in
-            RenameSheet(title: "Ganti nama favorit", initial: renameText) { places.renameFavorite(p, to: $0) }
+            RenameSheet(title: tr("Rename favorite"), initial: renameText) { places.renameFavorite(p, to: $0) }
         }
         .sheet(isPresented: $showRoute, onDismiss: {
             if nav.phase != .navigating { nav.stop() }
@@ -129,11 +129,11 @@ struct NavigateView: View {
             List {
                 Section { routeBox }
             }
-            .navigationTitle("Pilih rute")
+            .navigationTitle(tr("Choose route"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Tutup") { showRoute = false }
+                    Button(tr("Close")) { showRoute = false }
                 }
             }
         }
@@ -166,14 +166,14 @@ struct NavigateView: View {
         if let s = UIPasteboard.general.string, !s.isEmpty {
             nav.resolveLink(s)
         } else {
-            nav.message = "Clipboard kosong. Salin tautan dari Google Maps dulu."
+            nav.message = tr("The clipboard is empty. Copy a link from Google Maps first.")
         }
     }
 
     private func placeRow(_ p: Place, icon: String) -> some View {
         Button { nav.select(p) } label: {
             HStack(spacing: 12) {
-                Image(systemName: icon).foregroundColor(.blue).frame(width: 26)
+                Image(systemName: icon).foregroundColor(.accentColor).frame(width: 26)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(p.name).foregroundColor(.primary)
                     if !p.subtitle.isEmpty {
@@ -191,10 +191,10 @@ struct NavigateView: View {
             if let p = place { nav.select(p) } else { nav.beginSlot(slot) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: icon).foregroundColor(.blue).frame(width: 26)
+                Image(systemName: icon).foregroundColor(.accentColor).frame(width: 26)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).foregroundColor(.primary)
-                    Text(place?.name ?? "Belum diatur · ketuk untuk memilih")
+                    Text(place?.name ?? tr("Not set · tap to choose"))
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
@@ -204,7 +204,7 @@ struct NavigateView: View {
             }
         }
         .swipeActions {
-            Button("Ubah") { nav.beginSlot(slot) }.tint(.blue)
+            Button(tr("Change")) { nav.beginSlot(slot) }.tint(.accentColor)
         }
     }
 
@@ -216,7 +216,7 @@ struct NavigateView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Circle().fill(Color.green).frame(width: 8, height: 8)
-                Text("Navigasi aktif").font(.caption.weight(.semibold)).foregroundColor(.green)
+                Text(tr("Navigation active")).font(.caption.weight(.semibold)).foregroundColor(.green)
             }
             if let d = nav.destination {
                 Text(d.name).font(.headline)
@@ -233,16 +233,16 @@ struct NavigateView: View {
                     }
                 }
                 if let eta = nav.etaDate {
-                    Text("Sisa \(Fmt.distance(nav.remainingM)) • \(Fmt.duration(nav.remainingS)) • tiba \(Fmt.clock(eta))")
+                    Text(tr("{0} left • {1} • arrive {2}", Fmt.distance(nav.remainingM), Fmt.duration(nav.remainingS), Fmt.clock(eta)))
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
                 if nav.simulating {
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("Mode simulasi: posisi buatan di sepanjang rute", systemImage: "play.circle.fill")
+                        Label(tr("Simulation mode: artificial position along the route"), systemImage: "play.circle.fill")
                             .font(.footnote)
                             .foregroundColor(.orange)
-                        Picker("Kecepatan simulasi", selection: $nav.simSpeedKmh) {
+                        Picker(tr("Simulation speed"), selection: $nav.simSpeedKmh) {
                             Text("20 km/j").tag(20.0)
                             Text("40 km/j").tag(40.0)
                             Text("80 km/j").tag(80.0)
@@ -253,7 +253,7 @@ struct NavigateView: View {
                 }
                 HStack(spacing: 8) {
                     Button { nav.stop() } label: {
-                        centerLabel("Hentikan navigasi", icon: "xmark.octagon.fill")
+                        centerLabel(tr("Stop navigation"), icon: "xmark.octagon.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
@@ -261,7 +261,7 @@ struct NavigateView: View {
                 }
                 if nav.simulating {
                     Button { nav.stopSimulation() } label: {
-                        centerLabel("Hentikan simulasi", icon: "stop.circle")
+                        centerLabel(tr("Stop simulation"), icon: "stop.circle")
                     }
                     .buttonStyle(.bordered)
                     .tint(.orange)
@@ -295,7 +295,7 @@ struct NavigateView: View {
         .buttonStyle(.bordered)
     }
 
-    private func routeTitle(_ i: Int) -> String { i == 0 ? "Tercepat" : "Alternatif \(i)" }
+    private func routeTitle(_ i: Int) -> String { i == 0 ? tr("Fastest") : tr("Alternative {0}", i) }
 
     private var routeBox: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -314,13 +314,13 @@ struct NavigateView: View {
             }
 
             if nav.busy && nav.routes.isEmpty {
-                HStack { ProgressView(); Text("Menghitung rute…") }
+                HStack { ProgressView(); Text(tr("Calculating route…")) }
             } else if !nav.routes.isEmpty {
                 // preview kecil semua rute; ketuk garis rute lain untuk memilih, ketuk di tempat lain untuk peta penuh
                 ZStack(alignment: .bottomTrailing) {
                     RoutePreviewMap(routes: nav.routes, selected: nav.routeIndex, destination: nav.destination,
                                     onSelect: { nav.selectRoute($0) }, onOpen: { showMap = true })
-                    Label("Ketuk untuk memperbesar", systemImage: "arrow.up.left.and.arrow.down.right")
+                    Label(tr("Tap to enlarge"), systemImage: "arrow.up.left.and.arrow.down.right")
                         .font(.caption2)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -345,24 +345,24 @@ struct NavigateView: View {
                                 }
                                 Spacer()
                                 if i == 0 {
-                                    Text("Tercepat")
+                                    Text(tr("Fastest"))
                                         .font(.caption.weight(.semibold))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
-                                        .background(Capsule().fill(Color.blue.opacity(0.18)))
-                                        .foregroundColor(.blue)
+                                        .background(Capsule().fill(Color.accentColor.opacity(0.18)))
+                                        .foregroundColor(.accentColor)
                                 } else {
-                                    Text("Alternatif \(i)").font(.caption).foregroundColor(.secondary)
+                                    Text(tr("Alternative {0}", i)).font(.caption).foregroundColor(.secondary)
                                 }
                             }
                             if !r.via.isEmpty {
-                                Text("lewat \(r.via)").font(.footnote).foregroundColor(.secondary).lineLimit(2)
+                                Text(tr("via {0}", r.via)).font(.footnote).foregroundColor(.secondary).lineLimit(2)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(picked ? Color.blue.opacity(0.10) : Color.gray.opacity(0.10)))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(picked ? Color.blue : Color.clear, lineWidth: 2))
+                        .background(RoundedRectangle(cornerRadius: 12).fill(picked ? Color.accentColor.opacity(0.10) : Color.gray.opacity(0.10)))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(picked ? Color.accentColor : Color.clear, lineWidth: 2))
                     }
                     .buttonStyle(.borderless)
                 }
@@ -370,26 +370,26 @@ struct NavigateView: View {
 
             HStack(spacing: 8) {
                 Button { nav.startSimulation() } label: {
-                    centerLabel("Simulasi", icon: "play.circle")
+                    centerLabel(tr("Simulate"), icon: "play.circle")
                 }
                 .buttonStyle(.bordered)
                 .disabled(nav.route == nil)
-                Button { nav.stop() } label: { centerLabel("Batal", icon: nil) }
+                Button { nav.stop() } label: { centerLabel(tr("Cancel"), icon: nil) }
                     .buttonStyle(.bordered)
                 voiceButton
             }
             Button { nav.startNavigation() } label: {
-                centerLabel("Mulai Navigasi", icon: "play.fill")
+                centerLabel(tr("Start navigation"), icon: "play.fill")
                     .padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
             .disabled(nav.route == nil)
             if nav.phase != .navigating, let d = nav.destination {
                 Menu {
-                    Button("Rumah") { places.home = d }
-                    Button("Kantor") { places.work = d }
+                    Button(tr("place_home")) { places.home = d }
+                    Button(tr("Office")) { places.work = d }
                 } label: {
-                    centerLabel("Simpan sebagai", icon: "mappin.and.ellipse")
+                    centerLabel(tr("Save as"), icon: "mappin.and.ellipse")
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.bordered)
@@ -409,13 +409,13 @@ struct RenameSheet: View {
 
     var body: some View {
         NavigationView {
-            Form { TextField("Nama", text: $text) }
+            Form { TextField(tr("Name"), text: $text) }
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Batal") { presentation.wrappedValue.dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button(tr("Cancel")) { presentation.wrappedValue.dismiss() } }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Simpan") { onSave(text); presentation.wrappedValue.dismiss() }
+                        Button(tr("Save")) { onSave(text); presentation.wrappedValue.dismiss() }
                     }
                 }
                 .onAppear { text = initial }

@@ -12,9 +12,9 @@ struct FuelByteCandidate: Identifiable {
     let kmpl: Double
 
     var text: String {
-        let width = wide ? "byte \(byte)-\(byte + 1)" : "byte \(byte)"
+        let width = wide ? tr("byte {0}-{1}", byte, byte + 1) : tr("byte {0}", byte)
         let u = unit == 1 ? "L/100 km" : "km/L"
-        return "\(width): mentah \(raw), ÷\(Int(div)), \(u) → \(String(format: "%.1f", kmpl)) km/L"
+        return tr("{0}: raw {1}, ÷{2}, {3} → {4} km/L", width, raw, Int(div), u, String(format: "%.1f", kmpl))
     }
 }
 
@@ -50,7 +50,7 @@ extension VehicleLive {
 
 /// Data motor yang dibaca dari CCU (docs/bike-protocol.md bagian 6.5).
 final class VehicleLive: ObservableObject {
-    @Published var state = "Belum aktif"
+    @Published var state = tr("Not active yet")
     @Published var connected = false
     @Published var batteryV: Double?
     @Published var odoKm: Double?
@@ -130,7 +130,13 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         let lang = languageProvider()
         guard lang >= 0, lang <= 255 else { return }
         ctrl(0x000C, [nextReq(), UInt8(lang)])          // 12
-        onLog("CCU: bahasa dash → kode \(lang) (\(why))")
+        onLog(tr("CCU: dash language → code {0} ({1})", lang, why))
+    }
+
+    /// Bahasa aplikasi berubah: kirim bahasa baru ke dash (bila sesi CCU sudah terautentikasi).
+    func resendLanguage() {
+        guard authed, central != nil else { return }
+        sendLanguage(tr("language changed"))
     }
 
     /// Ikon panggilan di dash: cmd 308 `[1]` saat ada panggilan, `[2]` saat selesai. Dikirim hanya saat berubah.
@@ -140,7 +146,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         guard inCall != lastCall else { return }
         lastCall = inCall
         ctrl(0x0134, [inCall ? 1 : 2])                  // 308
-        onLog("CCU: status panggilan → \(inCall ? "ada panggilan" : "selesai")")
+        onLog(tr("CCU: call state → {0}", inCall ? tr("call active") : tr("ended")))
     }
 
     private var lastStatus: PhoneStatus?
@@ -160,7 +166,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         if st.headset { b3 |= 0x02 }
         ctrl(0x013C, [b0, b1, b2, b3])                  // 316
         if st != lastStatus {
-            onLog("CCU: status ponsel → 01 3c \(hex([b0, b1, b2, b3]))")
+            onLog(tr("CCU: phone status → 01 3c {0}", hex([b0, b1, b2, b3])))
         }
         lastStatus = st
         lastStatusSent = Date()
@@ -224,7 +230,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     func start(ccuId: String, passkey: String) {
         // sesi iAP bisa dibuka ulang oleh dash; jangan putus BLE yang sudah jalan untuk CCU yang sama
         if wantRun, ccuId == self.ccuId, peripheral != nil {
-            onLog("BLE: sudah berjalan, permintaan ulang diabaikan")
+            onLog(tr("BLE: already running, repeated request ignored"))
             return
         }
         self.ccuId = ccuId
@@ -232,7 +238,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         wantRun = true
         authed = false
         prepare()
-        setState("Mencari CCU (BLE)…")
+        setState(tr("Searching for CCU (BLE)…"))
         if central?.state == .poweredOn { beginScan() }
     }
 
@@ -251,7 +257,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         servers.removeAll()
         requested.removeAll()
         fallbackDone = false
-        DispatchQueue.main.async { self.live.reset(); self.live.state = "Dihentikan" }
+        DispatchQueue.main.async { self.live.reset(); self.live.state = tr("Stopped") }
     }
 
     private func setState(_ s: String) {
@@ -274,19 +280,19 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         guard let c = central, c.state == .poweredOn, peripheral == nil else { return }
         // coba perangkat yang sudah tersambung dulu
         for p in c.retrieveConnectedPeripherals(withServices: [CcuLink.service]) {
-            onLog("BLE: perangkat tersambung ditemukan: \(p.name ?? "?")")
+            onLog(tr("BLE: connected device found: {0}", p.name ?? "?"))
             connect(p)
             return
         }
         scanning = true
         c.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
-        onLog("BLE: scan mencari YCCU_\(ccuId)")
+        onLog(tr("BLE: scanning for YCCU_{0}", ccuId))
         scanTimeout?.invalidate()
         scanTimeout = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
             guard let self = self, self.scanning else { return }
             self.central?.stopScan()
             self.scanning = false
-            self.setState("CCU tidak ditemukan lewat BLE, coba lagi…")
+            self.setState(tr("CCU not found over BLE, retrying…"))
             self.retryLater()
         }
     }
@@ -306,32 +312,32 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private func connect(_ p: CBPeripheral) {
         peripheral = p
         p.delegate = self
-        setState("BLE: menyambung…")
+        setState(tr("BLE: connecting…"))
         central?.connect(p, options: nil)
     }
 
     func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
         // dicatat untuk WakeMonitor: sambungan BLE tertunda ke CCU ini yang membangunkan app saat motor dinyalakan
         UserDefaults.standard.set(p.identifier.uuidString, forKey: WakeMonitor.peripheralKey)
-        onLog("BLE: tersambung, mencari service")
+        onLog(tr("BLE: connected, looking for service"))
         p.discoverServices([CcuLink.service])
     }
 
     func centralManager(_ c: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {
-        onLog("BLE: gagal menyambung: \(error?.localizedDescription ?? "?")")
+        onLog(tr("BLE: failed to connect: {0}", error?.localizedDescription ?? "?"))
         peripheral = nil
         retryLater()
     }
 
     func centralManager(_ c: CBCentralManager, didDisconnectPeripheral p: CBPeripheral, error: Error?) {
-        onLog("BLE: terputus \(error?.localizedDescription ?? "")")
+        onLog(tr("BLE: disconnected {0}", error?.localizedDescription ?? ""))
         peripheral = nil
         chars.removeAll()
         authed = false
         outQueue.removeAll()
         outState = .idle
         watchdog?.invalidate()
-        DispatchQueue.main.async { self.live.reset(); self.live.state = "Terputus" }
+        DispatchQueue.main.async { self.live.reset(); self.live.state = tr("Disconnected") }
         retryLater()
     }
 
@@ -347,7 +353,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
         guard let s = p.services?.first(where: { $0.uuid == CcuLink.service }) else {
-            onLog("BLE: service CCU tidak ada (\(error?.localizedDescription ?? "-"))")
+            onLog(tr("BLE: CCU service missing ({0})", error?.localizedDescription ?? "-"))
             return
         }
         p.discoverCharacteristics(nil, for: s)
@@ -355,7 +361,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
         for c in s.characteristics ?? [] { chars[c.uuid] = c }
-        onLog("BLE: \(chars.count) karakteristik")
+        onLog(tr("BLE: {0} characteristics", chars.count))
         subscribeQueue = [U.ctrlNotify, U.ddtStatus, U.ddtInHeader, U.ddtInData, U.ddtV2, U.ddtV3In, U.unknownInd]
         nextSubscribe()
     }
@@ -370,12 +376,12 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             }
         }
         // semua langganan aktif
-        setState("BLE siap, autentikasi…")
+        setState(tr("BLE ready, authenticating…"))
         authenticate()
     }
 
     func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor c: CBCharacteristic, error: Error?) {
-        if let e = error { onLog("BLE: notify \(c.uuid.uuidString.prefix(4)) gagal: \(e.localizedDescription)") }
+        if let e = error { onLog(tr("BLE: notify {0} failed: {1}", c.uuid.uuidString.prefix(4), e.localizedDescription)) }
         nextSubscribe()
     }
 
@@ -413,10 +419,10 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         authed = true
         lastStatus = nil
         lastCall = nil
-        sendLanguage("setelah autentikasi")
+        sendLanguage(tr("after authentication"))
         requested.removeAll()
         fallbackDone = false
-        setState("Terautentikasi, minta daftar server data")
+        setState(tr("Authenticated, requesting data server list"))
         ctrl(0x0103, [nextReq()])               // 259
         ctrl(0x0137, [nextReq()])               // 311: status kunci kontak
     }
@@ -434,7 +440,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         pb += PB.varintField(5, 0)
         pb += PB.varintField(6, 100)
         sendDDT([0x01, 0x10] + u24(pb.count) + pb)  // 272
-        onLog("CCU: langganan server \(server) id \(ids)")
+        onLog(tr("CCU: subscribing to server {0} id {1}", server, ids))
     }
 
     // MARK: - DDT keluar
@@ -458,7 +464,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         outTimer?.invalidate()
         outTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
             guard let self = self, self.outState != .idle else { return }
-            self.onLog("DDT keluar: timeout (state \(self.outState))")
+            self.onLog(tr("DDT exit: timeout (state {0})", self.outState))
             self.outState = .idle
             self.pumpOut()
         }
@@ -467,7 +473,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private func ddtStatus(_ b: [UInt8]) {
         switch outState {
         case .awaitIdle:
-            guard b.first == 0 else { onLog("DDT: status awal \(hex(b))"); return }
+            guard b.first == 0 else { onLog(tr("DDT: initial status {0}", hex(b))); return }
             outState = .awaitHeader
             armOutTimer()
             write(U.ddtOutHeader, [outReq] + u24(outBody.count))
@@ -477,7 +483,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             } else if b == [0, 0], outOffset >= outBody.count {
                 finishOut(ok: true)
             } else {
-                onLog("DDT: status tak terduga \(hex(b))")
+                onLog(tr("DDT: unexpected status {0}", hex(b)))
             }
         case .writing:
             if b == [0, 0], outOffset >= outBody.count { finishOut(ok: true) }
@@ -502,13 +508,13 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private func finishOut(ok: Bool) {
         outTimer?.invalidate()
         outState = .idle
-        if !ok { onLog("DDT keluar gagal") }
+        if !ok { onLog(tr("DDT exit failed")) }
         pumpOut()
     }
 
     func peripheral(_ p: CBPeripheral, didWriteValueFor c: CBCharacteristic, error: Error?) {
         if let e = error {
-            onLog("BLE: tulis \(c.uuid.uuidString.prefix(4)) gagal: \(e.localizedDescription)")
+            onLog(tr("BLE: write {0} failed: {1}", c.uuid.uuidString.prefix(4), e.localizedDescription))
             if c.uuid == U.ddtOutHeader || c.uuid == U.ddtOutData { finishOut(ok: false) }
             return
         }
@@ -579,10 +585,10 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         switch cmd {
         case 258:
             if body.last == 1 {
-                onLog("CCU: autentikasi OK")
+                onLog(tr("CCU: authentication OK"))
                 startupChain()
             } else {
-                setState("CCU menolak autentikasi")
+                setState(tr("CCU rejected authentication"))
                 onLog("CCU: 258 body=\(hex(body))")
             }
         case 309:
@@ -601,13 +607,13 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 let ids = PB.ints(f, 4)
                 onLog("CCU: 295 server=\(server) idList=\(ids.count)")
                 subscribe(server: server, available: ids)
-            } else { onLog("CCU: 295 tidak terbaca: \(hex(body))") }
+            } else { onLog(tr("CCU: 295 unreadable: {0}", hex(body))) }
         case 271:
             parseData(body)
         case 312:
             if let s = body.last {
                 DispatchQueue.main.async { self.live.ignitionOn = s == 1 }
-                onLog("CCU: kunci kontak \(s == 1 ? "ON" : "OFF")")
+                onLog(tr("CCU: ignition {0}", s == 1 ? "ON" : "OFF"))
             }
         case 9:
             // CCU minta waktu: [reqId][epoch lokal u64]
@@ -616,11 +622,11 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             for i in (0..<8).reversed() { e.append(UInt8((t >> UInt64(i * 8)) & 0xFF)) }
             ctrl(0x000A, [nextReq()] + e)
         case 11:
-            sendLanguage("diminta CCU")
+            sendLanguage(tr("requested by CCU"))
         case 297:
             ctrl(0x012A, [0x01])
         case 0xFF01:
-            onLog("CCU: error \(hex(body))")
+            onLog(tr("CCU: error {0}", hex(body)))
             // error "01 26 xx" = permintaan info server (cmd 294) ditolak CCU: langsung langganan data
             if body.count >= 2, Int(body[0]) << 8 | Int(body[1]) == 0x0126 { fallbackSubscribe() }
         default:
@@ -632,12 +638,12 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private func fallbackSubscribe() {
         guard authed, !fallbackDone, !servers.isEmpty else { return }
         fallbackDone = true
-        onLog("CCU: cmd 294 ditolak, langganan langsung ke server \(servers)")
+        onLog(tr("CCU: cmd 294 rejected, subscribing directly to server {0}", servers))
         for s in servers { subscribe(server: s, available: []) }
     }
 
     private func parseData(_ body: [UInt8]) {
-        guard let f = PB.parse(body, expect: 4) else { onLog("CCU: 271 tidak terbaca \(hex(body))"); return }
+        guard let f = PB.parse(body, expect: 4) else { onLog(tr("CCU: 271 unreadable {0}", hex(body))); return }
         let server = PB.ints(f, 3).first ?? 0
         lastData = Date()
         var odo: Double?, volt: Double?, cool: Int?, air: Int?, rpm: Int?, spd: Int?, dtc: Int?
@@ -673,13 +679,13 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         }
         for (id, r) in others where !seenIds.contains(id) {
             seenIds.insert(id)
-            onLog("CCU: id data \(id) pertama kali masuk (\(r.count) B): \(hex(r, 32))")
+            onLog(tr("CCU: data id {0} received for the first time ({1} B): {2}", id, r.count, hex(r, 32)))
         }
         DispatchQueue.main.async {
             if let r = raw1 { self.live.rawRecord = r }
             for (id, r) in others { self.live.rawById[id] = r }
             self.live.connected = true
-            self.live.state = "Data CCU masuk"
+            self.live.state = tr("CCU data received")
             self.live.lastUpdate = Date()
             if let v = volt { self.live.batteryV = v }
             if let v = odo { self.live.odoKm = v }
@@ -695,7 +701,7 @@ final class CcuLink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 guard let self = self, self.authed else { return }
                 if Date().timeIntervalSince(self.lastData) > 5 && !self.servers.isEmpty {
                     self.lastData = Date()
-                    self.onLog("CCU: data berhenti, langganan ulang")
+                    self.onLog(tr("CCU: data stopped, resubscribing"))
                     for s in self.servers { self.ctrl(0x0126, [self.nextReq(), UInt8(s >> 8), UInt8(s & 0xFF)]) }
                 }
             }
