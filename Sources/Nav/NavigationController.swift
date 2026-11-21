@@ -225,8 +225,11 @@ final class NavigationController: ObservableObject {
         busy = true
         message = initial ? tr("Calculating route…") : tr("Recalculating route…")
         if !initial && phase == .navigating { voice?.speak(tr("Recalculating route")) }
-        let alts = (initial && (phase != .navigating || autoStart)) ? 2 : 0
+        let previewing = initial && phase != .navigating
         let wantFastest = autoStart      // tombol stang (rumah/kantor/favorit): ambil rute tercepat
+        // Pratinjau di app: rute utama dulu (cepat), alternatif menyusul di latar belakang. Tombol stang: langsung
+        // dengan alternatif lalu pilih yang tercepat.
+        let alts = (previewing && autoStart) ? 2 : 0
         Task { [weak self] in
             do {
                 let rs = try await ValhallaClient.routes(base: base, costing: costing, from: from,
@@ -238,6 +241,18 @@ final class NavigationController: ObservableObject {
                     self?.routes = rs
                     self?.routeIndex = best
                     self?.applyRoute(rs[best], initial: initial)
+                }
+                if previewing && !wantFastest {
+                    // alternatif menyusul; dipakai hanya bila pengguna masih di pratinjau tujuan yang sama
+                    if let more = try? await ValhallaClient.routes(base: base, costing: costing, from: from,
+                                                                   to: dest.coordinate, heading: nil, alternatives: 2,
+                                                                   profile: profile), more.count > 1 {
+                        DispatchQueue.main.async {
+                            guard let self = self, self.phase == .previewing, self.destination?.id == dest.id,
+                                  self.routeIndex == 0 else { return }
+                            self.routes = more
+                        }
+                    }
                 }
             } catch {
                 DispatchQueue.main.async {

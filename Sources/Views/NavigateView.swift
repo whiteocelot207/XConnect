@@ -56,7 +56,7 @@ struct NavigateView: View {
 
                 if !nav.searchResults.isEmpty {
                     Section(header: Text(tr("Results"))) {
-                        ForEach(nav.searchResults) { p in placeRow(p, icon: "mappin.circle.fill") }
+                        ForEach(nav.searchResults) { p in placeRow(p, icon: "mappin.circle.fill", showDistance: true) }
                     }
                 }
 
@@ -187,7 +187,7 @@ struct NavigateView: View {
         }
     }
 
-    private func placeRow(_ p: Place, icon: String) -> some View {
+    private func placeRow(_ p: Place, icon: String, showDistance: Bool = false) -> some View {
         Button {
             nav.select(p)
             // selalu tampilkan pilihan rute dulu (bukan langsung navigasi)
@@ -202,7 +202,7 @@ struct NavigateView: View {
                     }
                 }
                 Spacer()
-                if let d = nav.distanceText(to: p) {
+                if showDistance, let d = nav.distanceText(to: p) {
                     Text(d).font(.footnote.weight(.semibold)).foregroundColor(.accentColor)
                 }
                 Image(systemName: "chevron.right").font(.footnote).foregroundColor(.secondary)

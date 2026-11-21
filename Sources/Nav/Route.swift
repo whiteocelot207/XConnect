@@ -252,6 +252,24 @@ enum ValhallaClient {
     static func routes(base: String, costing: String, from: CLLocationCoordinate2D,
                        to: CLLocationCoordinate2D, heading: Double?, alternatives: Int,
                        profile: RouteProfile = .appDefault) async throws -> [Route] {
+        // Dengan alternatif server lebih lambat: bila gagal/lama, jatuh ke rute utama saja. Satu kali ulang untuk gangguan jaringan.
+        if alternatives > 0,
+           let r = try? await fetchRoutes(base: base, costing: costing, from: from, to: to, heading: heading,
+                                          alternatives: alternatives, profile: profile, timeout: 12) {
+            return r
+        }
+        do {
+            return try await fetchRoutes(base: base, costing: costing, from: from, to: to, heading: heading,
+                                         alternatives: 0, profile: profile, timeout: 15)
+        } catch {
+            return try await fetchRoutes(base: base, costing: costing, from: from, to: to, heading: heading,
+                                         alternatives: 0, profile: profile, timeout: 20)
+        }
+    }
+
+    private static func fetchRoutes(base: String, costing: String, from: CLLocationCoordinate2D,
+                                    to: CLLocationCoordinate2D, heading: Double?, alternatives: Int,
+                                    profile: RouteProfile, timeout: TimeInterval) async throws -> [Route] {
         let trimmed = base.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
         guard let url = URL(string: trimmed + "/route") else { throw RouteError.badURL }
 
@@ -267,7 +285,7 @@ enum ValhallaClient {
         if alternatives > 0 { body["alternates"] = alternatives }
         body["costing_options"] = profile.costingOptions(for: costing)
 
-        var req = URLRequest(url: url, timeoutInterval: 20)
+        var req = URLRequest(url: url, timeoutInterval: timeout)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("XConnect/0.7 (personal navigation app)", forHTTPHeaderField: "User-Agent")
