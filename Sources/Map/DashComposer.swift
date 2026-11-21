@@ -357,13 +357,20 @@ enum DashComposer {
         return u.isEmpty ? v : "\(v) \(u)"
     }
 
+    /// Warna nilai untuk slot info pojok: mengikuti batas peringatan (merah/kuning/hijau), bukan selalu putih.
+    private static func slotColor(_ raw: Int, _ c: DashContent) -> UIColor {
+        let f = DashField(rawValue: raw) ?? .none
+        if f == .none { return .white }
+        return f.resolve(c).3
+    }
+
     /// Info pojok dengan nama: "Kecepatan 40 km/h" (nama kecil abu-abu, nilai tebal putih). Mengecil bila tidak muat.
     private static func drawLabeledSlot(_ raw: Int, _ c: DashContent, in r: CGRect, size: CGFloat, align: NSTextAlignment) {
         let f = DashField(rawValue: raw) ?? .none
         if f == .none { return }
-        let (label, v, u, _) = f.resolve(c)
+        let (label, v, u, valueColor) = f.resolve(c)
         let value = u.isEmpty ? v : "\(v) \(u)"
-        if label.isEmpty { text(value, r, size: size, bold: true, align: align); return }
+        if label.isEmpty { text(value, r, size: size, bold: true, color: valueColor, align: align); return }
         var sz = size
         // kecilkan sampai muat: nama berukuran 0,72x nilai
         func width(_ s: CGFloat) -> CGFloat {
@@ -376,7 +383,7 @@ enum DashComposer {
         let out = NSMutableAttributedString(string: label + " ", attributes: [
             .font: UIFont.systemFont(ofSize: sz * 0.72), .foregroundColor: UIColor(white: 0.72, alpha: 1), .paragraphStyle: ps])
         out.append(NSAttributedString(string: value, attributes: [
-            .font: UIFont.boldSystemFont(ofSize: sz), .foregroundColor: UIColor.white, .paragraphStyle: ps]))
+            .font: UIFont.boldSystemFont(ofSize: sz), .foregroundColor: valueColor, .paragraphStyle: ps]))
         // sejajarkan dasar teks nama dan nilai dengan kotak yang sama
         out.draw(in: CGRect(x: r.minX, y: r.minY + (size - sz) * 0.35, width: r.width, height: r.height))
     }
@@ -389,9 +396,10 @@ enum DashComposer {
         bg.setFill()
         cg.fill(CGRect(origin: .zero, size: hud.size))
 
-        text(slotText(c.infoDashL, c), CGRect(x: 8, y: vis.minY + 3, width: 130, height: 20), size: 17, bold: true)
+        text(slotText(c.infoDashL, c), CGRect(x: 8, y: vis.minY + 3, width: 130, height: 20), size: 17, bold: true,
+             color: slotColor(c.infoDashL, c))
         text(slotText(c.infoDashR, c), CGRect(x: 140, y: vis.minY + 5, width: 198, height: 16), size: 13,
-             align: .right)
+             color: slotColor(c.infoDashR, c), align: .right)
 
         // bilah kecepatan
         let barX: CGFloat = 8
@@ -431,17 +439,18 @@ enum DashComposer {
         // kartu bawah
         let cardY = vis.minY + 124
         let cardH: CGFloat = 48
-        let items: [(String, String)] = [
-            (tr("PHONE BATT"), c.phoneBattery >= 0 ? "\(c.phoneBattery)%" : "—"),
-            (tr("FUEL LEFT"), c.fuelL.map { Fmt.liters($0) } ?? "—"),
-            (tr("12V BATT"), c.batteryV.map { String(format: "%.1f V", $0) } ?? "—")
+        // warna nilai mengikuti batas peringatan di Pengaturan > Motor dan BBM (sama dengan kartu data)
+        let items: [(String, String, UIColor)] = [
+            (tr("PHONE BATT"), c.phoneBattery >= 0 ? "\(c.phoneBattery)%" : "—", DashField.phoneBattery.resolve(c).3),
+            (tr("FUEL LEFT"), c.fuelL.map { Fmt.liters($0) } ?? "—", DashField.fuel.resolve(c).3),
+            (tr("12V BATT"), c.batteryV.map { String(format: "%.1f V", $0) } ?? "—", DashField.batteryV.resolve(c).3)
         ]
         for (i, it) in items.enumerated() {
             let r = CGRect(x: 8 + CGFloat(i) * 112, y: cardY, width: 106, height: cardH)
             fillRound(r, radius: 8, color: UIColor(white: 0.14, alpha: 1))
             text(it.0, CGRect(x: r.minX + 8, y: r.minY + 5, width: 92, height: 11), size: 8,
                  color: UIColor(white: 0.7, alpha: 1))
-            text(it.1, CGRect(x: r.minX + 8, y: r.minY + 18, width: 92, height: 26), size: 21, bold: true)
+            text(it.1, CGRect(x: r.minX + 8, y: r.minY + 18, width: 92, height: 26), size: 21, bold: true, color: it.2)
         }
 
         // panel kanan: navigasi + peta mini
@@ -595,14 +604,14 @@ enum DashComposer {
             let w = max(62, CGFloat(left.count) * 8 + 24)
             let clock = CGRect(x: 8, y: vis.minY + 4, width: w, height: 22)
             fillRound(clock, radius: 11, color: UIColor(white: 0, alpha: 0.5))
-            text(left, clock, size: 13, bold: true, align: .center)
+            text(left, clock, size: 13, bold: true, color: slotColor(c.infoPhotoL, c), align: .center)
         }
         let right = slotText(c.infoPhotoR, c)
         if !right.isEmpty {
             let w = max(62, CGFloat(right.count) * 8 + 24)
             let spd = CGRect(x: hud.size.width - w - 8, y: vis.maxY - 28, width: w, height: 24)
             fillRound(spd, radius: 12, color: UIColor(white: 0, alpha: 0.5))
-            text(right, spd, size: 13, bold: true, align: .center)
+            text(right, spd, size: 13, bold: true, color: slotColor(c.infoPhotoR, c), align: .center)
         }
     }
 

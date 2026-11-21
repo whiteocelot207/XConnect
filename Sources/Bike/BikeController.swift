@@ -3,6 +3,7 @@ import UIKit
 import ExternalAccessory
 import Combine
 import CoreLocation
+import CoreBluetooth
 import AVFoundation
 import CoreTelephony
 import CallKit
@@ -238,7 +239,14 @@ final class BikeController: NSObject, ObservableObject {
             }
         }
         ccu.onLog = { [weak self] s in self?.log("CCU BLE: " + s) }
-        if settings.setupDone { ccu.prepare() }   // memunculkan izin Bluetooth di Pengaturan iOS (sebelumnya: lewat pengaturan awal)
+        // CBCentralManager hanya dibuat bila izin Bluetooth sudah ditentukan (lewat layar Perizinan), supaya dialog izin
+        // tidak muncul sendiri saat app pertama dibuka. Setelah izin diberikan, notifikasi di bawah memulainya.
+        if settings.setupDone, CBCentralManager.authorization != .notDetermined { ccu.prepare() }
+        NotificationCenter.default.addObserver(forName: PermissionCenter.bluetoothGranted, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            self.ccu.prepare()
+            self.wake.start()
+        }
         vehicleLive.$odoKm.compactMap { $0 }
             .sink { [weak self] odo in
                 guard let self = self, let m = self.model, odo > 0 else { return }

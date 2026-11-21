@@ -8,10 +8,30 @@ newer than it is shown. The same section is used as the GitHub release notes.
 
 ### Fixed
 - The app closed right after opening (the floating banners were missing their data).
+- Setup: the Bluetooth permission no longer pops up by itself when the app is first opened; it is only requested when you tap Allow on the Permissions step.
+- Dash: warning colors (fuel, 12V battery, engine temperature, phone battery) now follow your settings everywhere, including the Speedometer screen cards and the corner info.
+- Backup: the automatic backup also leaves out the Recent places (Home, Office and favorites are kept).
 
 ### New
 - Setup: a new step after the welcome screen asks for your nickname (optional).
 - Navigate: "Find nearest gas station" button.
+- Setup: the language is asked right on the first screen.
+- Permissions: a Photos (gallery) permission was added. The Finish button stays disabled until every permission is allowed.
+- Maintenance: each item can be based on kilometers or on time. Kilometer items have their own "remind before" distance; time items (for example STNK validity) have a due date and a reminder 1, 3 or 6 months before. The interval (1 month to 5 years) can only be chosen when "Repeat" is turned on.
+- Maintenance: choose an icon for each item from many motorcycle-related symbols and emoji.
+
+### Changed
+- Motorcycle year removed (setup, Settings, backup).
+- Settings > Map: Routes and search moved below Offline maps.
+- Handlebar controls: "2 presses" is now "2 quick presses".
+- Quick-click duration defaults to 300 ms; "Remind before service" defaults to 100 km.
+- Clock format setting removed: always 24-hour.
+- Maintenance: the five default items can no longer be deleted (only added items can), and their names follow the app language.
+- Update source setting removed: the repository is fixed in the app (`AppConfig.updateRepo`).
+- Experiments and log: CCU link and Dash language sections hidden.
+- About: the note under "Version and updates" removed.
+- Settings > Appearance: the nickname field moved below Language.
+- Settings > Bike and fuel: the global "Remind before service" distance was removed (it is now set per item).
 
 ## 0.1.2
 

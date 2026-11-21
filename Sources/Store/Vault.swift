@@ -91,7 +91,10 @@ enum Vault {
         var out = read()
         let persisted = persistedDefaults()
         for k in keys {
-            if let v = persisted[k] { out[k] = v }
+            guard var v = persisted[k] else { continue }
+            // tempat "Terakhir" tidak ikut dicadangkan (Rumah, Kantor, dan favorit tetap ikut)
+            if k == "places.v1", let data = v as? Data, let stripped = PlaceStore.backupBlob(data) { v = stripped }
+            out[k] = v
         }
         guard !out.isEmpty else { return }
         do {

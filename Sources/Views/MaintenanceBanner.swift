@@ -1,37 +1,38 @@
 import SwiftUI
 
-/// Banner melayang di atas layar bila ada item perawatan yang mendekati atau melewati jadwal servis
-/// (batas pengingat di Pengaturan > Motor dan BBM). Ketuk untuk membuka tab Motor; X menyembunyikannya
-/// sampai tingkatnya memburuk (mendekati -> terlambat) atau item diganti.
+/// Banner melayang di atas layar bila ada item perawatan yang mendekati atau melewati jadwalnya, menurut acuan dan
+/// batas peringatan masing-masing item (kilometer atau waktu; diatur di tab Motor > Perawatan). Ketuk untuk membuka
+/// tab Motor; X menyembunyikannya sampai tingkatnya memburuk (mendekati -> terlambat) atau item diganti/diperpanjang.
 struct MaintenanceBanner: View {
     @EnvironmentObject var maint: MaintenanceStore
     @EnvironmentObject var settings: AppSettings
     @Binding var tab: Int
     @State private var dismissed: [String: String] = (UserDefaults.standard.dictionary(forKey: "maint.bannerDismissed") as? [String: String]) ?? [:]
 
-    private struct Due { let item: MaintItem; let remaining: Int; let key: String }
+    private struct Due { let item: MaintItem; let status: MaintStatus; let key: String }
 
     private var due: [Due] {
-        guard settings.setupDone, settings.maintNotify, maint.odometerKm > 0 else { return [] }
+        guard settings.setupDone, settings.maintNotify else { return [] }
         return maint.items.compactMap { item -> Due? in
-            let rem = maint.remainingKm(item)
-            guard rem <= settings.maintWarnKm else { return nil }
-            let key = (rem < 0 ? "over" : "warn") + "|\(item.lastServiceKm)"
-            return dismissed[item.id] == key ? nil : Due(item: item, remaining: rem, key: key)
+            if item.basis == .km && maint.odometerKm <= 0 { return nil }
+            let st = maint.status(item)
+            guard st.level != .ok else { return nil }
+            let stamp = item.basis == .km ? "\(item.lastServiceKm)" : "\(item.effectiveDueDate?.timeIntervalSince1970 ?? 0)"
+            let key = (st.level == .over ? "over" : "warn") + "|" + stamp
+            return dismissed[item.id] == key ? nil : Due(item: item, status: st, key: key)
         }
-        .sorted { $0.remaining < $1.remaining }
+        .sorted { $0.status.level.rawValue > $1.status.level.rawValue }
     }
 
     var body: some View {
         Group {
             if let first = due.first {
-                let overdue = first.remaining < 0
+                let overdue = first.status.level == .over
                 HStack(spacing: 12) {
-                    Image(systemName: "wrench.fill").font(.title2).foregroundColor(overdue ? .red : .orange)
+                    MaintIconView(icon: first.item.icon, color: overdue ? .red : .orange, size: 24)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tr("Maintenance due")).font(.subheadline).bold()
-                        Text(overdue ? tr("{0}: overdue {1} km", first.item.title, -first.remaining)
-                                     : tr("{0}: {1} km left", first.item.title, first.remaining)
+                        Text(first.item.title + ": " + first.status.text
                              + (due.count > 1 ? " · " + tr("+{0} more", due.count - 1) : ""))
                             .font(.caption).foregroundColor(.secondary)
                     }

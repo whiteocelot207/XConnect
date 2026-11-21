@@ -68,8 +68,11 @@ struct PermissionsList: View {
             PermissionRow(icon: "music.note", title: tr("Music"),
                           detail: tr("Shows the playing song on the dash and lets the handlebar buttons control playback (Media & Apple Music)."),
                           status: perms.music) { perms.requestMusic() }
+            PermissionRow(icon: "photo.on.rectangle", title: tr("Photos"),
+                          detail: tr("Lets you pick photos from your gallery for the dash Photos screen and the motorcycle photo."),
+                          status: perms.photos) { perms.requestPhotos() }
             PermissionRow(icon: "bell.fill", title: tr("Notifications"),
-                          detail: tr("Maintenance reminders."),
+                          detail: tr("Maintenance and document (e.g. STNK) reminders."),
                           status: perms.notifications) { perms.requestNotifications() }
         }
         .onAppear { perms.refresh() }

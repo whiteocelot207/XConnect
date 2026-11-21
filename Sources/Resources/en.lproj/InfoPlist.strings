@@ -3,3 +3,4 @@
 "NSBluetoothPeripheralUsageDescription" = "XConnect reads motorcycle data (battery, ODO, temperature) from the motorcycle ECU over Bluetooth.";
 "NSAppleMusicUsageDescription" = "XConnect shows the song that is playing on the motorcycle dash.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "XConnect uses your location so the map on the dash keeps working while the screen is locked.";
+"NSPhotoLibraryUsageDescription" = "XConnect lets you pick photos from your gallery to show on the motorcycle dash and as your motorcycle photo.";

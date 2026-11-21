@@ -130,6 +130,9 @@ struct AppearanceSettings: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             }
+            Section(header: Text(tr("Greeting on the dash"))) {
+                TextField(tr("Nickname (shown on the dash)"), text: $settings.userName)
+            }
             Section(header: Text(tr("App appearance"))) {
                 Picker(tr("App appearance"), selection: $settings.theme) {
                     Text(tr("Follow phone")).tag(0)
@@ -155,9 +158,6 @@ struct AppearanceSettings: View {
                         }
                     }
                 }
-            }
-            Section(header: Text(tr("Greeting on the dash"))) {
-                TextField(tr("Nickname (shown on the dash)"), text: $settings.userName)
             }
         }
         .navigationTitle(tr("Appearance"))
@@ -298,10 +298,12 @@ struct VehicleSettings: View {
                 Stepper(tr("Phone battery red at {0}% or less", settings.phoneRedPct), value: $settings.phoneRedPct, in: 5...50, step: 5)
             }
             Section(header: Text(tr("Maintenance reminders")),
-                    footer: Text(tr("A notification is sent when an item gets within this distance of its service, and again when it is overdue. It needs the ODO from the CCU, so it works while the app is connected to the motorcycle."))) {
+                    footer: Text(tr("Turns maintenance notifications and the banner on or off. When to be reminded is set per item in the Bike tab > Maintenance (by kilometers or by time). Kilometer items need the ODO from the CCU, so they work while the app is connected to the motorcycle."))) {
                 Toggle(tr("Notify me about maintenance"), isOn: $settings.maintNotify)
-                    .onChange(of: settings.maintNotify) { on in if on { MaintenanceStore.requestNotificationPermission() } }
-                Stepper(tr("Remind {0} km before service", settings.maintWarnKm), value: $settings.maintWarnKm, in: 100...3000, step: 100)
+                    .onChange(of: settings.maintNotify) { on in
+                        if on { MaintenanceStore.requestNotificationPermission() }
+                        AppModel.shared.maint.scheduleTimeNotifications()
+                    }
             }
             Section(header: Text(tr("Fuel consumption from CCU")),
                     footer: Text(tr("Fuel left is calculated from the average consumption reported by the motorcycle CCU (more accurate than the default value), and decreases gradually according to the consumption at that moment. Pick the byte in the CCU data packet (id 1) that holds the average consumption: see Raw CCU data below and compare it with the average fuel figure on the dash. Adjust the width, unit, and divisor until \"Reading now\" matches the dash. If the value is invalid, your own consumption over the last 30 days (from the dash average) is used, then the default value."))) {
@@ -1037,7 +1039,7 @@ struct BackupSettings: View {
 
     var body: some View {
         Form {
-            Section(footer: Text(tr("The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office, favorites; the Recent list is not included), motorcycle data (name, type, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size."))) {
+            Section(footer: Text(tr("The backup contains all app settings (appearance, connection, dash screens, Data Cards, map, buttons, routes, updates), saved places (Home, Office and favorites are saved too; only the Recent places are not saved), motorcycle data (name, type, photo, tank), maintenance and its history, fuel records, and trip history. Slideshow photos and offline maps are not included because of their size."))) {
                 Button(tr("Save backup to a file")) {
                     doc = SettingsBackupDocument(data: settings.exportBackup())
                     exporting = true

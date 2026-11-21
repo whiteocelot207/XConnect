@@ -54,7 +54,6 @@ final class AppSettings: ObservableObject {
     @Published var tempAmberC: Int { didSet { put("tempAmberC", tempAmberC) } }
     @Published var tempRedC: Int { didSet { put("tempRedC", tempRedC) } }
     @Published var phoneRedPct: Int { didSet { put("phoneRedPct", phoneRedPct) } }
-    @Published var maintWarnKm: Int { didSet { put("maintWarnKm", maintWarnKm) } }
     @Published var maintNotify: Bool { didSet { put("maintNotify", maintNotify) } }
     /// Repo sumber update: tetap, dari AppConfig (tidak disimpan di UserDefaults dan tidak ikut cadangan)
     var updateRepo: String { AppConfig.updateRepo }
@@ -164,7 +163,7 @@ final class AppSettings: ObservableObject {
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
             "theme": 0, "colorTheme": 0, "language": "en", "setupDone": false, "dashLangSync": true, "userName": "", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
-            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0, "fuelRedKm": 40, "fuelAmberKm": 60, "battGreenV": 12.6, "battRedV": 11.8, "tempAmberC": 95, "tempRedC": 105, "phoneRedPct": 20, "maintWarnKm": 100, "maintNotify": true,
+            "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0, "fuelRedKm": 40, "fuelAmberKm": 60, "battGreenV": 12.6, "battRedV": 11.8, "tempAmberC": 95, "tempRedC": 105, "phoneRedPct": 20, "maintNotify": true,
             "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
             "routeWidth": 5.0, "routeBorder": 0.0, "markerSize": 0.6, "markerRing": true, "markerY": 0.78,
             "navPanelScale": 0.85, "musicBlurBG": true,
@@ -217,7 +216,6 @@ final class AppSettings: ObservableObject {
         tempAmberC = d.integer(forKey: "tempAmberC")
         tempRedC = d.integer(forKey: "tempRedC")
         phoneRedPct = d.integer(forKey: "phoneRedPct")
-        maintWarnKm = d.integer(forKey: "maintWarnKm")
         maintNotify = d.bool(forKey: "maintNotify")
         updater = d.integer(forKey: "updater")
         autoCheckUpdate = d.bool(forKey: "autoCheckUpdate")
@@ -317,7 +315,6 @@ final class AppSettings: ObservableObject {
         tempAmberC = d.integer(forKey: "tempAmberC")
         tempRedC = d.integer(forKey: "tempRedC")
         phoneRedPct = d.integer(forKey: "phoneRedPct")
-        maintWarnKm = d.integer(forKey: "maintWarnKm")
         maintNotify = d.bool(forKey: "maintNotify")
         updater = d.integer(forKey: "updater")
         autoCheckUpdate = d.bool(forKey: "autoCheckUpdate")

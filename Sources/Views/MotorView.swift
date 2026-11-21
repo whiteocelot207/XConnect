@@ -203,25 +203,31 @@ struct MotorView: View {
     }
 
     private func maintCard(_ item: MaintItem) -> some View {
-        let remaining = maint.remainingKm(item)
-        let used = max(0, maint.odometerKm - item.lastServiceKm)
-        let frac = min(1, used / Double(max(1, item.intervalKm)))
-        let color: Color = remaining < 0 ? .red : (remaining < settings.maintWarnKm ? .orange : .accentColor)
+        let st = maint.status(item)
+        let color: Color = st.level == .over ? .red : (st.level == .warn ? .orange : .accentColor)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 ZStack {
                     Circle().stroke(Color.gray.opacity(0.25), lineWidth: 4)
-                    Circle().trim(from: 0, to: CGFloat(frac))
+                    Circle().trim(from: 0, to: CGFloat(st.fraction))
                         .stroke(color, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    Image(systemName: item.icon).font(.footnote).foregroundColor(color)
+                    MaintIconView(icon: item.icon, color: color, size: 15)
                 }
                 .frame(width: 40, height: 40)
                 Text(item.title).font(.headline).lineLimit(2)
             }
-            Text(remaining < 0 ? tr("Overdue {0} km", -remaining) : tr("{0} km left", remaining))
-                .font(.footnote).bold().foregroundColor(color)
-            Text(tr("Every {0} km", item.intervalKm)).font(.footnote).foregroundColor(.secondary)
+            Text(st.text).font(.footnote).bold().foregroundColor(color)
+            if item.basis == .km {
+                Text(tr("Every {0} km", item.intervalKm)).font(.footnote).foregroundColor(.secondary)
+            } else {
+                if let due = item.effectiveDueDate {
+                    Text(tr("Due on {0}", MaintHistorySheet.dateString(due))).font(.footnote).foregroundColor(.secondary)
+                }
+                if item.repeats {
+                    Text(tr("Every {0}", MaintDraft.monthsLabel(item.intervalMonths))).font(.footnote).foregroundColor(.secondary)
+                }
+            }
             if let d = item.lastServiceDate {
                 Text(tr("Last replaced {0}", MaintHistorySheet.dateString(d))).font(.footnote).foregroundColor(.secondary)
             }
@@ -377,28 +383,146 @@ struct NumberSheet: View {
 private func digits(_ s: String) -> Int? { Int(s.filter { $0.isNumber }) }
 private func decimal(_ s: String) -> Double? { Double(s.replacingOccurrences(of: ",", with: ".")) }
 
-struct AddMaintSheet: View {
-    @EnvironmentObject var maint: MaintenanceStore
-    @Environment(\.presentationMode) private var presentation
-    @State private var name = ""
-    @State private var intervalText = "5000"
-    @State private var lastText = ""
-    @State private var lastDate = Date()
+/// Isian form item perawatan (dipakai sheet Tambah dan Ubah). Urutan: nama, ikon, acuan, lalu isian menurut acuan.
+struct MaintDraft {
+    var name = ""
+    var icon = "wrench.fill"
+    var basis: MaintBasis = .km
+    // acuan kilometer
+    var intervalKmText = "5000"
+    var lastKmText = ""
+    var warnKm = 100
+    // acuan waktu
+    var repeats = false
+    var intervalMonths = 12
+    var warnMonths = 1
+    var dueDate = Date()
+    // keduanya
+    var lastDate = Date()
+
+    static func monthsLabel(_ m: Int) -> String {
+        if m >= 12 && m % 12 == 0 { return m == 12 ? tr("1 year") : tr("{0} years", m / 12) }
+        return m == 1 ? tr("1 month") : tr("{0} months", m)
+    }
+
+    init(odo: Double) {
+        lastKmText = odo > 0 ? String(format: "%g", odo.rounded()) : ""
+        recomputeDue()
+    }
+
+    init(item: MaintItem) {
+        name = item.name
+        icon = item.icon
+        basis = item.basis
+        intervalKmText = String(item.intervalKm)
+        lastKmText = item.lastServiceKm > 0 ? String(format: "%g", item.lastServiceKm) : ""
+        warnKm = item.warnKm
+        repeats = item.repeats
+        intervalMonths = item.intervalMonths
+        warnMonths = item.warnMonths
+        lastDate = item.lastServiceDate ?? Date()
+        dueDate = item.effectiveDueDate ?? Date()
+    }
+
+    /// Jatuh tempo = tanggal terakhir + selang; masih bisa diubah manual di form.
+    mutating func recomputeDue() {
+        dueDate = Calendar.current.date(byAdding: .month, value: intervalMonths, to: lastDate) ?? lastDate
+    }
+
+    /// Terapkan isian ke item (nama item bawaan tidak diubah).
+    func apply(to item: inout MaintItem) {
+        if !item.isDefault { item.name = name.trimmingCharacters(in: .whitespaces) }
+        item.icon = icon
+        item.basis = basis
+        item.intervalKm = max(1, Int(intervalKmText.filter { $0.isNumber }) ?? item.intervalKm)
+        item.lastServiceKm = Double(lastKmText.replacingOccurrences(of: ",", with: ".")) ?? item.lastServiceKm
+        item.warnKm = warnKm
+        item.repeats = repeats
+        item.intervalMonths = intervalMonths
+        item.warnMonths = warnMonths
+        // acuan waktu sekali jalan tidak punya "terakhir diganti"
+        if basis == .km || repeats { item.lastServiceDate = lastDate }
+        item.dueDate = dueDate
+    }
+}
+
+struct MaintDraftForm: View {
+    @Binding var draft: MaintDraft
+    var isDefaultItem = false
+    var defaultTitle = ""
 
     var body: some View {
-        NavigationView {
-            Form {
-                TextField(tr("Item name (e.g. Front tire)"), text: $name)
+        Section {
+            if isDefaultItem {
+                HStack {
+                    Text(tr("Name"))
+                    Spacer()
+                    Text(defaultTitle).foregroundColor(.secondary)
+                }
+            } else {
+                TextField(tr("Item name (e.g. Front tire)"), text: $draft.name)
+            }
+            NavigationLink(destination: MaintIconPicker(selection: $draft.icon)) {
+                HStack {
+                    Text(tr("Icon"))
+                    Spacer()
+                    MaintIconView(icon: draft.icon, size: 22)
+                }
+            }
+        }
+        Section(header: Text(tr("Schedule based on")),
+                footer: Text(draft.basis == .km
+                    ? tr("The reminder appears when the distance left is at or below the value you set for this item.")
+                    : (draft.repeats
+                        ? tr("Repeating: the next due date is calculated from the last replacement plus the interval. You can still change the due date by hand.")
+                        : tr("One time: only a due date, for example the STNK validity. The reminder appears this long before it.")))) {
+            Picker(tr("Schedule based on"), selection: $draft.basis) {
+                Text(tr("Kilometers")).tag(MaintBasis.km)
+                Text(tr("Time")).tag(MaintBasis.time)
+            }
+            .pickerStyle(.segmented)
+            if draft.basis == .km {
                 HStack {
                     Text(tr("Every (km)"))
-                    TextField("5000", text: $intervalText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                    TextField("5000", text: $draft.intervalKmText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                 }
                 HStack {
                     Text(tr("Last replaced at (km)"))
-                    TextField("0", text: $lastText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    TextField("0", text: $draft.lastKmText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                 }
-                DatePicker(tr("Last replaced on"), selection: $lastDate, in: ...Date(), displayedComponents: .date)
+                DatePicker(tr("Last replaced on"), selection: $draft.lastDate, in: ...Date(), displayedComponents: .date)
+                Stepper(tr("Remind {0} km before service", draft.warnKm), value: $draft.warnKm, in: 100...5000, step: 100)
+            } else {
+                Toggle(tr("Repeat"), isOn: $draft.repeats)
+                    .onChange(of: draft.repeats) { on in if on { draft.recomputeDue() } }
+                // selang dan tanggal terakhir hanya muncul (dan bisa dipilih) bila Berulang dinyalakan
+                if draft.repeats {
+                    Picker(tr("Every"), selection: $draft.intervalMonths) {
+                        ForEach(MaintenanceStore.intervalMonthChoices, id: \.self) { Text(MaintDraft.monthsLabel($0)).tag($0) }
+                    }
+                    .onChange(of: draft.intervalMonths) { _ in draft.recomputeDue() }
+                    DatePicker(tr("Last replaced on"), selection: $draft.lastDate, in: ...Date(), displayedComponents: .date)
+                        .onChange(of: draft.lastDate) { _ in draft.recomputeDue() }
+                }
+                DatePicker(tr("Due date"), selection: $draft.dueDate, displayedComponents: .date)
+                Picker(tr("Remind me"), selection: $draft.warnMonths) {
+                    ForEach(MaintenanceStore.warnMonthChoices, id: \.self) {
+                        Text(tr("{0} before", MaintDraft.monthsLabel($0))).tag($0)
+                    }
+                }
             }
+        }
+    }
+}
+
+struct AddMaintSheet: View {
+    @EnvironmentObject var maint: MaintenanceStore
+    @Environment(\.presentationMode) private var presentation
+    @State private var draft = MaintDraft(odo: 0)
+
+    var body: some View {
+        NavigationView {
+            Form { MaintDraftForm(draft: $draft) }
             .navigationTitle(tr("Add item"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -407,16 +531,20 @@ struct AddMaintSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Add")) {
-                        let n = name.trimmingCharacters(in: .whitespaces)
+                        let n = draft.name.trimmingCharacters(in: .whitespaces)
                         if !n.isEmpty {
-                            maint.addItem(name: n, intervalKm: max(1, digits(intervalText) ?? 5000),
-                                          lastKm: decimal(lastText) ?? maint.odometerKm, lastDate: lastDate)
+                            var item = MaintItem(id: UUID().uuidString, name: n, icon: draft.icon, intervalKm: 5000,
+                                                 lastServiceKm: maint.odometerKm, lastServiceDate: Date(), history: [])
+                            draft.apply(to: &item)
+                            if draft.lastKmText.isEmpty { item.lastServiceKm = maint.odometerKm }
+                            maint.addItem(item)
                         }
                         presentation.wrappedValue.dismiss()
                     }
+                    .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .onAppear { lastText = maint.odometerKm > 0 ? String(format: "%g", maint.odometerKm.rounded()) : "" }
+            .onAppear { draft = MaintDraft(odo: maint.odometerKm) }
         }
     }
 }
@@ -428,6 +556,10 @@ struct MaintReplaceSheet: View {
     @Environment(\.presentationMode) private var presentation
     @State private var date = Date()
     @State private var odoText = ""
+    @State private var newDue = Date()
+
+    private var item: MaintItem? { maint.items.first(where: { $0.id == itemID }) }
+    private var needsNewDue: Bool { item.map { $0.basis == .time && !$0.repeats } ?? false }
 
     var body: some View {
         NavigationView {
@@ -435,9 +567,14 @@ struct MaintReplaceSheet: View {
                 Section(header: Text(maint.items.first(where: { $0.id == itemID })?.title ?? ""),
                         footer: Text(tr("The date defaults to today and the ODO to the current reading from the CCU."))) {
                     DatePicker(tr("Replaced on"), selection: $date, in: ...Date(), displayedComponents: .date)
-                    HStack {
-                        Text(tr("ODO when replaced (km)"))
-                        TextField("0", text: $odoText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    if maint.items.first(where: { $0.id == itemID })?.basis != .time {
+                        HStack {
+                            Text(tr("ODO when replaced (km)"))
+                            TextField("0", text: $odoText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                        }
+                    }
+                    if needsNewDue {
+                        DatePicker(tr("New due date"), selection: $newDue, displayedComponents: .date)
                     }
                 }
             }
@@ -449,12 +586,16 @@ struct MaintReplaceSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Save")) {
-                        maint.markServiced(itemID, date: date, odoKm: decimal(odoText) ?? maint.odometerKm)
+                        maint.markServiced(itemID, date: date, odoKm: decimal(odoText) ?? maint.odometerKm, newDue: needsNewDue ? newDue : nil)
                         presentation.wrappedValue.dismiss()
                     }
                 }
             }
-            .onAppear { odoText = maint.odometerKm > 0 ? String(format: "%g", maint.odometerKm.rounded()) : "" }
+            .onAppear {
+                odoText = maint.odometerKm > 0 ? String(format: "%g", maint.odometerKm.rounded()) : ""
+                let base = max(item?.effectiveDueDate ?? Date(), Date())
+                newDue = Calendar.current.date(byAdding: .year, value: 1, to: base) ?? base
+            }
         }
     }
 }
@@ -502,43 +643,17 @@ struct MaintEditSheet: View {
     let itemID: String
     @EnvironmentObject var maint: MaintenanceStore
     @Environment(\.presentationMode) private var presentation
-    @State private var intervalText = ""
-    @State private var lastText = ""
+    @State private var draft = MaintDraft(odo: 0)
+    @State private var loaded = false
+
+    private var item: MaintItem? { maint.items.first(where: { $0.id == itemID }) }
 
     var body: some View {
         NavigationView {
             Form {
-                if let i = maint.items.firstIndex(where: { $0.id == itemID }) {
-                    Section {
-                        if maint.items[i].isDefault {
-                            HStack {
-                                Text(tr("Name"))
-                                Spacer()
-                                Text(maint.items[i].title).foregroundColor(.secondary)
-                            }
-                        } else {
-                            TextField(tr("Name"), text: $maint.items[i].name)
-                        }
-                        HStack {
-                            Text(tr("Every (km)"))
-                            TextField("5000", text: $intervalText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                                .onChange(of: intervalText) { t in
-                                    if let v = digits(t), v > 0, v != maint.items[i].intervalKm { maint.items[i].intervalKm = v }
-                                }
-                        }
-                        HStack {
-                            Text(tr("Last replaced at (km)"))
-                            TextField("0", text: $lastText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                                .onChange(of: lastText) { t in
-                                    if let v = decimal(t), v != maint.items[i].lastServiceKm { maint.items[i].lastServiceKm = v }
-                                }
-                        }
-                        DatePicker(tr("Last replaced on"),
-                                   selection: Binding(get: { maint.items[i].lastServiceDate ?? Date() },
-                                                      set: { maint.items[i].lastServiceDate = $0 }),
-                                   in: ...Date(), displayedComponents: .date)
-                    }
-                    if !maint.items[i].isDefault {
+                if let it = item {
+                    MaintDraftForm(draft: $draft, isDefaultItem: it.isDefault, defaultTitle: it.title)
+                    if !it.isDefault {
                         Section {
                             Button(tr("Delete item"), role: .destructive) {
                                 maint.remove(itemID)
@@ -551,15 +666,24 @@ struct MaintEditSheet: View {
             .navigationTitle(tr("Edit items"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(tr("Cancel")) { presentation.wrappedValue.dismiss() }
+                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Done")) { presentation.wrappedValue.dismiss() }
+                    Button(tr("Done")) {
+                        if let i = maint.items.firstIndex(where: { $0.id == itemID }) {
+                            var it = maint.items[i]
+                            draft.apply(to: &it)
+                            maint.items[i] = it
+                        }
+                        presentation.wrappedValue.dismiss()
+                    }
                 }
             }
             .onAppear {
-                if let it = maint.items.first(where: { $0.id == itemID }) {
-                    intervalText = String(it.intervalKm)
-                    lastText = it.lastServiceKm > 0 ? String(format: "%g", it.lastServiceKm) : ""
-                }
+                guard !loaded, let it = item else { return }
+                draft = MaintDraft(item: it)
+                loaded = true
             }
         }
     }

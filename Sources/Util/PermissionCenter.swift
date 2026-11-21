@@ -3,6 +3,7 @@ import CoreLocation
 import CoreBluetooth
 import MediaPlayer
 import UserNotifications
+import Photos
 import UIKit
 
 /// Status dan permintaan izin iOS yang dipakai XConnect: lokasi (sampai "Selalu"), Bluetooth, musik, notifikasi.
@@ -14,6 +15,16 @@ final class PermissionCenter: NSObject, ObservableObject, CLLocationManagerDeleg
     @Published var bluetooth: Status = .notDetermined
     @Published var music: Status = .notDetermined
     @Published var notifications: Status = .notDetermined
+    @Published var photos: Status = .notDetermined
+
+    /// Dikirim saat izin Bluetooth baru saja diberikan: BikeController baru boleh membuat CBCentralManager setelah ini.
+    static let bluetoothGranted = Notification.Name("xconnect.bluetoothGranted")
+
+    /// Semua izin sudah diberikan penuh (Lokasi harus "Selalu"). Dipakai untuk mengaktifkan tombol Selesai.
+    var allGranted: Bool {
+        location == .granted && bluetooth == .granted && music == .granted
+            && notifications == .granted && photos == .granted
+    }
 
     private let lm = CLLocationManager()
     private var cb: CBCentralManager?
@@ -43,6 +54,11 @@ final class PermissionCenter: NSObject, ObservableObject, CLLocationManagerDeleg
         case .authorized: music = .granted
         case .notDetermined: music = .notDetermined
         default: music = .denied
+        }
+        switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
+        case .authorized, .limited: photos = .granted
+        case .notDetermined: photos = .notDetermined
+        default: photos = .denied
         }
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] s in
             DispatchQueue.main.async {
@@ -100,6 +116,16 @@ final class PermissionCenter: NSObject, ObservableObject, CLLocationManagerDeleg
         }
     }
 
+    func requestPhotos() {
+        if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] _ in
+                DispatchQueue.main.async { self?.refresh() }
+            }
+        } else {
+            openSettings()
+        }
+    }
+
     func requestNotifications() {
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] s in
             DispatchQueue.main.async {
@@ -126,5 +152,10 @@ final class PermissionCenter: NSObject, ObservableObject, CLLocationManagerDeleg
         }
     }
 
-    func centralManagerDidUpdateState(_ central: CBCentralManager) { refresh() }
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        refresh()
+        if CBCentralManager.authorization == .allowedAlways {
+            NotificationCenter.default.post(name: PermissionCenter.bluetoothGranted, object: nil)
+        }
+    }
 }

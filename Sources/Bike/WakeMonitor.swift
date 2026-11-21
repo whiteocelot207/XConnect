@@ -34,7 +34,9 @@ final class WakeMonitor: NSObject, CLLocationManagerDelegate, CBCentralManagerDe
 
     /// Panggil saat peluncuran: membuat CBCentralManager dengan restore identifier supaya iOS bisa memulihkannya.
     func start() {
-        ensureCentral()
+        // Bluetooth belum pernah diizinkan (pengaturan awal belum selesai): jangan membuat CBCentralManager,
+        // karena itu langsung memunculkan dialog izin Bluetooth. Dibuat lagi setelah izin diberikan (BikeController).
+        if CBCentralManager.authorization != .notDetermined { ensureCentral() }
         // geofence yang masih terpasang dari sesi sebelumnya dianggap aktif
         armed = manager.monitoredRegions.contains { $0.identifier == WakeMonitor.regionID }
     }

@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Pengaturan awal saat app dibuka pertama kali: sapaan selamat datang, nama panggilan, pilih bahasa, pilih motor, perizinan.
+/// Pengaturan awal saat app dibuka pertama kali: sapaan selamat datang + pilih bahasa (langsung di tampilan pertama),
+/// nama panggilan, pilih motor, perizinan.
 struct OnboardingView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var vehicle: VehicleStore
     @EnvironmentObject var perms: PermissionCenter
     @State private var step = 0
+    private let lastStep = 3
 
     private var isCustomModel: Bool {
         !VehicleStore.presets.contains { $0.model == vehicle.model }
@@ -18,8 +20,7 @@ struct OnboardingView: View {
                     switch step {
                     case 0: welcome
                     case 1: nickname
-                    case 2: language
-                    case 3: motorcycle
+                    case 2: motorcycle
                     default: permissions
                     }
                 }
@@ -34,12 +35,14 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                 }
                 Button {
-                    if step < 4 { withAnimation { step += 1 } } else { finish() }
+                    if step < lastStep { withAnimation { step += 1 } } else { finish() }
                 } label: {
-                    Text(step == 0 ? tr("Get started") : (step < 4 ? tr("Next") : tr("Finish")))
+                    Text(step == 0 ? tr("Get started") : (step < lastStep ? tr("Next") : tr("Finish")))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                // Selesai baru aktif setelah semua izin diberikan
+                .disabled(step == lastStep && !perms.allGranted)
             }
             .controlSize(.large)
             .padding(24)
@@ -56,6 +59,17 @@ struct OnboardingView: View {
             Text(tr("Welcome to XConnect")).font(.largeTitle).bold().multilineTextAlignment(.center)
             Text(tr("Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in a few quick steps."))
                 .font(.body).foregroundColor(.secondary).multilineTextAlignment(.center)
+            // bahasa ditanyakan langsung di tampilan pertama
+            VStack(spacing: 10) {
+                Label(tr("Choose your language"), systemImage: "globe").font(.headline)
+                ForEach(Loc.shared.languages, id: \.code) { lang in
+                    choiceRow(title: lang.name, selected: settings.language == lang.code) {
+                        settings.language = lang.code
+                    }
+                }
+                Text(tr("You can change this later in Settings > Appearance.")).font(.footnote).foregroundColor(.secondary)
+            }
+            .padding(.top, 6)
         }
     }
 
@@ -69,19 +83,6 @@ struct OnboardingView: View {
                 .textFieldStyle(.roundedBorder)
                 .disableAutocorrection(true)
                 .padding(.top, 6)
-        }
-    }
-
-    private var language: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "globe").font(.system(size: 48)).foregroundColor(.accentColor)
-            Text(tr("Choose your language")).font(.title).bold().multilineTextAlignment(.center)
-            Text(tr("You can change this later in Settings > Appearance.")).font(.footnote).foregroundColor(.secondary)
-            ForEach(Loc.shared.languages, id: \.code) { lang in
-                choiceRow(title: lang.name, selected: settings.language == lang.code) {
-                    settings.language = lang.code
-                }
-            }
         }
     }
 
@@ -118,6 +119,10 @@ struct OnboardingView: View {
             VStack(spacing: 10) { PermissionsList() }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.06)))
+            if !perms.allGranted {
+                Text(tr("Tap Allow on every item to continue. Location must be set to Always."))
+                    .font(.footnote).foregroundColor(.orange).multilineTextAlignment(.center)
+            }
         }
     }
 
@@ -145,7 +150,7 @@ struct OnboardingView: View {
 
     private func finish() {
         if vehicle.name.trimmingCharacters(in: .whitespaces).isEmpty { vehicle.name = vehicle.model }
+        guard perms.allGranted else { return }
         settings.setupDone = true
-        if settings.maintNotify { MaintenanceStore.requestNotificationPermission() }
     }
 }

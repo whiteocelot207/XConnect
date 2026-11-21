@@ -8,10 +8,30 @@ bagian terbaru yang tidak lebih baru darinya. Bagian yang sama dipakai sebagai c
 
 ### Diperbaiki
 - App langsung tertutup setelah dibuka (banner melayang kekurangan data).
+- Pengaturan awal: izin Bluetooth tidak lagi muncul sendiri saat app pertama dibuka; baru diminta saat Anda mengetuk Izinkan di langkah Perizinan.
+- Dash: warna peringatan (bensin, aki 12V, suhu mesin, baterai HP) sekarang mengikuti pengaturan di semua tempat, termasuk kartu layar Speedometer dan info pojok.
+- Cadangan: cadangan otomatis juga tidak menyertakan daftar tempat Terakhir (Rumah, Kantor, dan favorit tetap ikut).
 
 ### Baru
 - Pengaturan awal: langkah baru setelah layar selamat datang menanyakan nama panggilan (boleh dikosongkan).
 - Navigasi: tombol "Cari SPBU terdekat".
+- Pengaturan awal: bahasa langsung ditanyakan di tampilan pertama.
+- Perizinan: izin Foto (galeri) ditambahkan. Tombol Selesai tidak bisa diketuk sebelum semua izin diberikan.
+- Perawatan: tiap item bisa berdasarkan kilometer atau waktu. Item kilometer punya jarak "ingatkan sebelum" sendiri; item waktu (mis. masa berlaku STNK) punya tanggal jatuh tempo dan pengingat 1, 3, atau 6 bulan sebelumnya. Selang (1 bulan sampai 5 tahun) hanya bisa dipilih bila "Berulang" dinyalakan.
+- Perawatan: ikon tiap item bisa dipilih dari banyak simbol dan emoji bertema motor.
+
+### Diubah
+- Tahun motor dihapus (pengaturan awal, Pengaturan, cadangan).
+- Pengaturan > Peta: Rute dan pencarian dipindah ke bawah Peta offline.
+- Kontrol stang: "Tekan 2x" menjadi "Tekan 2x cepat".
+- Durasi klik cepat bawaan 300 ms; "Ingatkan sebelum servis" bawaan 100 km.
+- Pengaturan format jam dihapus: selalu 24 jam.
+- Perawatan: kelima item bawaan tidak bisa dihapus (hanya item tambahan yang bisa), dan namanya mengikuti bahasa app.
+- Pengaturan sumber update dihapus: repo ditetapkan di dalam app (`AppConfig.updateRepo`).
+- Eksperimen dan log: bagian Link CCU dan Bahasa dash disembunyikan.
+- Tentang: keterangan di bawah "Versi dan update" dihapus.
+- Pengaturan > Tampilan: kolom nama dipindah ke bawah Bahasa.
+- Pengaturan > Motor dan BBM: jarak global "Ingatkan sebelum servis" dihapus (sekarang diatur per item).
 
 ## 0.1.2
 
