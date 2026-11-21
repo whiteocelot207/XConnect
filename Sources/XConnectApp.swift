@@ -43,6 +43,14 @@ struct RootView: View {
             .preferredColorScheme(scheme)
             .accentColor(AppTheme.theme(settings.colorTheme).color)
             .tint(AppTheme.theme(settings.colorTheme).color)
+            .fullScreenCover(isPresented: Binding(get: { !settings.setupDone }, set: { _ in })) {
+                OnboardingView()
+                    .environmentObject(app.settings)
+                    .environmentObject(app.vehicle)
+                    .preferredColorScheme(scheme)
+                    .accentColor(AppTheme.theme(settings.colorTheme).color)
+                    .interactiveDismissDisabled(true)
+            }
             .onAppear {
                 if app.settings.autoCheckUpdate, !app.settings.updateRepo.isEmpty {
                     app.updater.check(repo: app.settings.updateRepo, silent: true)

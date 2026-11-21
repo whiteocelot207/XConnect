@@ -11,6 +11,8 @@ final class AppSettings: ObservableObject {
     @Published var theme: Int { didSet { put("theme", theme) } }
     /// tema warna aplikasi (AppTheme.id)
     @Published var colorTheme: Int { didSet { put("colorTheme", colorTheme) } }
+    /// false sampai pengaturan awal (sapaan, bahasa, motor) selesai
+    @Published var setupDone: Bool { didSet { put("setupDone", setupDone) } }
     /// kode bahasa aplikasi (kolom di Translations.tsv): "en" (bawaan), "id"
     @Published var language: String { didSet { put("language", language); Loc.shared.setLanguage(language) } }
     /// kirim bahasa aplikasi ke dash (cmd 12) memakai kode dari baris @dashLang di Translations.tsv
@@ -154,7 +156,7 @@ final class AppSettings: ObservableObject {
     static let defaultValues: [String: Any] = [
             "autoConnect": true, "nightMode": 0,
             "routingBase": "https://valhalla1.openstreetmap.de", "keepScreenOn": true,
-            "theme": 0, "colorTheme": 0, "language": "en", "dashLangSync": true, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
+            "theme": 0, "colorTheme": 0, "language": "en", "setupDone": false, "dashLangSync": true, "userName": "Tantan", "screenMask": 13, "buttonScheme": 1, "slideSeconds": 6, "saveBattery": false,
             "showCards": true, "routeColor": 0, "autoZoom": true, "baseZoom": 16.8, "zoomRules": "15.0:17.80,35.0:17.00,55.0:16.30", "zoomAbove": 15.6, "zoomSmooth": 0.8, "defaultKmPerL": 30.0,
             "updateRepo": "whiteocelot207/XConnect", "updater": 0, "autoCheckUpdate": true, "ccuEnabled": true,
             "routeWidth": 5.0, "routeBorder": 0.0, "markerSize": 0.6, "markerRing": true, "markerY": 0.78,
@@ -185,6 +187,7 @@ final class AppSettings: ObservableObject {
         theme = d.integer(forKey: "theme")
         colorTheme = min(max(0, d.integer(forKey: "colorTheme")), AppTheme.all.count - 1)
         language = d.string(forKey: "language") ?? "en"
+        setupDone = d.bool(forKey: "setupDone")
         dashLangSync = d.bool(forKey: "dashLangSync")
         userName = d.string(forKey: "userName") ?? ""
         screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))
@@ -278,6 +281,7 @@ final class AppSettings: ObservableObject {
         theme = d.integer(forKey: "theme")
         colorTheme = min(max(0, d.integer(forKey: "colorTheme")), AppTheme.all.count - 1)
         language = d.string(forKey: "language") ?? "en"
+        setupDone = d.bool(forKey: "setupDone")
         dashLangSync = d.bool(forKey: "dashLangSync")
         userName = d.string(forKey: "userName") ?? ""
         screenMask = Self.migratedMask(d.integer(forKey: "screenMask"))

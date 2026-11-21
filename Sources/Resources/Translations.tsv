@@ -96,6 +96,7 @@ Average fuel on the dash (km/L)	Average fuel on the dash (km/L)	Rata-rata BBM di
 Average fuel use	Average fuel use	Rata-rata BBM
 average on the dash (CCU)	average on the dash (CCU)	rata-rata di dash (CCU)
 Average speed	Average speed	Kecepatan rata-rata
+Back	Back	Kembali
 background	background	latar belakang
 Backup and restore	Backup and restore	Cadangkan dan pulihkan
 Backup saved.	Backup saved.	Cadangan tersimpan.
@@ -167,6 +168,8 @@ Checking…	Checking…	Memeriksa…
 Choose photo	Choose photo	Pilih foto
 Choose route	Choose route	Pilih rute
 Choose the data shown in the estimate box. If all are turned off, the box is hidden.	Choose the data shown in the estimate box. If all are turned off, the box is hidden.	Pilih data yang tampil di kotak estimasi. Bila semua dimatikan, kotak disembunyikan.
+Choose your language	Choose your language	Pilih bahasa Anda
+Choose your motorcycle	Choose your motorcycle	Pilih motor Anda
 Choosing XMAX or NMAX fills in the tank capacity automatically; you can still change it below.	Choosing XMAX or NMAX fills in the tank capacity automatically; you can still change it below.	Memilih XMAX atau NMAX mengisi kapasitas tangki otomatis; tetap bisa diubah di bawah.
 Circle around the marker	Circle around the marker	Lingkaran di sekitar titik
 Clear	Clear	Cerah
@@ -272,6 +275,7 @@ Favorites	Favorites	Favorit
 Ferries	Ferries	Feri
 Find a place in Google Maps, copy its link, then paste it here. Links such as maps.app.goo.gl/… are recognized right away.	Find a place in Google Maps, copy its link, then paste it here. Links such as maps.app.goo.gl/… are recognized right away.	Temukan tempat di Google Maps, salin tautannya, lalu tempelkan di sini. Tautan seperti maps.app.goo.gl/… langsung dikenali.
 Find byte from the dash figure	Find byte from the dash figure	Cari byte dari angka di dash
+Finish	Finish	Selesai
 Foggy	Foggy	Berkabut
 Follow phone	Follow phone	Ikuti ponsel
 Font size	Font size	Ukuran huruf
@@ -292,6 +296,7 @@ Gas station	Gas station	SPBU
 Gas station, 	Gas station, 	SPBU, 
 Gear oil	Gear oil	Oli gardan
 General	General	Umum
+Get started	Get started	Mulai
 Google Maps (browser)	Google Maps (browser)	Google Maps (peramban)
 Google Maps (place ID)	Google Maps (place ID)	Google Maps (ID tempat)
 Green	Green	Hijau
@@ -402,6 +407,7 @@ Navigate	Navigate	Navigasi
 Navigation active	Navigation active	Navigasi aktif
 Navigation started	Navigation started	Navigasi dimulai
 Network	Network	Jaringan
+Next	Next	Lanjut
 next track	next track	lagu berikutnya
 Next track  ▶▶	Next track  ▶▶	Lagu berikutnya  ▶▶
 Nickname (shown on the dash)	Nickname (shown on the dash)	Nama panggilan (tampil di dash)
@@ -555,6 +561,7 @@ Shift photo (up ↔ down)	Shift photo (up ↔ down)	Geser foto (atas ↔ bawah)
 Shift up ↔ down	Shift up ↔ down	Geser atas ↔ bawah
 Shortest route (distance), not the fastest	Shortest route (distance), not the fastest	Rute terpendek (jarak), bukan tercepat
 Show Data Cards	Show Data Cards	Tampilkan Kartu Data
+Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in two quick steps.	Show the map, motorcycle data and music on your Yamaha dash. Let's set up the app in two quick steps.	Tampilkan peta, data motor, dan musik di dash Yamaha Anda. Mari atur aplikasi dalam dua langkah singkat.
 Silent audio failed to play (phone data in the background may stall)	Silent audio failed to play (phone data in the background may stall)	Audio senyap gagal diputar (data HP di latar belakang bisa tertahan)
 Simulate	Simulate	Simulasi
 Simulation mode: artificial position along the route	Simulation mode: artificial position along the route	Mode simulasi: posisi buatan di sepanjang rute
@@ -622,6 +629,7 @@ The {0} app is not installed. Opening the download page…	The {0} app is not in
 This file is not a valid XConnect backup.	This file is not a valid XConnect backup.	File bukan cadangan XConnect yang valid.
 This is only an estimate: the motorcycle does not report the tank level. Every time the tank is full, tap "Just filled". Partial fill-ups throw the figure off unless you enter the liters.	This is only an estimate: the motorcycle does not report the tank level. Every time the tank is full, tap "Just filled". Partial fill-ups throw the figure off unless you enter the liters.	Ini hanya perkiraan: motor tidak melaporkan level tangki. Setiap kali tangki penuh, ketuk "Baru diisi". Pengisian sebagian membuat angka melenceng kecuali Anda memasukkan liternya.
 This month	This month	Bulan ini
+This sets the tank capacity for the fuel estimate. You can change everything later in Settings > Motorcycle and fuel.	This sets the tank capacity for the fuel estimate. You can change everything later in Settings > Motorcycle and fuel.	Ini menentukan kapasitas tangki untuk perkiraan bensin. Semua bisa diubah nanti di Pengaturan > Motor dan BBM.
 Thunderstorm	Thunderstorm	Petir
 Today	Today	Hari ini
 Top speed	Top speed	Kecepatan tertinggi
@@ -688,6 +696,7 @@ Wake: {0} (app {1})	Wake: {0} (app {1})	Wake: {0} (app {1})
 Weather	Weather	Cuaca
 Weather + greeting	Weather + greeting	Cuaca + sapaan
 Weather, fuel, and motorcycle data cards on the right side of the Map screen. Their contents and layout are set in Settings > Data Cards.	Weather, fuel, and motorcycle data cards on the right side of the Map screen. Their contents and layout are set in Settings > Data Cards.	Kartu cuaca, bensin, dan data motor di sisi kanan layar Peta. Isi dan tata letaknya diatur di Pengaturan > Kartu Data.
+Welcome to XConnect	Welcome to XConnect	Selamat datang di XConnect
 When the motorcycle is switched on	When the motorcycle is switched on	Saat motor dinyalakan
 With the motorcycle on and connected, type the average fuel figure shown on the dash (km/L), then Search. If there are several candidates, repeat once the dash figure has changed: the correct byte changes too. If nothing matches, the average fuel figure may be in another data packet (see Raw CCU data in Settings > Connection).	With the motorcycle on and connected, type the average fuel figure shown on the dash (km/L), then Search. If there are several candidates, repeat once the dash figure has changed: the correct byte changes too. If nothing matches, the average fuel figure may be in another data packet (see Raw CCU data in Settings > Connection).	Saat motor menyala dan terhubung, ketik rata-rata BBM yang tampil di dash (km/L), lalu Cari. Bila ada beberapa kandidat, ulangi saat angka di dash sudah berubah: byte yang benar ikut berubah. Bila tidak ada yang cocok, rata-rata BBM mungkin ada di paket data lain (lihat Data mentah CCU di Pengaturan > Koneksi).
 XConnect {0} · app updates	XConnect {0} · app updates	XConnect {0} · update aplikasi
@@ -695,6 +704,7 @@ XConnect-settings	XConnect-settings	XConnect-pengaturan
 Year (e.g. 2023)	Year (e.g. 2023)	Tahun (mis. 2023)
 yes	yes	ya
 You are up to date ({0})	You are up to date ({0})	Sudah versi terbaru ({0})
+You can change this later in Settings > Appearance.	You can change this later in Settings > Appearance.	Anda bisa mengubahnya nanti di Pengaturan > Tampilan.
 You have arrived at your destination	You have arrived at your destination	Anda sudah tiba di tujuan
 your consumption over the last 30 days	your consumption over the last 30 days	konsumsi Anda 30 hari terakhir
 your destination is ahead	your destination is ahead	tujuan Anda ada di depan
