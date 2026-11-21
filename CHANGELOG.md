@@ -11,7 +11,6 @@ newer than it is shown. The same section is used as the GitHub release notes.
 - Navigate: search results and gas stations are sorted by distance, nearest first.
 - Handlebar buttons (Home, Office, favorites) now pick the fastest of the available routes.
 - Motor tab: the ODO, fuel range and maintenance figures are now aligned at the same height.
-- Navigate: on iOS 16 and later the Paste link button uses the system paste control, so the "Paste from Other Apps" question no longer appears (an app cannot switch that iOS setting by itself).
 - English texts: the permission and time-based maintenance examples now say "driver's license" instead of the Indonesian "SIM".
 - Gas stations: all search servers are asked at the same time (much faster), results are cached, and the list now shows the distance to each station.
 - Dash: the gas station menu is filled from a cache prepared when the dash connects, so it no longer reports that it cannot get data from the phone.

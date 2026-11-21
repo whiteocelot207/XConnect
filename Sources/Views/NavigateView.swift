@@ -172,35 +172,11 @@ struct NavigateView: View {
         }
     }
 
-    /// iOS 16+: tombol tempel resmi dari sistem, tidak memunculkan izin "Tempel dari app lain" (izin tidak bisa
-    /// diatur otomatis oleh app). iOS 15: tombol biasa yang membaca clipboard.
-    @ViewBuilder private var pasteLinkButton: some View {
-        if #available(iOS 16.0, *) {
-            // Teks tampil "Tempel tautan"; tombol tempel sistem diletakkan transparan di atasnya (blendMode)
-            // sehingga tetap menerima ketukan tanpa memunculkan pertanyaan izin.
-            leftLabel(tr("Paste link"), icon: "doc.on.clipboard")
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
-                .foregroundColor(.white)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.accentColor))
-                .overlay(
-                    PasteButton(payloadType: String.self) { strings in
-                        DispatchQueue.main.async {
-                            if let s = strings.first, !s.isEmpty { nav.resolveLink(s) }
-                            else { nav.message = tr("The clipboard is empty. Copy a link from Google Maps first.") }
-                        }
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonBorderShape(.roundedRectangle(radius: 10))
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .blendMode(.destinationOver)
-                )
-        } else {
-            Button { pasteLink() } label: { leftLabel(tr("Paste link"), icon: "doc.on.clipboard").padding(.vertical, 10) }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-        }
+    /// Tombol tempel biasa: membaca clipboard (iOS dapat menanyakan izin tempel; itu pengaturan iOS, bukan app).
+    private var pasteLinkButton: some View {
+        Button { pasteLink() } label: { leftLabel(tr("Paste link"), icon: "doc.on.clipboard").padding(.vertical, 10) }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
     }
 
     private func pasteLink() {
