@@ -30,8 +30,8 @@ struct MaintenanceBanner: View {
                     Image(systemName: "wrench.fill").font(.title2).foregroundColor(overdue ? .red : .orange)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tr("Maintenance due")).font(.subheadline).bold()
-                        Text(overdue ? tr("{0}: overdue {1} km", first.item.name, -first.remaining)
-                                     : tr("{0}: {1} km left", first.item.name, first.remaining)
+                        Text(overdue ? tr("{0}: overdue {1} km", first.item.title, -first.remaining)
+                                     : tr("{0}: {1} km left", first.item.title, first.remaining)
                              + (due.count > 1 ? " · " + tr("+{0} more", due.count - 1) : ""))
                             .font(.caption).foregroundColor(.secondary)
                     }

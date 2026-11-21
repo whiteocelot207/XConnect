@@ -16,9 +16,35 @@ struct MaintItem: Codable, Identifiable {
     /// tanggal penggantian terakhir (nil bila belum pernah dicatat)
     var lastServiceDate: Date?
     var history: [MaintLog]
+
+    /// Item bawaan (kelima perawatan standar): tidak bisa dihapus, namanya mengikuti bahasa app.
+    var isDefault: Bool { MaintenanceStore.defaultKeys[id] != nil }
+
+    /// Nama yang ditampilkan: item bawaan diterjemahkan sesuai bahasa aktif, item tambahan memakai nama buatan pengguna.
+    var title: String {
+        if let key = MaintenanceStore.defaultKeys[id] { return tr(key) }
+        return name
+    }
 }
 
 final class MaintenanceStore: ObservableObject {
+    /// id item bawaan -> kunci terjemahan namanya (Translations.tsv)
+    static let defaultKeys: [String: String] = [
+        "oli-mesin": "Engine oil", "oli-gardan": "Gear oil", "filter-udara": "Air filter",
+        "busi": "Spark plug", "v-belt": "V-belt"
+    ]
+
+    /// Pastikan kelima item bawaan selalu ada (urutan tetap di depan), diikuti item tambahan pengguna.
+    /// Item bawaan yang hilang dari data lama dikembalikan dengan nilai awal.
+    static func normalized(_ saved: [MaintItem]) -> [MaintItem] {
+        var out: [MaintItem] = []
+        for d in defaults() {
+            out.append(saved.first(where: { $0.id == d.id }) ?? d)
+        }
+        out += saved.filter { !$0.isDefault }
+        return out
+    }
+
     /// Interval bawaan hanya perkiraan umum. Sesuaikan dengan buku manual motor Anda.
     static func defaults() -> [MaintItem] {
         [
@@ -41,7 +67,7 @@ final class MaintenanceStore: ObservableObject {
         odometerKm = d.double(forKey: "maint.odo.v3")
         if let data = d.data(forKey: "maint.items.v3"),
            let it = try? JSONDecoder().decode([MaintItem].self, from: data) {
-            items = it
+            items = MaintenanceStore.normalized(it)
         } else {
             items = MaintenanceStore.defaults()
         }
@@ -53,7 +79,7 @@ final class MaintenanceStore: ObservableObject {
         odometerKm = d.double(forKey: "maint.odo.v3")
         if let data = d.data(forKey: "maint.items.v3"),
            let it = try? JSONDecoder().decode([MaintItem].self, from: data) {
-            items = it
+            items = MaintenanceStore.normalized(it)
         } else {
             items = MaintenanceStore.defaults()
         }
@@ -81,7 +107,7 @@ final class MaintenanceStore: ObservableObject {
             guard before != nil, level != "ok" else { continue }
             let c = UNMutableNotificationContent()
             c.title = tr("Maintenance due")
-            c.body = rem < 0 ? tr("{0}: overdue {1} km", item.name, -rem) : tr("{0}: {1} km left", item.name, rem)
+            c.body = rem < 0 ? tr("{0}: overdue {1} km", item.title, -rem) : tr("{0}: {1} km left", item.title, rem)
             c.sound = .default
             UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "maint." + item.id + "." + level, content: c, trigger: nil))
         }
@@ -119,6 +145,6 @@ final class MaintenanceStore: ObservableObject {
     }
 
     func remove(_ id: String) {
-        items.removeAll { $0.id == id }
+        items.removeAll { $0.id == id && !$0.isDefault }     // item bawaan tidak bisa dihapus
     }
 }

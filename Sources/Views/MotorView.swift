@@ -217,7 +217,7 @@ struct MotorView: View {
                     Image(systemName: item.icon).font(.footnote).foregroundColor(color)
                 }
                 .frame(width: 40, height: 40)
-                Text(item.name).font(.headline).lineLimit(2)
+                Text(item.title).font(.headline).lineLimit(2)
             }
             Text(remaining < 0 ? tr("Overdue {0} km", -remaining) : tr("{0} km left", remaining))
                 .font(.footnote).bold().foregroundColor(color)
@@ -432,7 +432,7 @@ struct MaintReplaceSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text(maint.items.first(where: { $0.id == itemID })?.name ?? ""),
+                Section(header: Text(maint.items.first(where: { $0.id == itemID })?.title ?? ""),
                         footer: Text(tr("The date defaults to today and the ODO to the current reading from the CCU."))) {
                     DatePicker(tr("Replaced on"), selection: $date, in: ...Date(), displayedComponents: .date)
                     HStack {
@@ -480,7 +480,7 @@ struct MaintHistorySheet: View {
                     Text(tr("No replacement records yet.")).foregroundColor(.secondary)
                 }
             }
-            .navigationTitle(maint.items.first(where: { $0.id == itemID })?.name ?? tr("History"))
+            .navigationTitle(maint.items.first(where: { $0.id == itemID })?.title ?? tr("History"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -510,7 +510,15 @@ struct MaintEditSheet: View {
             Form {
                 if let i = maint.items.firstIndex(where: { $0.id == itemID }) {
                     Section {
-                        TextField(tr("Name"), text: $maint.items[i].name)
+                        if maint.items[i].isDefault {
+                            HStack {
+                                Text(tr("Name"))
+                                Spacer()
+                                Text(maint.items[i].title).foregroundColor(.secondary)
+                            }
+                        } else {
+                            TextField(tr("Name"), text: $maint.items[i].name)
+                        }
                         HStack {
                             Text(tr("Every (km)"))
                             TextField("5000", text: $intervalText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
@@ -530,10 +538,12 @@ struct MaintEditSheet: View {
                                                       set: { maint.items[i].lastServiceDate = $0 }),
                                    in: ...Date(), displayedComponents: .date)
                     }
-                    Section {
-                        Button(tr("Delete item"), role: .destructive) {
-                            maint.remove(itemID)
-                            presentation.wrappedValue.dismiss()
+                    if !maint.items[i].isDefault {
+                        Section {
+                            Button(tr("Delete item"), role: .destructive) {
+                                maint.remove(itemID)
+                                presentation.wrappedValue.dismiss()
+                            }
                         }
                     }
                 }
